@@ -38,12 +38,22 @@ func (t *Tokens) mark(e ui.Element, on, pressed, focus bool) {
 	e.Transition(ui.ElementTransition{Duration: 150 * time.Millisecond, Colors: true, Ease: ui.EaseOut})
 }
 
-// pop starts the mark's contents (check, dot) at half size and transparent,
-// and springs them into place.
-func pop(e ui.Element, on bool) {
-	v := e.Spring("pop", b2f(on), ui.SpringOptions{Duration: 220 * time.Millisecond, Bounce: 0.35})
-	s := 0.45 + 0.55*v
-	e.Scale(s, s).Opacity(clamp01(v))
+// dotMark is a Radio's dot, 7px across: chosen, it opens from its middle a
+// moment after the fill comes in under it, easing out to its size without
+// an overshoot; left, it shrinks and fades away quicker, with the fill.
+func dotMark(c *ui.Context, on bool, color ui.Color) {
+	d := ui.Box(c).Size(7, 7).Radius(3.5).Background(color)
+	a := ui.Animation{Duration: 240 * time.Millisecond, Delay: 40 * time.Millisecond, Ease: ui.CubicBezier(0.2, 0.8, 0.2, 1)}
+	if !on {
+		a = ui.Animation{Duration: 90 * time.Millisecond, Ease: ui.EaseOut}
+	}
+	v := d.AnimateTo("open", b2f(on), a)
+	if !on {
+		s := 0.4 + 0.6*v
+		d.Scale(s, s).Opacity(v * v)
+		return
+	}
+	d.Scale(v, v).Opacity(clamp01(v * 3))
 }
 
 func b2f(b bool) float32 {
@@ -150,7 +160,7 @@ func Radio[T comparable](c *ui.Context, selected *T, value T, label string, o Ch
 		box := ui.Box(c).Size(18, 18).Radius(9).Center().Shrink(0)
 		t.mark(box, on, e.Pressed() && !o.Disabled, e.FocusVisible())
 		box.Children(func() {
-			pop(ui.Box(c).Size(7, 7).Radius(3.5).Background(t.Colors.OnAccent), on)
+			dotMark(c, on, t.Colors.OnAccent)
 		})
 	})
 	return e
@@ -214,7 +224,7 @@ func Choice[T comparable](c *ui.Context, selected *T, value T, title, desc strin
 		ui.Box(c).Height(20).Center().Children(func() {
 			box := ui.Box(c).Size(18, 18).Radius(9).Center().Shrink(0)
 			t.mark(box, on, false, false)
-			box.Children(func() { pop(ui.Box(c).Size(7, 7).Radius(3.5).Background(cl.OnAccent), on) })
+			box.Children(func() { dotMark(c, on, cl.OnAccent) })
 		})
 		ui.Column(c).Gap(2).MinWidth(0).Grow(1).Children(func() {
 			ui.Text(c, title).TextColor(cl.Text).FontSize(FsMd).FontWeight(600).LineHeight(20.0 / FsMd)
