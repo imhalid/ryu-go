@@ -37,6 +37,18 @@ func (s *State) layers(c *ui.Context, t *mz.Tokens) {
 					}
 				})
 			})
+			mz.Card(c, mz.CardOptions{Title: "Tabs", Subtitle: "The underline slides; a soft fill follows the pointer.", Pad: true}, func() {
+				mz.Tabs(c.Key("tabs"), &s.Tab, []mz.Tab{{Label: "Overview"}, {Label: "Activity", Badge: "12"}, {Label: "Members"}, {Label: "Settings"}},
+					mz.TabsOptions{Label: "Report"})
+				mz.TabPanel(c, s.Tab, func() {
+					mz.Text(c, []string{
+						"Weekly active users rose 4.2% after the new onboarding.",
+						"12 comments and 3 exports since Monday.",
+						"Maya Chen, Leo Park and 4 others can edit.",
+						"Exports, retention and sharing.",
+					}[s.Tab], mz.TBody).TextColor(cl.Text2)
+				})
+			})
 			mz.Card(c, mz.CardOptions{Title: "Toast", Subtitle: "Notices in the window's corner, tinted by their tone.", Pad: true}, func() {
 				ui.Row(c).Gap(mz.GapControl).Wrap().Children(func() {
 					if mz.Button(c.Key("toastInfo"), "Notify", mz.ButtonOptions{}).Clicked() {

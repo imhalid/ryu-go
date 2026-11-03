@@ -288,6 +288,13 @@ func Segmented(c *ui.Context, selected *int, labels []string, o SegmentedOptions
 	if o.Disabled {
 		tr.Opacity(0.4)
 	}
+	// The pill under the chosen segment slides to a new choice on a spring
+	// (straight there with the keys, or the first time it shows). It is
+	// painted by the track, under the segments: placed from where the last
+	// frame laid them out. Until then, the chosen segment paints its own.
+	segs := make([]ui.Element, len(labels))
+	var seps []ui.Element
+	keys := false
 	tr.Children(func() {
 		for i, l := range labels {
 			if i > 0 {
@@ -296,24 +303,19 @@ func Segmented(c *ui.Context, selected *int, labels []string, o SegmentedOptions
 					sep.Opacity(0)
 				}
 				sep.Transition(ui.ElementTransition{Duration: 150 * time.Millisecond, Colors: true})
+				seps = append(seps, sep)
 			}
-			s := parts.Segment(i).Center().Padding(0, m.SegPx).Radius(RadiusInner).Cursor(ui.CursorPointer).FocusRing(false)
+			s := parts.Segment(i).Center().Padding(0, m.SegPx).Radius(RadiusInner).Cursor(ui.CursorPointer).FocusRing(false).Border(0.5, ui.Color{})
+			segs[i] = s
 			if o.Fill {
 				s.Grow(1).Basis(0)
 			}
-			on := *selected == i
 			text := cl.Muted
-			if on {
+			if *selected == i || s.Hovered() && !o.Disabled {
 				text = cl.Text
-				s.LinearGradient(t.controlGradient(cl.ControlTop, cl.ControlBottom)).Border(0.5, cl.ControlBorder)
-				t.Shadows.ShadowRaised.Apply(s)
-			} else {
-				s.Border(0.5, ui.Color{})
-				if s.Hovered() && !o.Disabled {
-					text = cl.Text
-				}
 			}
 			if s.FocusVisible() {
+				keys = true
 				s.Border(2, Mix(ui.Color{}, cl.ColorAccent500, 0.55))
 			}
 			if s.Pressed() && !o.Disabled {
@@ -325,7 +327,66 @@ func Segmented(c *ui.Context, selected *int, labels []string, o SegmentedOptions
 			})
 		}
 	})
+	sel := *selected
+	if sel < 0 || sel >= len(segs) {
+		return tr
+	}
+	sb, tb := segs[sel].LayoutBounds(), tr.LayoutBounds()
+	if sb.W == 0 || tb.W == 0 {
+		segs[sel].LinearGradient(t.controlGradient(cl.ControlTop, cl.ControlBottom)).Border(0.5, cl.ControlBorder)
+		t.Shadows.ShadowRaised.Apply(segs[sel])
+		return tr
+	}
+	placed := ui.Local(tr, "placed", func() bool { return false })
+	x, w := sb.X-tb.X, sb.W
+	if keys || !*placed {
+		x, w = tr.Jump("pill-x", x), tr.Jump("pill-w", w)
+		*placed = true
+	} else {
+		x, w = tr.AnimateTo("pill-x", x, springPill), tr.AnimateTo("pill-w", w, springPill)
+	}
+	pill := ui.Rect{X: x, Y: sb.Y - tb.Y, W: w, H: sb.H}
+	// the separators the pill passes over go out as it does
+	for _, sep := range seps {
+		if b := sep.LayoutBounds(); b.W > 0 && b.X-tb.X > pill.X-2 && b.X-tb.X < pill.X+pill.W+2 {
+			sep.Opacity(0)
+		}
+	}
+	tr.Draw(func(p *ui.Painter, r ui.Rect) {
+		t.paintRaised(p, ui.Rect{X: r.X + pill.X, Y: r.Y + pill.Y, W: pill.W, H: pill.H}, RadiusInner, t.Shadows.ShadowRaised)
+	})
 	return tr
+}
+
+// springPill is how Segmented's pill slides: quick, with a hint of
+// overshoot.
+var springPill = ui.Animation{Spring: ui.SpringOptions{Duration: 280 * time.Millisecond, Bounce: 0.14}}
+
+// paintRaised paints the raised material with a painter, as raised() styles
+// an element: its shadows, the control gradient, the inset highlight and
+// shade lines, and a 0.5px border.
+func (t *Tokens) paintRaised(p *ui.Painter, r ui.Rect, radius float32, sh Shadow) {
+	cl := t.Colors
+	for _, l := range sh {
+		if !l.Inset && l.Color.A > 0 {
+			p.Shadow(r, radius, l.X, l.Y, l.Blur, l.Spread, l.Color)
+		}
+	}
+	p.FillGradient(r, t.controlGradient(cl.ControlTop, cl.ControlBottom), radius)
+	p.Clip(r, radius, func() {
+		for _, l := range sh {
+			if !l.Inset || l.Color.A == 0 {
+				continue
+			}
+			// an inset line of 1px at the top (Y > 0) or the bottom (Y < 0)
+			y := r.Y
+			if l.Y < 0 {
+				y = r.Y + r.H - 1
+			}
+			p.Fill(ui.Rect{X: r.X, Y: y, W: r.W, H: 1}, l.Color, 0)
+		}
+	})
+	p.Stroke(r, cl.ControlBorder, radius, 0.5)
 }
 
 // SliderOptions are the options of Slider.

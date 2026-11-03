@@ -464,13 +464,24 @@ const (
 // Toaster draws the window's toasts in its bottom right corner: frosted
 // glass with the pop shadow, a tint of their tone in the top left corner, a dot of
 // the tone, the title and description, an action and a close button. The
-// newest is at the bottom. Call it once in the view, wherever.
+// newest is in front, at the bottom, with the older ones tucked behind it
+// until the pointer comes onto them (see stack). Call it once in the view,
+// wherever.
 func Toaster(c *ui.Context) ui.Element {
 	t := From(c)
 	cl := t.Colors
 	return ui.ToastViewportBase(c, func(viewport ui.Element, toasts []ui.Toast) {
 		viewport.Padding(16).AlignItems(ui.End).Justify(ui.End).Gap(8)
-		for _, tt := range toasts {
+		// the toasts first, to know whether the pointer is on the stack
+		parts := make([]ui.ToastParts, len(toasts))
+		roots := make([]ui.Element, len(toasts))
+		open := false
+		for i, tt := range toasts {
+			parts[i] = ui.ToastBase(c.Key(tt.ID), tt)
+			roots[i] = parts[i].Root
+			open = open || roots[i].Hovered() || roots[i].FocusWithin()
+		}
+		for i, tt := range toasts {
 			tone := cl.Accent
 			switch tt.Type {
 			case ToastSuccess:
@@ -480,7 +491,7 @@ func Toaster(c *ui.Context) ui.Element {
 			case ToastError:
 				tone = cl.Up
 			}
-			p := ui.ToastBase(c.Key(tt.ID), tt)
+			p := parts[i]
 			r := p.Root.Row().Width(380).MaxWidthPercent(100).AlignItems(ui.Start).Gap(10).Padding(12, 10, 12, 14)
 			// frosted glass: the surface at 86% over what is behind, blurred,
 			// with a tint of the tone spreading from the top left corner
@@ -495,28 +506,72 @@ func Toaster(c *ui.Context) ui.Element {
 				Animation: springToast, Position: true,
 				Enter: &ui.Motion{Y: 28, Scale: 0.96}, Exit: &ui.Motion{Y: 6, Scale: 0.95},
 			})
+			// a toast tucked behind shows only its glass
+			shown := r.AnimateTo("shown", b2f(open || i == len(toasts)-1), stackSpring)
 			r.Children(func() {
-				ui.Box(c).Size(8, 8).Radius(4).Background(tone).Margin(6, 0, 0, 0).Shrink(0)
-				ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-					ui.Text(c, tt.Title).FontWeight(600).Wrap()
-					if tt.Description != "" {
-						ui.Text(c, tt.Description).TextColor(cl.Muted).FontSize(FsSm).Wrap()
-					}
-				})
-				if tt.Action != "" {
-					a := p.ActionButton().Center().Height(26).Padding(0, 10).Radius(RadiusPill).Cursor(ui.CursorPointer).FocusRing(false)
-					s := raisedState{hovered: a.Hovered(), pressed: a.Pressed(), focus: a.FocusVisible()}
-					t.raised(a, t.controlGradient(cl.ControlTop, cl.ControlBottom), cl.ControlBorder, t.Shadows.ControlShadow, s)
-					a.TextColor(cl.Text).FontSize(FsSm).FontWeight(600).Children(func() { ui.Text(c, tt.Action).NoWrap() })
-				}
-				x := p.CloseButton().Label("Close").Center().Size(24, 24).Radius(RadiusPill).Cursor(ui.CursorPointer).FocusRing(false)
-				color := cl.Muted
-				if x.Hovered() {
-					x.Background(cl.Fill)
-					color = cl.Text
-				}
-				x.TextColor(color).Children(func() { ui.Icon(c, iconClear) })
+				ui.Row(c).Grow(1).MinWidth(0).AlignItems(ui.Start).Gap(10).Opacity(shown).Children(func() { t.toastBody(c, p, tt, tone) })
 			})
 		}
+		stack(roots, open)
 	})
 }
+
+// toastBody builds a toast's content: the tone's dot, the title and
+// description, the action and the close button.
+func (t *Tokens) toastBody(c *ui.Context, p ui.ToastParts, tt ui.Toast, tone ui.Color) {
+	cl := t.Colors
+	ui.Box(c).Size(8, 8).Radius(4).Background(tone).Margin(6, 0, 0, 0).Shrink(0)
+	ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
+		ui.Text(c, tt.Title).FontWeight(600).Wrap()
+		if tt.Description != "" {
+			ui.Text(c, tt.Description).TextColor(cl.Muted).FontSize(FsSm).Wrap()
+		}
+	})
+	if tt.Action != "" {
+		a := p.ActionButton().Center().Height(26).Padding(0, 10).Radius(RadiusPill).Cursor(ui.CursorPointer).FocusRing(false)
+		s := raisedState{hovered: a.Hovered(), pressed: a.Pressed(), focus: a.FocusVisible()}
+		t.raised(a, t.controlGradient(cl.ControlTop, cl.ControlBottom), cl.ControlBorder, t.Shadows.ControlShadow, s)
+		a.TextColor(cl.Text).FontSize(FsSm).FontWeight(600).Children(func() { ui.Text(c, tt.Action).NoWrap() })
+	}
+	x := p.CloseButton().Label("Close").Center().Size(24, 24).Radius(RadiusPill).Cursor(ui.CursorPointer).FocusRing(false)
+	color := cl.Muted
+	if x.Hovered() {
+		x.Background(cl.Fill)
+		color = cl.Text
+	}
+	x.TextColor(color).Children(func() { ui.Icon(c, iconClear) })
+}
+
+// stack tucks the older toasts behind the newest, each peeking 10 DIPs
+// above the one in front, 5% smaller, and the fourth on out of sight; with
+// the pointer on a toast or the keyboard focus in one, they spread out
+// into a list. They move between the two on a spring.
+func stack(roots []ui.Element, open bool) {
+	n := len(roots)
+	if n == 0 {
+		return
+	}
+	front := roots[n-1].LayoutBounds()
+	for i, r := range roots {
+		d := float32(n - 1 - i) // 0 is the newest, in front
+		b := r.LayoutBounds()
+		var y, sx, sy, a float32 = 0, 1, 1, 1
+		if !open && d > 0 && b.H > 0 && front.H > 0 {
+			const peek = 10
+			// its top up to the front toast's top, then up by how deep it
+			// is; no taller than the front one, so that it hides behind it
+			y = front.Y - b.Y - min(d, 3)*peek
+			sx = 1 - 0.05*min(d, 3)
+			sy = sx * min(1, front.H/b.H)
+			if d >= 3 {
+				a = 0
+			}
+		}
+		y = r.AnimateTo("stack-y", y, stackSpring)
+		sx = r.AnimateTo("stack-sx", sx, stackSpring)
+		sy = r.AnimateTo("stack-sy", sy, stackSpring)
+		r.TransformOrigin(0.5, 0).Translate(0, y).Scale(sx, sy).Opacity(r.AnimateTo("stack-a", a, stackSpring))
+	}
+}
+
+var stackSpring = ui.Animation{Spring: ui.SpringOptions{Duration: 320 * time.Millisecond, Bounce: 0.08}}

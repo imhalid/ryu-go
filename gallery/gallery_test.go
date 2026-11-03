@@ -279,6 +279,7 @@ func page3(mode mz.Mode, skin mz.Skin) (*State, *ui.Tester) {
 }
 
 func TestDialog(t *testing.T) {
+	slow(t)
 	s, tt := page3(mz.Light, mz.SkinMizan)
 	if err := tt.Click("Open dialog"); err != nil {
 		t.Fatal(err)
@@ -311,6 +312,7 @@ func TestDialog(t *testing.T) {
 }
 
 func TestSheet(t *testing.T) {
+	slow(t)
 	s, tt := page3(mz.Light, mz.SkinMizan)
 	tt.Click("Open sheet")
 	tt.Advance(500 * time.Millisecond)
@@ -428,6 +430,7 @@ func TestLayerSnapshots(t *testing.T) {
 }
 
 func TestDialogDrag(t *testing.T) {
+	slow(t)
 	_, tt := page3(mz.Light, mz.SkinMizan)
 	tt.Click("Open dialog")
 	tt.Advance(600 * time.Millisecond)
@@ -498,5 +501,50 @@ func TestPolishSnapshots(t *testing.T) {
 		}
 		save(tt, "dialog-dragging-"+v.name)
 		tt.Release(x+176, y+32)
+	}
+}
+
+// Toasts stack behind the newest, and spread out under the pointer.
+func TestToastStack(t *testing.T) {
+	_, tt := page3(mz.Light, mz.SkinMizan)
+	tt.Click("Succeed")
+	tt.Click("Archive")
+	tt.Click("Fail")
+	tt.Advance(time.Second)
+	old, _ := tt.Find("Export finished")
+	front, _ := tt.Find("Upload failed")
+	if gap := front.Y - old.Y; gap > 40 {
+		t.Fatalf("collapsed, the oldest toast is %.0f above the newest; want it tucked behind", gap)
+	}
+	tt.Move(front.X+40, front.Y+4)
+	tt.Advance(time.Second)
+	old, _ = tt.Find("Export finished")
+	front, _ = tt.Find("Upload failed")
+	if gap := front.Y - old.Y; gap < 100 {
+		t.Fatalf("hovered, the oldest toast is %.0f above the newest; want the stack spread out", gap)
+	}
+}
+
+func TestTabs(t *testing.T) {
+	s, tt := page3(mz.Light, mz.SkinMizan)
+	if err := tt.Click("Activity"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Advance(400 * time.Millisecond)
+	if s.Tab != 1 || !tt.HasText("12 comments and 3 exports since Monday.") {
+		t.Fatalf("tab %d", s.Tab)
+	}
+	tt.Key(0, ui.KeyRight)
+	tt.Advance(400 * time.Millisecond)
+	if s.Tab != 2 {
+		t.Fatalf("Right: tab %d, want 2", s.Tab)
+	}
+}
+
+// slow skips a test under -short: dialogs and sheets blur what is behind
+// them, which the Tester draws on the CPU.
+func slow(t *testing.T) {
+	if testing.Short() {
+		t.Skip("blurs on the CPU; skipped with -short")
 	}
 }
