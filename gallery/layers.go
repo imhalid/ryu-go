@@ -12,13 +12,22 @@ var (
 	trash = mz.Svg(16, 15, "M2.5 4.5h11M6 4.5V3h4v1.5M4 4.5l.7 9h6.6l.7-9")
 )
 
+var comments = []string{
+	"The retention chart needs the October numbers.",
+	"Can we split the cohort by plan?",
+	"Looks good to me; shipping it Friday.",
+	"The export dropped two columns again.",
+	"Moved the summary above the fold.",
+	"Please double-check the totals in section 3.",
+}
+
 // layers is the third page: dialogs, sheets, popovers, menus, tooltips and
 // toasts.
 func (s *State) layers(c *ui.Context, t *mz.Tokens) {
 	cl := t.Colors
 	ui.Row(c).Gap(mz.GapSection).AlignItems(ui.Start).Children(func() {
 		ui.Column(c).Grow(1).Basis(0).Gap(mz.GapSection).Children(func() {
-			mz.Card(c, mz.CardOptions{Title: "Dialog and sheet", Subtitle: "Modal panels on the card surface, over a scrim.", Pad: true}, func() {
+			mz.Card(c, mz.CardOptions{Title: "Dialog and sheet", Subtitle: "Draggable panels in a halo of progressive blur.", Pad: true}, func() {
 				ui.Row(c).Gap(mz.GapControl).Children(func() {
 					if mz.Button(c.Key("openDialog"), "Open dialog", mz.ButtonOptions{}).Clicked() {
 						s.Dialog = true
@@ -108,7 +117,19 @@ func (s *State) layers(c *ui.Context, t *mz.Tokens) {
 			}
 		},
 	}, func() {
-		ui.Text(c, "The report and its 12 comments cannot be restored once deleted.").Wrap()
+		ui.Column(c).Gap(12).Children(func() {
+			ui.Text(c, "The report and its 12 comments cannot be restored once deleted. Drag the dialog by its header; scroll the comments to see them dissolve into its edges.").Wrap()
+			for i, who := range []string{"Maya Chen", "Leo Park", "Sam Rivera", "Noah Kim", "Ivy Brooks", "Maya Chen",
+				"Leo Park", "Sam Rivera", "Noah Kim", "Ivy Brooks", "Maya Chen", "Leo Park"} {
+				ui.Row(c.Key(i)).Gap(10).AlignItems(ui.Start).Children(func() {
+					mz.Avatar(c, who, mz.AvatarOptions{Size: 28})
+					ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
+						ui.Text(c, who).FontSize(mz.FsSm).FontWeight(600).TextColor(cl.Text)
+						ui.Text(c, comments[i%len(comments)]).FontSize(mz.FsMd).Wrap()
+					})
+				})
+			}
+		})
 	})
 	mz.Sheet(c.Key("sheet"), &s.Sheet, mz.DialogOptions{
 		Title:       "Report settings",

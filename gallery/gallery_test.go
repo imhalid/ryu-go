@@ -426,3 +426,77 @@ func TestLayerSnapshots(t *testing.T) {
 		save(tt, "menu-toast-"+v.name)
 	}
 }
+
+func TestDialogDrag(t *testing.T) {
+	_, tt := page3(mz.Light, mz.SkinMizan)
+	tt.Click("Open dialog")
+	tt.Advance(600 * time.Millisecond)
+	r0, ok := tt.Find("Delete the report?")
+	if !ok {
+		t.Fatal("no dialog")
+	}
+	x, y := r0.X+20, r0.Y+r0.H/2
+	tt.Press(x, y)
+	for i := 1; i <= 20; i++ {
+		tt.Move(x+float32(i)*8, y+float32(i)*3)
+		tt.Advance(16 * time.Millisecond)
+	}
+	tt.Advance(100 * time.Millisecond) // hold still, so it is not thrown
+	tt.Release(x+160, y+60)
+	tt.Advance(time.Second)
+	r1, _ := tt.Find("Delete the report?")
+	if dx, dy := r1.X-r0.X, r1.Y-r0.Y; dx < 150 || dx > 170 || dy < 50 || dy > 70 {
+		t.Fatalf("the dialog moved by %.0f, %.0f; want about 160, 60", dx, dy)
+	}
+	// dragged far past the window, it springs back inside it
+	x, y = r1.X+20, r1.Y+r1.H/2
+	tt.Press(x, y)
+	for i := 1; i <= 20; i++ {
+		tt.Move(x+float32(i)*60, y)
+		tt.Advance(16 * time.Millisecond)
+	}
+	tt.Release(x+1200, y)
+	tt.Advance(2 * time.Second)
+	panel, _ := tt.Find("Delete report")
+	if panel.X+panel.W > 1180 {
+		t.Fatalf("the dialog rests outside the window: its button ends at %.0f", panel.X+panel.W)
+	}
+	if r2, _ := tt.Find("Delete the report?"); r2.X <= r1.X {
+		t.Fatalf("the dialog did not move right: %.0f, before %.0f", r2.X, r1.X)
+	}
+}
+
+// TestPolishSnapshots draws a scrolled dialog's blurred edges, a dialog
+// being dragged, and the glass of a menu over the page.
+func TestPolishSnapshots(t *testing.T) {
+	dir := os.Getenv("MIZAN_SNAPSHOTS")
+	if dir == "" {
+		t.Skip("MIZAN_SNAPSHOTS not set")
+	}
+	save := func(tt *ui.Tester, name string) {
+		f, _ := os.Create(filepath.Join(dir, name+".png"))
+		png.Encode(f, tt.Image())
+		f.Close()
+	}
+	for _, v := range []struct {
+		name string
+		mode mz.Mode
+		skin mz.Skin
+	}{{"light", mz.Light, mz.SkinMizan}, {"dark", mz.Dark, mz.SkinMizan}} {
+		_, tt := page3(v.mode, v.skin)
+		tt.Click("Open dialog")
+		tt.Advance(600 * time.Millisecond)
+		r, _ := tt.Find("Delete the report?")
+		tt.Wheel(r.X+100, r.Y+300, 0, 160)
+		tt.Advance(600 * time.Millisecond)
+		save(tt, "dialog-scrolled-"+v.name)
+		x, y := r.X+20, r.Y+r.H/2
+		tt.Press(x, y)
+		for i := 1; i <= 8; i++ {
+			tt.Move(x+float32(i)*22, y+float32(i)*4)
+			tt.Advance(16 * time.Millisecond)
+		}
+		save(tt, "dialog-dragging-"+v.name)
+		tt.Release(x+176, y+32)
+	}
+}

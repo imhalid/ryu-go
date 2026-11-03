@@ -1,8 +1,7 @@
 package mizan
 
 import (
-	"time"
-
+	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -132,19 +131,23 @@ func dot(c *ui.Context, color ui.Color) ui.Element {
 	return ui.Box(c).Size(8, 8).Radius(RadiusPill).Background(color).Shrink(0)
 }
 
-// popover paints the popup surface: glass background, radius-pop corners, a
-// 0.5px line and a two-layer spreading shadow; it sits gap-field away from
-// the trigger and opens from 96% size, starting transparent.
+// popover paints a pop-up surface: frosted glass (what is behind blurs by
+// 24 DIPs under the translucent pop color), radius-pop corners and two
+// layers of spreading shadow; gap-field away from its trigger, it springs
+// open from its top corner, from 95% and 4px up.
 func popover(t *Tokens, panel ui.Element) {
-	// In Mizan, glass is a translucent --pop plus a backdrop-filter blur. MyGo
-	// has no layer that blurs what is behind; left translucent, the text
-	// underneath would show through, so the color is made opaque over the card
-	// background.
-	panel.Margin(GapField, 0, 0, 0).Padding(PadPop).Radius(RadiusPop).Background(over(t.Colors.Pop, t.Colors.Card)).
-		TextColor(t.Colors.Text)
+	panel.Margin(GapField, 0, 0, 0).Padding(PadPop).TextColor(t.Colors.Text)
+	t.frost(panel, t.Colors.Pop, RadiusPop, 24)
 	t.Shadows.ShadowPop.Apply(panel)
-	panel.Transition(ui.ElementTransition{
-		Duration: 180 * time.Millisecond,
-		Enter:    &ui.Motion{Opacity: 0, Scale: 0.96},
+	panel.TransformOrigin(0, 0).Transition(ui.ElementTransition{
+		Animation: springPop,
+		Enter:     &ui.Motion{Scale: 0.95, Y: -4},
+		Exit:      &ui.Motion{Scale: 0.97, Y: -2},
 	})
+}
+
+// frost fills e with frosted glass: what is behind it blurs by blur DIPs,
+// under tint, in corners of radius.
+func (t *Tokens) frost(e ui.Element, tint ui.Color, radius, blur float32) {
+	e.Radius(radius).Material(glass.Blur{Radius: blur}).Draw(func(p *ui.Painter, r ui.Rect) { p.Fill(r, tint, radius) })
 }
