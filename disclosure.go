@@ -103,7 +103,7 @@ func (t *Tokens) disclosure(c *ui.Context, title string, open *bool, o Collapsib
 	cl := t.Colors
 	p := ui.CollapsibleBase(c, open)
 	prog := p.Progress()
-	h := p.Trigger.FillWidth().AlignItems(ui.Center).Gap(10).Padding(8, 10).Radius(RadiusItem).
+	h := p.Trigger.FillWidth().AlignItems(ui.Center).Gap(10).Padding(8, 10).Radius(t.R(RadiusItem)).
 		Cursor(ui.CursorPointer).FocusRing(false).Disabled(o.Disabled)
 	if wide {
 		h.Padding(10, 10)

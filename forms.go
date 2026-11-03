@@ -244,7 +244,8 @@ func NumberInput(c *ui.Context, value *float64, o NumberInputOptions) ui.Element
 			}
 		})
 		// the stepper: one raised button cut in two, + above −
-		st := ui.Column(c).Width(m.NumStepW).Shrink(0).Radius(m.NumStepR).Clip().
+		// 4px inside the field, concentric with it
+		st := ui.Column(c).Width(m.NumStepW).Shrink(0).Radius(Concentric(m.NumR, 4)).Clip().
 			LinearGradient(t.controlGradient(cl.ControlTop, cl.ControlBottom)).Border(0.5, cl.ControlBorder)
 		t.Shadows.ShadowStepper.Apply(st)
 		st.Children(func() {
@@ -463,7 +464,7 @@ func matchOptions[T comparable](options []Option[T], q string) []int {
 // series-color dot and the muted description.
 func optionItem[T comparable](c *ui.Context, t *Tokens, item ui.Element, op Option[T], chosen bool) {
 	cl := t.Colors
-	item.AlignItems(ui.Center).Gap(6).Padding(6, 14, 6, 8).Radius(RadiusItem).FontSize(FsMd).Cursor(ui.CursorPointer)
+	item.AlignItems(ui.Center).Gap(6).Padding(6, 14, 6, 8).Radius(Concentric(t.R(RadiusPop), PadPop)).FontSize(FsMd).Cursor(ui.CursorPointer)
 	hl := item.Highlighted() && !op.Disabled
 	muted, check := cl.Muted, cl.Accent
 	if hl {
@@ -816,7 +817,7 @@ func TagInput(c *ui.Context, tags *[]string, o TagInputOptions) ui.Element {
 	box.Children(func() {
 		for i, tag := range *tags {
 			ui.Row(c.Key(tag)).Height(chipH).AlignItems(ui.Center).Gap(2).Padding(0, 3, 0, m.ChipPx-2).
-				Radius(RadiusPill).Background(cl.Fill).Shrink(0).Children(func() {
+				Radius(Concentric(m.FieldR, 4)).Background(cl.Fill).Shrink(0).Children(func() {
 				ui.Text(c, tag).TextColor(cl.Text).FontSize(m.ChipFs).FontWeight(500).NoWrap()
 				d := chipH - 8
 				// not a stop of Tab: Backspace takes tags out from the keyboard

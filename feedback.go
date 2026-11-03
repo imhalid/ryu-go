@@ -210,8 +210,9 @@ func Spinner(c *ui.Context, o SpinnerOptions) ui.Element {
 //
 //	mizan.Skeleton(c, 40, 40).Radius(mizan.RadiusPill) // an avatar's
 func Skeleton(c *ui.Context, w, h float32) ui.Element {
-	cl := From(c).Colors
-	e := ui.Box(c).Height(h).Radius(RadiusTrack).Background(cl.WellStrong).Clip().Shrink(0)
+	t := From(c)
+	cl := t.Colors
+	e := ui.Box(c).Height(h).Radius(t.R(RadiusTrack)).Background(cl.WellStrong).Clip().Shrink(0)
 	if w > 0 {
 		e.Width(w)
 	} else {

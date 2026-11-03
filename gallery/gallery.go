@@ -12,15 +12,17 @@ import (
 // State is the state of the showcase.
 type State struct {
 	Mode mz.Mode
-	Skin mz.Skin
 	// Accent is the brand color picked in the header, zero for Mizan's blue.
 	Accent ui.Color
-	Query  string
-	Email  string
-	Pass   string
-	Range  int
-	Team   string
-	Count  int
+	// Density and Round are the size step and the corners picked in the
+	// header: 0 small, 1 medium, 2 large.
+	Density, Round int
+	Query          string
+	Email          string
+	Pass           string
+	Range          int
+	Team           string
+	Count          int
 
 	Mail, Push, Digest bool
 	Plan, Tier         string
@@ -64,6 +66,7 @@ type file struct{ Name, Size string }
 // New returns a showcase state with sample values.
 func New() *State {
 	return &State{
+		Density: 1, Round: 1,
 		Range: 30, Email: "ada@", Pass: "secret",
 		Mail: true, Plan: "week", Tier: "pro", Sync: true, Volume: 64, Zoom: 1.25,
 		Msgs: []mz.ChatMessage{
@@ -89,7 +92,9 @@ var search = mz.Svg(16, 15, "M7 12.5a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM14.5
 
 // View builds the showcase.
 func (s *State) View(c *ui.Context) {
-	t := mz.Root(c, mz.Options{Mode: s.Mode, Skin: s.Skin, Accent: s.Accent})
+	steps := [...]mz.Size{mz.Sm, mz.Md, mz.Lg}
+	corners := [...]mz.Corners{mz.CornersSm, mz.CornersMd, mz.CornersLg}
+	t := mz.Root(c, mz.Options{Mode: s.Mode, Accent: s.Accent, Size: steps[s.Density], Corners: corners[s.Round]})
 	ui.Scroll(c).Fill().Children(func() { s.page(c, t) })
 	mz.Toaster(c)
 }
@@ -101,39 +106,37 @@ func (s *State) page(c *ui.Context, t *mz.Tokens) {
 				mz.Text(c, "Mizan", mz.TDisplay)
 				mz.Text(c, "Native components for calm, data-dense interfaces.", mz.TLede).TextColor(t.Colors.Muted)
 			})
-			ui.Row(c).Gap(mz.GapControl).Children(func() {
-				s.accents(c, t)
-				ui.Box(c).Size(8, 0)
-				for i, name := range []string{"Controls", "Chat and drag", "Layers", "Forms", "Feedback", "Table"} {
-					o := mz.ButtonOptions{Size: mz.Sm}
-					if s.Page == i {
-						o.Color = t.Colors.Accent
+			// the pages, and under them how the page looks: the accent, the
+			// size step, the corners and the theme
+			ui.Column(c).Gap(10).AlignItems(ui.End).Children(func() {
+				ui.Row(c).Gap(mz.GapControl).Children(func() {
+					for i, name := range []string{"Controls", "Chat and drag", "Layers", "Forms", "Feedback", "Table"} {
+						o := mz.ButtonOptions{Size: mz.Sm}
+						if s.Page == i {
+							o.Color = t.Colors.Accent
+						}
+						if mz.Button(c.Key(name), name, o).Clicked() {
+							s.Page = i
+						}
 					}
-					if mz.Button(c.Key(name), name, o).Clicked() {
-						s.Page = i
-					}
-				}
-				ui.Box(c).Size(8, 0)
-				mode := "Dark"
-				if t.Dark {
-					mode = "Light"
-				}
-				if mz.Button(c.Key("mode"), mode, mz.ButtonOptions{Size: mz.Sm}).Clicked() {
-					s.Mode = mz.Dark
+				})
+				ui.Row(c).Gap(mz.GapControl).AlignItems(ui.Center).Children(func() {
+					s.accents(c, t)
+					ui.Box(c).Size(10, 0)
+					setting(c, t, "Size", &s.Density)
+					setting(c, t, "Radius", &s.Round)
+					ui.Box(c).Size(6, 0)
+					mode := "Dark"
 					if t.Dark {
-						s.Mode = mz.Light
+						mode = "Light"
 					}
-				}
-				skin := "Bevel"
-				if t.Skin == mz.SkinBevel {
-					skin = "Mizan"
-				}
-				if mz.Button(c.Key("skin"), skin, mz.ButtonOptions{Size: mz.Sm}).Clicked() {
-					s.Skin = mz.SkinBevel
-					if t.Skin == mz.SkinBevel {
-						s.Skin = mz.SkinMizan
+					if mz.Button(c.Key("mode"), mode, mz.ButtonOptions{Size: mz.Sm}).Clicked() {
+						s.Mode = mz.Dark
+						if t.Dark {
+							s.Mode = mz.Light
+						}
 					}
-				}
+				})
 			})
 		})
 		if s.Page == 5 {
@@ -266,6 +269,14 @@ var accents = []struct {
 }
 
 // accents builds the brand color swatches: a ring marks the one chosen.
+// setting is a small, muted label and a compact S / M / L choice.
+func setting(c *ui.Context, t *mz.Tokens, label string, at *int) {
+	ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
+		ui.Text(c, label).FontSize(mz.FsXs).FontWeight(500).TextColor(t.Colors.Muted).NoWrap()
+		mz.Segmented(c.Key(label), at, []string{"S", "M", "L"}, mz.SegmentedOptions{Label: label, Size: mz.Sm})
+	})
+}
+
 func (s *State) accents(c *ui.Context, t *mz.Tokens) {
 	ui.RadioGroup(c, func() {
 		ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {

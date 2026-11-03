@@ -41,7 +41,7 @@ func Card(c *ui.Context, o CardOptions, body func()) ui.Element {
 				}
 			})
 		}
-		panel := ui.Column(c).MinWidth(0).Radius(RadiusLg).Background(cl.Card)
+		panel := ui.Column(c).MinWidth(0).Radius(t.R(RadiusLg)).Background(cl.Card)
 		if o.Pad {
 			panel.Padding(PadCard)
 		} else {

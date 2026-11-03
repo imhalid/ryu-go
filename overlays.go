@@ -106,7 +106,7 @@ func Dialog(c *ui.Context, open *bool, o DialogOptions, body func()) ui.Element 
 	return presence(c, open, *springPanel, exitPanel, func(backdrop, panel ui.Element, p float32) {
 		backdrop.Padding(24, 16).Background(t.Colors.Scrim.Alpha(clamp01(p)))
 		panel.Width(or(o.Width, 480)).MaxWidthPercent(100).MaxHeight(720)
-		card, head := t.panelContent(c, open, o, body, false, RadiusLg)
+		card, head := t.panelContent(c, open, o, body, false, t.R(RadiusLg))
 		s := 0.94 + 0.06*p
 		card.Translate(0, 10*(1-p)).Scale(s, s).Opacity(clamp01(p))
 		if !o.Fixed {
@@ -347,7 +347,7 @@ func (m *MenuList) Item(label string, o ItemOptions) bool {
 	m.n++
 	cl := t.Colors
 	e := ui.ButtonBase(c).Label(label).Role(ui.RoleMenuItem).FillWidth().AlignItems(ui.Center).Gap(10).
-		MinHeight(34).Padding(0, 12, 0, 10).Radius(RadiusItem).FontSize(FsMd).Cursor(ui.CursorPointer).
+		MinHeight(34).Padding(0, 12, 0, 10).Radius(Concentric(t.R(RadiusPop), PadPop)).FontSize(FsMd).Cursor(ui.CursorPointer).
 		FocusRing(false).Disabled(o.Disabled)
 	if m.first && !o.Disabled {
 		e.AutoFocus()
@@ -443,7 +443,7 @@ func Tooltip(c *ui.Context, anchor ui.Element, text string) ui.Element {
 	cl := t.Colors
 	return ui.TooltipBase(c, anchor, func(tip ui.Element) {
 		tip.Margin(0, 0, 8, 0).MaxWidth(260).Padding(6, 10)
-		t.frost(tip, cl.Text.Alpha(0.9), RadiusItem, 12)
+		t.frost(tip, cl.Text.Alpha(0.9), t.R(RadiusItem), 12)
 		tip.TransformOrigin(0.5, 1).Transition(ui.ElementTransition{
 			Duration: 120 * time.Millisecond, Ease: ui.EaseOut,
 			Enter: &ui.Motion{Y: 3, Scale: 0.97}, Exit: &ui.Motion{Y: 2, Scale: 0.98},
@@ -528,23 +528,23 @@ func (t *Tokens) toast(c *ui.Context, p ui.ToastParts, tt ui.Toast, shown bool) 
 	// a tint of the tone spreading from the top left corner
 	tint := Mix(ui.Color{}, tone, 0.12)
 	ring, halo, beaming := t.beam(beam, tone)
-	r.Radius(RadiusPop).Material(glass.Blur{Radius: 20}).Draw(func(pt *ui.Painter, b ui.Rect) {
+	r.Radius(t.R(RadiusPop)).Material(glass.Blur{Radius: 20}).Draw(func(pt *ui.Painter, b ui.Rect) {
 		if beaming {
 			// the beam's glow under the glass: only what spills past its
 			// edge shows, as behind Mizan's opaque cards
 			for _, w := range []float32{18, 11, 5} {
-				pt.StrokePathConicGradient(roundBorder(b, RadiusPop), w, halo)
+				pt.StrokePathConicGradient(roundBorder(b, t.R(RadiusPop)), w, halo)
 			}
 		}
-		pt.Fill(b, cl.Surface.Alpha(0.86), RadiusPop)
+		pt.Fill(b, cl.Surface.Alpha(0.86), t.R(RadiusPop))
 		pt.FillRadialGradient(b, ui.RadialGradient{Center: ui.Point{X: 0.001, Y: 0.001}, Radius: b.W * 0.7, Oklab: true,
-			Stops: []ui.GradientStop{{Color: tint, At: 0}, {Color: tint.Alpha(0), At: 1}}}, RadiusPop)
+			Stops: []ui.GradientStop{{Color: tint, At: 0}, {Color: tint.Alpha(0), At: 1}}}, t.R(RadiusPop))
 	})
 	vis := r.AnimateTo("shown", b2f(shown), stackSpring)
 	if beaming {
 		r.DrawOver(func(pt *ui.Painter, b ui.Rect) {
 			b = ui.Rect{X: b.X + 0.5, Y: b.Y + 0.5, W: b.W - 1, H: b.H - 1}
-			pt.StrokePathConicGradient(roundBorder(b, RadiusPop-0.5), 1, ring)
+			pt.StrokePathConicGradient(roundBorder(b, t.R(RadiusPop)-0.5), 1, ring)
 		})
 	}
 	t.Shadows.ShadowPop.Apply(r)

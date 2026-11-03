@@ -18,7 +18,7 @@
 //		})
 //	}
 //
-// The theme (Light, Dark), skin (SkinMizan, SkinBevel) and size (Sm, Md, Lg)
-// are given to the whole window with Root and to a region with Scope; the
-// nearest scope wins. Components read the values with From(c).
+// The theme (Light, Dark), size (Sm, Md, Lg) and accent color are given
+// to the whole window with Root and to a region with Scope; the nearest
+// scope wins. Components read the values with From(c).
 package mizan

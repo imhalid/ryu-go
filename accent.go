@@ -9,7 +9,7 @@ import (
 
 // Mizan's accent is a ramp of one hue (256, blue): steps 400 to 700 and
 // the colors made of them (the selected-row fill, the field and focus
-// rings, bevel's LED). A brand accent replaces that hue and scales the
+// rings). A brand accent replaces that hue and scales the
 // chroma; the lightness of every step stays Mizan's, so white text on a
 // solid button and the rings keep their contrast in both themes.
 
@@ -52,7 +52,7 @@ func (t *Tokens) withAccent(accent ui.Color) {
 	c := &t.Colors
 	for _, p := range []*ui.Color{
 		&c.ColorAccent400, &c.ColorAccent500, &c.ColorAccent600, &c.ColorAccent700, &c.Accent,
-		&c.FillSelected, &c.LedColor, &c.LedCore, &c.LedGlow,
+		&c.FillSelected,
 	} {
 		*p = s.color(*p)
 	}
@@ -60,7 +60,6 @@ func (t *Tokens) withAccent(accent ui.Color) {
 	sh.Ring = s.shadow(sh.Ring)
 	// the first layer of the focus ring is the gap in the background color
 	sh.FocusRing = s.shadow(sh.FocusRing, 1)
-	sh.SwitchOnGlow = s.shadow(sh.SwitchOnGlow)
 }
 
 func toOklch(c ui.Color) (l, ch, h float64) {
@@ -116,7 +115,7 @@ func inGamut(l, a, b float64) bool {
 // Swatch returns the accent that a brand color gives in t's theme: what
 // Options.Accent would make Colors.Accent, for showing a choice of colors.
 func Swatch(t *Tokens, accent ui.Color) ui.Color {
-	base := skinColors[t.Skin-1][b2i(t.Dark)].Accent
+	base := themeColors[b2i(t.Dark)].Accent
 	if accent == (ui.Color{}) {
 		return base
 	}

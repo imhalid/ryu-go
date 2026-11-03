@@ -44,7 +44,7 @@ func Tabs(c *ui.Context, selected *int, tabs []Tab, o TabsOptions) ui.Element {
 	list.Children(func() {
 		for i, tb := range tabs {
 			e := parts.Tab(i).Height(m.TabH).Padding(0, m.TabPx).AlignItems(ui.Center).Gap(6).
-				Radius(RadiusItem).Cursor(ui.CursorPointer).FocusRing(false).Border(2, ui.Color{})
+				Radius(t.R(RadiusItem)).Cursor(ui.CursorPointer).FocusRing(false).Border(2, ui.Color{})
 			els[i] = e
 			text := cl.Muted
 			if *selected == i || e.Hovered() {
@@ -115,7 +115,7 @@ func Tabs(c *ui.Context, selected *int, tabs []Tab, o TabsOptions) ui.Element {
 	h := m.TabH
 	list.Draw(func(p *ui.Painter, r ui.Rect) {
 		if fade > 0 && hw > 0 {
-			p.Fill(ui.Rect{X: r.X + hx, Y: r.Y + 4, W: hw, H: h - 8}, cl.Fill.Alpha(fade), RadiusItem)
+			p.Fill(ui.Rect{X: r.X + hx, Y: r.Y + 4, W: hw, H: h - 8}, cl.Fill.Alpha(fade), t.R(RadiusItem))
 		}
 		if hasSel && uw > 16 {
 			p.Fill(ui.Rect{X: r.X + ux + 8, Y: r.Y + r.H - 2, W: uw - 16, H: 2}, cl.Text, 1)

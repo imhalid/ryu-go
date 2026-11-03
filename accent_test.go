@@ -15,15 +15,14 @@ func near(a, b ui.Color, tol int) bool {
 // Mizan's own accent given as the brand changes nothing.
 func TestAccentIdentity(t *testing.T) {
 	for _, dark := range []bool{false, true} {
-		base := tokensFor(SkinBevel, dark, Md, ui.Color{})
-		same := tokensFor(SkinBevel, dark, Md, oklch(0.56, 0.19, 256, 1))
+		base := tokensFor(dark, Md, CornersMd, ui.Color{})
+		same := tokensFor(dark, Md, CornersMd, oklch(0.56, 0.19, 256, 1))
 		for name, pair := range map[string][2]ui.Color{
 			"500":      {base.Colors.ColorAccent500, same.Colors.ColorAccent500},
 			"accent":   {base.Colors.Accent, same.Colors.Accent},
 			"selected": {base.Colors.FillSelected, same.Colors.FillSelected},
 			"ring":     {base.Shadows.Ring[0].Color, same.Shadows.Ring[0].Color},
 			"focus":    {base.Shadows.FocusRing[1].Color, same.Shadows.FocusRing[1].Color},
-			"led":      {base.Colors.LedColor, same.Colors.LedColor},
 		} {
 			if !near(pair[0], pair[1], 2) {
 				t.Errorf("dark=%v %s: %v, want %v", dark, name, pair[1], pair[0])
@@ -37,8 +36,8 @@ func TestAccentIdentity(t *testing.T) {
 func TestAccentDerives(t *testing.T) {
 	orange := oklch(0.7, 0.18, 50, 1)
 	for _, dark := range []bool{false, true} {
-		base := tokensFor(SkinMizan, dark, Md, ui.Color{})
-		got := tokensFor(SkinMizan, dark, Md, orange)
+		base := tokensFor(dark, Md, CornersMd, ui.Color{})
+		got := tokensFor(dark, Md, CornersMd, orange)
 		for _, pair := range [][2]ui.Color{
 			{base.Colors.ColorAccent400, got.Colors.ColorAccent400},
 			{base.Colors.ColorAccent500, got.Colors.ColorAccent500},

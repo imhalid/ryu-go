@@ -7,8 +7,8 @@ import (
 )
 
 // Choice controls start inset (a well, an axis border) and fill with the
-// accent gradient when selected; knobs (Switch, Slider) are discs sitting
-// on the well, white, or metal in bevel.
+// accent gradient when selected; knobs (Switch, Slider) are white discs
+// sitting on the well.
 
 // accentFill is the fill of a selection mark (CSS --accent-fill).
 func (t *Tokens) accentFill() ui.LinearGradient {
@@ -21,7 +21,7 @@ func (t *Tokens) accentFill() ui.LinearGradient {
 // puts the ring in place of the shadow.
 func (t *Tokens) mark(e ui.Element, on, pressed, focus bool) {
 	cl := t.Colors
-	sh := t.Shadows.WellShadow
+	var sh Shadow
 	if on {
 		e.LinearGradient(t.accentFill()).Border(1, cl.ColorAccent600)
 		sh = t.Shadows.SheenAccent.With(ShadowLayer{Y: 1, Blur: 2, Color: Mix(cl.ColorAccent700, ui.Color{}, 0.6)})
@@ -87,7 +87,7 @@ func Checkbox(c *ui.Context, checked *bool, label string, o CheckOptions) ui.Ele
 	}
 	on := *checked || o.Indeterminate
 	t.choiceRow(c, e, label, o.Description, o.Disabled, func() {
-		box := ui.Box(c).Size(18, 18).Radius(6).Center().Shrink(0)
+		box := ui.Box(c).Size(18, 18).Radius(min(t.R(6), 7)).Center().Shrink(0)
 		t.mark(box, on, e.Pressed() && !o.Disabled, e.FocusVisible())
 		box.Children(func() { checkMark(c, 12, 1.75, on, o.Indeterminate, false, t.Colors.OnAccent) })
 	})
@@ -198,17 +198,15 @@ func Choice[T comparable](c *ui.Context, selected *T, value T, title, desc strin
 	cl := t.Colors
 	e := ui.RadioBase(c, selected, value).Disabled(o.Disabled).Label(title)
 	on := *selected == value
-	e.Gap(10).AlignItems(ui.Start).Padding(12, 14).Radius(RadiusControl).Cursor(ui.CursorPointer).FocusRing(false).MinWidth(0)
+	e.Gap(10).AlignItems(ui.Start).Padding(12, 14).Radius(t.R(RadiusControl)).Cursor(ui.CursorPointer).FocusRing(false).MinWidth(0)
 	switch {
 	case on:
 		e.LinearGradient(t.controlGradient(cl.ControlTop, cl.ControlBottom)).Border(1, cl.ControlBorder)
 		t.Shadows.ShadowRaised.Apply(e)
 	case e.Hovered() && !o.Disabled:
 		e.Background(Mix(cl.Well, cl.Text, 0.06)).Border(1, ui.Color{})
-		t.Shadows.WellShadow.Apply(e)
 	default:
 		e.Background(cl.Well).Border(1, ui.Color{})
-		t.Shadows.WellShadow.Apply(e)
 	}
 	if e.FocusVisible() {
 		t.Shadows.FocusRing.Apply(e)
@@ -236,13 +234,8 @@ func Choice[T comparable](c *ui.Context, selected *T, value T, title, desc strin
 	return e
 }
 
-// knob is a knob's surface: a white disc in Mizan, metal that darkens from
-// top to bottom in bevel.
+// knob is a knob's surface: a white disc.
 func (t *Tokens) knob(e ui.Element) {
-	if t.Skin == SkinBevel {
-		e.LinearGradient(ui.LinearGradient{Angle: 180, Oklab: true, From: t.Colors.KnobTop, To: t.Colors.KnobBot})
-		return
-	}
 	e.Background(t.Colors.Thumb)
 }
 
@@ -254,9 +247,8 @@ type SwitchOptions struct {
 }
 
 // Switch is a 38×22 switch: the track is a dark well that fills with the
-// accent gradient when on (in bevel the track stays the same and a 6px LED
-// lights up on the side the knob leaves); the knob slides on a spring and
-// stretches into a short capsule while held.
+// accent gradient when on; the knob slides on a spring and stretches into
+// a short capsule while held.
 //
 //	mizan.Switch(c.Key("sync"), &app.sync, mizan.SwitchOptions{Label: "Sync"})
 func Switch(c *ui.Context, on *bool, o SwitchOptions) ui.Element {
@@ -269,11 +261,9 @@ func Switch(c *ui.Context, on *bool, o SwitchOptions) ui.Element {
 	pressed := e.Pressed() && !o.Disabled
 	t.choiceRow(c, e, o.Label, o.Description, o.Disabled, func() {
 		track := ui.Box(c).Size(38, 22).Radius(RadiusPill).Background(cl.WellStrong).Shrink(0)
-		sh := t.Shadows.WellShadow
 		if e.FocusVisible() {
-			sh = t.Shadows.FocusRing
+			t.Shadows.FocusRing.Apply(track)
 		}
-		sh.Apply(track)
 		lit := track.Animate("on", b2f(*on), 200*time.Millisecond)
 		// the knob's start and width move on one spring, so that it goes
 		// straight the new way: pressed, it stretches toward the middle
@@ -283,16 +273,8 @@ func Switch(c *ui.Context, on *bool, o SwitchOptions) ui.Element {
 		w := track.Spring("w", 18+stretch, spring)
 		x := track.Spring("x", 16*b2f(*on)-stretch*b2f(*on), spring)
 		track.Children(func() {
-			if t.Skin == SkinBevel {
-				led := ui.Box(c).Absolute().Left(7).Top(8).Size(6, 6).Radius(3).Opacity(lit).
-					RadialGradient(ui.RadialGradient{Center: ui.Point{X: 0.5, Y: 0.35}, Oklab: true, Stops: []ui.GradientStop{
-						{Color: cl.LedCore, At: 0}, {Color: cl.LedColor, At: 0.7},
-					}})
-				t.Shadows.SwitchOnGlow.Apply(led)
-			} else {
-				ui.Box(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).Radius(RadiusPill).
-					LinearGradient(t.accentFill()).Opacity(lit)
-			}
+			ui.Box(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).Radius(RadiusPill).
+				LinearGradient(t.accentFill()).Opacity(lit)
 			k := ui.Box(c).Absolute().Left(2).Top(2).Size(w, 18).Radius(RadiusPill).Translate(x, 0)
 			t.knob(k)
 			t.Shadows.KnobShadow.Apply(k)
@@ -323,11 +305,12 @@ func Segmented(c *ui.Context, selected *int, labels []string, o SegmentedOptions
 	m := t.Metrics
 	cl := t.Colors
 	parts := ui.SegmentedBase(c, selected, len(labels))
-	tr := parts.Track.Height(m.ControlH).Padding(3).Radius(RadiusControl).Background(cl.Well).AlignItems(ui.Stretch).Disabled(o.Disabled)
+	// the pill sits 3px inside the track, on the track's corners' centers
+	inner := Concentric(t.R(RadiusControl), 3)
+	tr := parts.Track.Height(m.ControlH).Padding(3).Radius(t.R(RadiusControl)).Background(cl.Well).AlignItems(ui.Stretch).Disabled(o.Disabled)
 	if o.Label != "" {
 		tr.Label(o.Label)
 	}
-	t.Shadows.WellShadow.Apply(tr)
 	if o.Fill {
 		tr.FillWidth()
 	} else {
@@ -354,7 +337,7 @@ func Segmented(c *ui.Context, selected *int, labels []string, o SegmentedOptions
 				sep.Transition(ui.ElementTransition{Duration: 150 * time.Millisecond, Colors: true})
 				seps = append(seps, sep)
 			}
-			s := parts.Segment(i).Center().Padding(0, m.SegPx).Radius(RadiusInner).Cursor(ui.CursorPointer).FocusRing(false).Border(0.5, ui.Color{})
+			s := parts.Segment(i).Center().Padding(0, m.SegPx).Radius(inner).Cursor(ui.CursorPointer).FocusRing(false).Border(0.5, ui.Color{})
 			segs[i] = s
 			if o.Fill {
 				s.Grow(1).Basis(0)
@@ -409,7 +392,7 @@ func Segmented(c *ui.Context, selected *int, labels []string, o SegmentedOptions
 	}
 	tr.Draw(func(p *ui.Painter, r ui.Rect) {
 		pr := ui.Rect{X: r.X + pill.X, Y: r.Y + pill.Y, W: pill.W, H: pill.H}
-		t.paintRaised(p, pr, RadiusInner, t.Shadows.ShadowRaised)
+		t.paintRaised(p, pr, inner, t.Shadows.ShadowRaised)
 	})
 	return tr
 }

@@ -16,19 +16,10 @@ type raisedState struct {
 	hovered, pressed, focus, disabled bool
 }
 
-// controlGradient is the background of a raised control (CSS --control). In
-// Mizan the darkest band is at 72% and the bottom edge lightens a little
-// again (reflected light); in bevel, a flat background and a sheen fading
-// from the top.
+// controlGradient is the background of a raised control (CSS --control):
+// the darkest band is at 72% and the bottom edge lightens a little again
+// (reflected light).
 func (t *Tokens) controlGradient(top, bottom ui.Color) ui.LinearGradient {
-	if t.Skin == SkinBevel {
-		c := t.Colors
-		return ui.LinearGradient{Angle: 180, Oklab: true, Stops: []ui.GradientStop{
-			{Color: over(c.BevelHiSoft, c.Raised), At: 0},
-			{Color: c.Raised, At: 0.7},
-			{Color: c.Raised, At: 1},
-		}}
-	}
 	return ui.LinearGradient{Angle: 180, Oklab: true, Stops: []ui.GradientStop{
 		{Color: top, At: 0},
 		{Color: bottom, At: 0.72},
@@ -84,7 +75,8 @@ func (t *Tokens) raised(e ui.Element, g ui.LinearGradient, border ui.Color, shad
 // the outside a soft ring.
 func (t *Tokens) well(e ui.Element, focus, invalid bool) {
 	c := t.Colors
-	bg, border, shadow := c.Well, c.WellBorder, t.Shadows.WellShadow
+	bg, border := c.Well, c.WellBorder
+	var shadow Shadow
 	if focus {
 		bg, border, shadow = c.Surface, c.ColorAccent500, t.Shadows.Ring
 	}

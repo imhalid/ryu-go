@@ -51,18 +51,18 @@ go run github.com/imhalid/mizan-go/cmd/gallery@latest
 inherited, and the nearest scope wins.
 
 - **Mode:** `Light`, `Dark`, or the system's appearance.
-- **Skin:** `SkinMizan`, or `SkinBevel` (raised edges, metal knobs, an LED switch).
 - **Size:** `Sm`, `Md`, `Lg`. A button and a field of the same step are the same height.
+- **Corners:** `CornersSm`, `CornersMd`, `CornersLg`: the radii of cards, fields, menus and tables at half, at, or one and a half times Mizan's. Pills and circles keep their shape, and a surface nested inside another keeps its corners concentric with it (`Concentric`: the outer radius less the padding).
 - **Accent:** a brand color. The accent ramp, selection fills and rings take its hue and chroma at Mizan's lightness steps, so contrast holds in both themes.
 
 ```go
-mizan.Root(c, mizan.Options{Skin: mizan.SkinBevel, Accent: ui.Oklch(0.56, 0.2, 295)})
+mizan.Root(c, mizan.Options{Accent: ui.Oklch(0.56, 0.2, 295), Corners: mizan.CornersLg})
 mizan.Scope(c, mizan.Options{Size: mizan.Sm}).Children(func() { ... })
 ```
 
 The tokens are Go values in [tokens.go](tokens.go), written in OKLCH.
 
-![Bevel skin with a violet accent, dark theme](docs/accent-violet-bevel-dark.png)
+![A violet accent, dark theme](docs/accent-violet-dark.png)
 
 ## Components
 

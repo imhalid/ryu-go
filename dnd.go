@@ -295,7 +295,7 @@ func grip(c *ui.Context, color ui.Color) {
 // corner radius; lifted, it takes the pop shadow.
 func (t *Tokens) tile(e ui.Element, hovered, lifted bool) {
 	cl := t.Colors
-	e.Radius(RadiusControl).Cursor(ui.CursorGrab)
+	e.Radius(t.R(RadiusControl)).Cursor(ui.CursorGrab)
 	sh := t.Shadows.ControlShadow
 	if lifted {
 		sh = t.Shadows.ShadowPop
@@ -491,7 +491,8 @@ func DropArea[T any](c *ui.Context, o DropAreaOptions, body func(), drop func(v 
 	cl := t.Colors
 	const gap = 8
 	settleDrop(c)
-	e := ui.Column(c).Gap(gap).Padding(10).Radius(RadiusLg).MinWidth(0)
+	// the column's corners go round its cards', 10px out
+	e := ui.Column(c).Gap(gap).Padding(10).Radius(t.R(RadiusControl) + 10).MinWidth(0)
 	if o.Fill {
 		e.Grow(1)
 	}
@@ -515,7 +516,6 @@ func DropArea[T any](c *ui.Context, o DropAreaOptions, body func(), drop func(v 
 	}
 	flash := e.AnimateTo("flash", 1, ui.Animation{Duration: 1500 * time.Millisecond, Ease: ui.EaseInOut})
 	e.Background(Mix(cl.Well, cl.ColorAccent500, 0.04*over)).Border(1, Mix(cl.WellBorder, cl.ColorAccent500, 0.55*over))
-	t.Shadows.WellShadow.Apply(e)
 	t.cloud(e, over)
 	t.rise(e, flash)
 	building = append(building, *l)
@@ -553,7 +553,7 @@ func (t *Tokens) cloud(e ui.Element, over float32) {
 			rad := max(r.W, r.H) * float32(0.42+0.12*noise(s*0.3+k+80))
 			a := over * float32(0.11+0.04*noise(s*0.4+k+120))
 			p.FillRadialGradient(r, ui.RadialGradient{Center: ui.Point{X: float32(cx), Y: float32(cy)}, Radius: rad, Oklab: true,
-				Stops: []ui.GradientStop{{Color: accent.Alpha(a), At: 0}, {Color: accent.Alpha(a * 0.45), At: 0.45}, {Color: accent.Alpha(0), At: 1}}}, RadiusLg)
+				Stops: []ui.GradientStop{{Color: accent.Alpha(a), At: 0}, {Color: accent.Alpha(a * 0.45), At: 0.45}, {Color: accent.Alpha(0), At: 1}}}, t.R(RadiusLg))
 		}
 		p.AnimationFrame()
 	})
@@ -575,7 +575,7 @@ func (t *Tokens) rise(e ui.Element, f float32) {
 		fade := min(1, (1-f)*2.5) * min(1, f*8)
 		const tail, n = 0.28, 7
 		for _, left := range []bool{true, false} {
-			path := halfBorder(r, RadiusLg, left)
+			path := halfBorder(r, t.R(RadiusLg), left)
 			for j := range n {
 				from := max(0, head-tail*float32(n-j)/n)
 				seg := *path
@@ -644,7 +644,7 @@ func DropZone(c *ui.Context, o DropZoneOptions) []string {
 	} else {
 		e = ui.Column(c)
 	}
-	e.FillWidth().AlignItems(ui.Center).Gap(4).Padding(24, 16).Radius(RadiusControl)
+	e.FillWidth().AlignItems(ui.Center).Gap(4).Padding(24, 16).Radius(t.R(RadiusControl))
 	over := !o.Disabled && e.FileDragOver()
 	var files []string
 	if !o.Disabled {
@@ -687,7 +687,7 @@ func FileItem(c *ui.Context, name, size string) bool {
 	t := From(c)
 	cl := t.Colors
 	removed := false
-	ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(10).MinHeight(36).Padding(0, 4, 0, 12).Radius(RadiusItem).
+	ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(10).MinHeight(36).Padding(0, 4, 0, 12).Radius(t.R(RadiusItem)).
 		Background(cl.Well).FontSize(FsSm).Children(func() {
 		ui.Icon(c, iconFile).TextColor(cl.Muted)
 		ui.Text(c, name).TextColor(cl.Text).Grow(1).MinWidth(0).SingleLine().Ellipsis("…")

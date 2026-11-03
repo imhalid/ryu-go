@@ -108,7 +108,7 @@ func dot(c *ui.Context, color ui.Color) ui.Element {
 // open from its top corner, from 95% and 4px up.
 func popover(t *Tokens, panel ui.Element) {
 	panel.Margin(GapField, 0, 0, 0).Padding(PadPop).TextColor(t.Colors.Text)
-	t.frost(panel, t.Colors.Pop, RadiusPop, 24)
+	t.frost(panel, t.Colors.Pop, t.R(RadiusPop), 24)
 	t.Shadows.ShadowPop.Apply(panel)
 	panel.TransformOrigin(0, 0).Transition(ui.ElementTransition{
 		Animation: springPop,

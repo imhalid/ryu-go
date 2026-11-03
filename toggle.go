@@ -28,7 +28,11 @@ func Toggle(c *ui.Context, on *bool, label string, o ToggleOptions) ui.Element {
 	t := sizedFrom(c, o.Size)
 	m := t.Metrics
 	cl := t.Colors
-	e := ui.ToggleBase(c, on).Label(label).Center().Height(m.BtnH).Gap(m.BtnGap).Radius(RadiusItem).
+	radius := t.R(RadiusItem)
+	if groupInner >= 0 {
+		radius = groupInner
+	}
+	e := ui.ToggleBase(c, on).Label(label).Center().Height(m.BtnH).Gap(m.BtnGap).Radius(radius).
 		Cursor(ui.CursorPointer).FocusRing(false).Disabled(o.Disabled).Shrink(0)
 	if o.IconOnly {
 		e.Width(m.BtnH)
@@ -41,7 +45,6 @@ func Toggle(c *ui.Context, on *bool, label string, o ToggleOptions) ui.Element {
 	case *on:
 		e.Background(cl.Well)
 		text, icon = cl.Text, cl.ColorAccent500
-		sh = t.Shadows.WellShadow
 	case e.Hovered() && !o.Disabled:
 		e.Background(cl.Fill)
 		text, icon = cl.Text, cl.Text
@@ -82,11 +85,20 @@ func ToggleGroup(c *ui.Context, label string, build func()) ui.Element {
 	t := From(c)
 	cl := t.Colors
 	bar := ui.Row(c).Role(ui.RoleToolbar).Label(label).FocusGroup(ui.Horizontal).AlignItems(ui.Center).
-		Gap(2).Padding(3).Radius(RadiusControl).Shrink(0).
+		Gap(2).Padding(3).Radius(t.R(RadiusControl)).Shrink(0).
 		LinearGradient(t.controlGradient(cl.ControlTop, cl.ControlBottom)).Border(0.5, cl.ControlBorder)
 	t.Shadows.ControlShadow.Apply(bar)
-	return bar.Children(build)
+	// the toggles inside, 3px in, take the bar's corners' centers
+	prev := groupInner
+	groupInner = Concentric(t.R(RadiusControl), 3)
+	bar.Children(build)
+	groupInner = prev
+	return bar
 }
+
+// groupInner is the radius of the toggles of the ToggleGroup being built,
+// -1 outside one (0 is a square corner).
+var groupInner float32 = -1
 
 // SeparatorOptions are the options of Separator.
 type SeparatorOptions struct {

@@ -12,20 +12,6 @@ const (
 	Dark
 )
 
-// Skin is the surface's language (data-skin): light line, shadow, inset
-// well, knob. It is not a color theme; light and dark work in every skin.
-type Skin uint8
-
-const (
-	// SkinInherit inherits it; SkinMizan at the root.
-	SkinInherit Skin = iota
-	SkinMizan
-	// SkinBevel is the language of raised edges: a light line at the top, a shadow line at the bottom, a metal knob.
-	SkinBevel
-)
-
-const skinCount = 2
-
 // Size is the density step (data-size). Zero inherits it; Md at the root.
 type Size uint8
 
@@ -36,12 +22,25 @@ const (
 	Lg
 )
 
-// Options are a region's theme, skin and size. Fields left unset are
+// Corners is how round the corners are: the radii of cards, fields, menus
+// and tables at half, at, or one and a half times Mizan's. Pills (buttons,
+// badges) and circles keep their shape.
+type Corners uint8
+
+const (
+	// CornersInherit inherits it; CornersMd at the root.
+	CornersInherit Corners = iota
+	CornersSm
+	CornersMd
+	CornersLg
+)
+
+// Options are a region's theme, size, corners and accent. Fields left unset are
 // inherited; the nearest scope wins.
 type Options struct {
-	Mode Mode
-	Skin Skin
-	Size Size
+	Mode    Mode
+	Size    Size
+	Corners Corners
 	// Accent is the brand color: the accent ramp, the selection fills and
 	// the rings take its hue and chroma, at Mizan's lightness steps (so
 	// contrast holds in both themes). Zero keeps Mizan's blue. Keep it to a
@@ -52,9 +51,11 @@ type Options struct {
 // Tokens are the resolved values of a scope: colors, shadows and the size
 // step's dimensions. Components read values only from here.
 type Tokens struct {
-	Dark bool
-	Skin Skin
-	Size Size
+	Dark    bool
+	Size    Size
+	Corners Corners
+	// corner is the factor the radii take for Corners.
+	corner float32
 	// accent is the brand color the scope was made with, zero for Mizan's.
 	accent ui.Color
 
@@ -80,10 +81,10 @@ const (
 
 // scopeKey tells apart the cached scopes.
 type scopeKey struct {
-	skin   Skin
-	dark   bool
-	size   Size
-	accent ui.Color
+	dark    bool
+	size    Size
+	corners Corners
+	accent  ui.Color
 }
 
 // cache holds the scopes made so far; registry finds the scope from the
@@ -93,23 +94,28 @@ var (
 	registry = map[*ui.Theme]*Tokens{}
 )
 
-func tokensFor(skin Skin, dark bool, size Size, accent ui.Color) *Tokens {
-	key := scopeKey{skin, dark, size, accent}
+func tokensFor(dark bool, size Size, corners Corners, accent ui.Color) *Tokens {
+	key := scopeKey{dark, size, corners, accent}
 	if t := cache[key]; t != nil {
 		return t
 	}
-	si, di, zi := int(skin-1), 0, int(size-1)
+	di, zi := 0, int(size-1)
 	if dark {
 		di = 1
 	}
 	t := &Tokens{
 		Dark:    dark,
-		Skin:    skin,
 		Size:    size,
 		accent:  accent,
-		Colors:  skinColors[si][di],
-		Shadows: skinShadows[si][di],
+		Colors:  themeColors[di],
+		Shadows: themeShadows[di],
 		Metrics: sizeMetrics[zi],
+		Corners: corners,
+		corner:  [...]float32{CornersSm: 0.5, CornersMd: 1, CornersLg: 1.5}[corners],
+	}
+	// the fields' own radii go with the rest
+	for _, r := range []*float32{&t.Metrics.FieldR, &t.Metrics.ChipR, &t.Metrics.NumR} {
+		*r = t.R(*r)
 	}
 	if accent != (ui.Color{}) {
 		t.withAccent(accent)
@@ -148,7 +154,7 @@ func (t *Tokens) uiTheme() *ui.Theme {
 	th.Success = c.Down
 	th.Selection = c.ColorAccent500.Alpha(0.3)
 	th.Focus = c.ColorAccent500.Alpha(0.6)
-	th.Radius = RadiusControl
+	th.Radius = t.R(RadiusControl)
 	th.FontSize = FsBase
 	th.Font = FontSans
 	return th
@@ -160,7 +166,7 @@ func From(c *ui.Context) *Tokens {
 	if t := registry[c.Theme()]; t != nil {
 		return t
 	}
-	return tokensFor(SkinMizan, c.Theme().Dark, Md, ui.Color{})
+	return tokensFor(c.Theme().Dark, Md, CornersMd, ui.Color{})
 }
 
 // Painting returns the scope's tokens while painting (Element.Draw).
@@ -168,7 +174,7 @@ func Painting(p *ui.Painter) *Tokens {
 	if t := registry[p.Theme()]; t != nil {
 		return t
 	}
-	return tokensFor(SkinMizan, p.Theme().Dark, Md, ui.Color{})
+	return tokensFor(p.Theme().Dark, Md, CornersMd, ui.Color{})
 }
 
 // Root gives Mizan to the whole window; it is called at the start of the
@@ -190,13 +196,13 @@ func Root(c *ui.Context, o Options) *Tokens {
 	case Dark:
 		dark = true
 	}
-	t := tokensFor(or(o.Skin, SkinMizan), dark, or(o.Size, Md), o.Accent)
+	t := tokensFor(dark, or(o.Size, Md), or(o.Corners, CornersMd), o.Accent)
 	c.SetTheme(t.theme)
 	return t
 }
 
-// Scope is a column whose children are built with another theme, skin or
-// size (giving a container data-theme, data-skin, data-size in CSS). Fields
+// Scope is a column whose children are built with another theme, size or
+// accent (giving a container data-theme, data-size in CSS). Fields
 // left unset are inherited. It paints no background; if the region needs
 // one, give it with Background(mizan.From(c).Colors.Bg).
 //
@@ -216,7 +222,25 @@ func scoped(c *ui.Context, o Options) *Tokens {
 	case Dark:
 		dark = true
 	}
-	return tokensFor(or(o.Skin, p.Skin), dark, or(o.Size, p.Size), or(o.Accent, p.accent))
+	return tokensFor(dark, or(o.Size, p.Size), or(o.Corners, p.Corners), or(o.Accent, p.accent))
+}
+
+// Concentric is the radius of a surface inset pad DIPs inside one whose
+// corners have radius outer, for their corners to share one center: outer
+// less pad, square once pad reaches outer. Two radii scaled apart, or the
+// same radius inside and out, leave the gap between the corners thicker
+// than along the sides.
+//
+//	track := t.R(mizan.RadiusControl)
+//	pill := mizan.Concentric(track, 3)
+func Concentric(outer, pad float32) float32 { return max(outer-pad, 0) }
+
+// R is radius r at the scope's Corners; pills stay pills.
+func (t *Tokens) R(r float32) float32 {
+	if r >= RadiusPill {
+		return r
+	}
+	return r * t.corner
 }
 
 func or[T comparable](v, d T) T {

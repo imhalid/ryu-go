@@ -5,6 +5,9 @@ Bu depoda çalışan her ajan (ve insan) için kurallar. Mizan'ın görsel dilin
 ## 1. Yapı ve yazım
 
 - Her bileşen ailesi kök dizinde bir dosya: `controls.go`, `forms.go`, `overlays.go`, `dnd.go`, `feedback.go`, `disclosure.go`, `toggle.go`… Renk, gölge ve boyut değerleri `tokens.go`'da, OKLCH ile.
+- Tek deri var: Mizan. Bevel kaldırıldı, geri getirme.
+- **Eş merkezli köşeler.** İçteki yüzeyin yarıçapı dıştakinden türetilir: `Concentric(dış, boşluk) = max(dış − boşluk, 0)`. İki yarıçap ayrı ayrı ölçeklenmez, içte ve dışta aynı yarıçap da kullanılmaz: köşelerdeki boşluk kenarlardakinden kalın görünür. Uygulandığı yerler: Segmented rayı ve hapı (3px), ToggleGroup ve toggle'ları (3px), NumberInput ve stepper'ı (4px), menü/Select/Popover paneli ve öğeleri (`PadPop`), TagInput ve chip'leri (4px); Kanban sütunu kartından dışa doğru (kart + 10px). Büyük iç boşluklu kaplarda (Card) kural uygulanmaz.
+- Köşe yarıçapı sabit yazılmaz: `t.R(RadiusX)` (kapsamın `Corners`'ı: Sm 0.5, Md 1, Lg 1.5). Hap (`RadiusPill`) ve daireler ölçeklenmez; onay kutusu gibi kare kalması gerekenlerde üst sınır konur (`min(t.R(6), 7)`).
 - Yüzey dili iki tür: kabarık denetim (`t.raised`, ışık yukarıdan) ve gömülü kuyu (`t.well`). Bileşen kendi gradyanını yazmaz, bu ikisini kullanır.
 - Kod yorumları İngilizce, kararı anlatır, yoğunluğu çevredeki kodla aynı. Dışa açık her şeyin belge yorumu bir kullanım örneği içerir.
 - Paket erken beta: API serbestçe değişir, ama değişince README ve gallery aynı turda güncellenir.
@@ -86,7 +89,7 @@ Yeni bir hareket önce bunlardan birini dener; yenisi gerekirse adlandırılıp 
 Testlerin geçmesi hissin doğru olduğunu kanıtlamaz.
 
 - **Kare kare ölç.** Geçici bir `gallery/zz_*_tmp_test.go` ile `ui.Tester`'da hareketi oynat, her karede `tt.Find(...)` konumunu logla ya da `tt.Image()`'i PNG kaydet; iş bitince geçici dosyayı sil. Sürekliliğe bak: bırakma anında konum sıçramamalı.
-- **Açık, koyu ve bevel** üçünde ekran görüntüsü al.
+- **Açık ve koyu** temada ekran görüntüsü al.
 - **Tester gerçek uygulama değildir.** Kareleri farklı sırada/geçişte işleyebilir; bazı hatalar yalnız gerçek pencerede çıkar (bırakma zamanlaması böyle bulundu). Kullanıcı ekran kaydı gönderirse `ffmpeg` ile kare çıkar (`fps=30,crop=…,tile=6x5`) ve olayı karede bul.
 - Gerçek pencerede deneyemediğin bir şeyi "düzeldi" diye bildirme; ne doğruladığını, neyi doğrulayamadığını söyle.
 

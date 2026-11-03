@@ -249,10 +249,10 @@ func Table[R any](c *ui.Context, s *TableState, cols []Column[R], rows []R, o Ta
 		f.bar()
 		// the border is drawn over the header and rows: under them, their
 		// fills would cover it in the rounded corners
-		box := ui.Column(c).FillWidth().Grow(1).MinHeight(0).Radius(RadiusControl).Background(t.Colors.TableBg).
+		box := ui.Column(c).FillWidth().Grow(1).MinHeight(0).Radius(t.R(RadiusControl)).Background(t.Colors.TableBg).
 			Clip().Role(ui.RoleTable).Focusable().FocusRing(false).
 			DrawOver(func(p *ui.Painter, r ui.Rect) {
-				p.Stroke(r, t.Colors.Hairline, RadiusControl, 1)
+				p.Stroke(r, t.Colors.Hairline, t.R(RadiusControl), 1)
 			})
 		if o.Label != "" {
 			box.Label(o.Label)
@@ -498,7 +498,7 @@ func (f *tableFrame[R]) bar() {
 			in = clamp01((p - 0.3) / 0.7)
 		}
 		sel := ui.Row(c).Absolute().Left(0).Right(0).Top(2).Bottom(2).AlignItems(ui.Center).Gap(8).
-			Padding(0, 6, 0, 14).Radius(RadiusControl).Opacity(in).Translate(0, 8*(1-p)).IgnoreInput(p < 0.5).
+			Padding(0, 6, 0, 14).Radius(t.R(RadiusControl)).Opacity(in).Translate(0, 8*(1-p)).IgnoreInput(p < 0.5).
 			LinearGradient(t.controlGradient(cl.ControlTop, cl.ControlBottom)).Border(0.5, cl.ControlBorder)
 		t.Shadows.ControlShadow.Apply(sel)
 		sel.Children(func() {
@@ -893,7 +893,7 @@ func (f *tableFrame[R]) headGhost(content func(lifted bool), w float32) {
 	ui.Overlay(c, func() {
 		x := d.pos.X - d.grab.X
 		g := ui.Row(c).Absolute().Left(x).Top(d.headTop).Width(w).Height(f.m.head).Padding(0, f.m.pad).
-			AlignItems(ui.Center).Gap(4).Radius(RadiusItem).PassThrough().Cursor(ui.CursorGrabbing).
+			AlignItems(ui.Center).Gap(4).Radius(t.R(RadiusItem)).PassThrough().Cursor(ui.CursorGrabbing).
 			LinearGradient(t.controlGradient(cl.ControlTop, cl.ControlBottom)).Border(0.5, cl.ControlBorder)
 		t.Shadows.ShadowPop.Apply(g)
 		picked := ui.Local(g, "picked", func() bool { return false })
@@ -978,7 +978,7 @@ func sortClick(sort []SortKey, id string, add bool) []SortKey {
 // tableCheck is a 16px checkbox of a table, as Checkbox's box: a well,
 // or the accent fill with its check drawn (a dash, partial).
 func (t *Tokens) tableCheck(c *ui.Context, on, partial bool, label string) ui.Element {
-	b := ui.ButtonBase(c).Label(label).Role(ui.RoleCheckBox).Checked(on).Size(16, 16).Radius(5).Center().Shrink(0).
+	b := ui.ButtonBase(c).Label(label).Role(ui.RoleCheckBox).Checked(on).Size(16, 16).Radius(min(t.R(5), 6)).Center().Shrink(0).
 		Cursor(ui.CursorPointer).FocusRing(false)
 	if partial {
 		b.Mixed()
@@ -1321,7 +1321,7 @@ func (f *tableFrame[R]) placeholders(viewH float32) {
 		for r := range n {
 			ui.Row(c.Key(r)).Width(f.total).Height(m.row).Shrink(0).AlignItems(ui.Center).InsetShadow(0, -1, 0, 0, cl.Hairline).Children(func() {
 				if f.o.Selectable {
-					ui.Box(c).Width(selectW).Shrink(0).Center().Children(func() { Skeleton(c, 16, 16).Radius(5) })
+					ui.Box(c).Width(selectW).Shrink(0).Center().Children(func() { Skeleton(c, 16, 16).Radius(min(f.t.R(5), 6)) })
 				}
 				if f.o.Expand != nil {
 					ui.Box(c).Width(expandW).Shrink(0)

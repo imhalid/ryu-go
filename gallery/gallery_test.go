@@ -12,7 +12,7 @@ import (
 )
 
 // TestSnapshots draws the showcase's four variants into the MIZAN_SNAPSHOTS
-// directory: light/dark × mizan/bevel. For visual comparison.
+// directory: light and dark. For visual comparison.
 func TestSnapshots(t *testing.T) {
 	dir := os.Getenv("MIZAN_SNAPSHOTS")
 	if dir == "" {
@@ -21,15 +21,12 @@ func TestSnapshots(t *testing.T) {
 	for _, v := range []struct {
 		name string
 		mode mz.Mode
-		skin mz.Skin
 	}{
-		{"light-mizan", mz.Light, mz.SkinMizan},
-		{"dark-mizan", mz.Dark, mz.SkinMizan},
-		{"light-bevel", mz.Light, mz.SkinBevel},
-		{"dark-bevel", mz.Dark, mz.SkinBevel},
+		{"light-mizan", mz.Light},
+		{"dark-mizan", mz.Dark},
 	} {
 		s := New()
-		s.Mode, s.Skin = v.mode, v.skin
+		s.Mode = v.mode
 		img := ui.Render(s.View, 1180, 1500, 1)
 		f, err := os.Create(filepath.Join(dir, v.name+".png"))
 		if err != nil {
@@ -70,9 +67,9 @@ func TestSelectOpen(t *testing.T) {
 }
 
 // page2 sets up a tester showing the second page.
-func page2(t *testing.T, mode mz.Mode, skin mz.Skin) (*State, *ui.Tester) {
+func page2(t *testing.T, mode mz.Mode) (*State, *ui.Tester) {
 	s := New()
-	s.Mode, s.Skin, s.Page = mode, skin, 1
+	s.Mode, s.Page = mode, 1
 	return s, ui.NewTester(s.View, 1180, 1180)
 }
 
@@ -86,14 +83,11 @@ func TestPage2Snapshots(t *testing.T) {
 	for _, v := range []struct {
 		name string
 		mode mz.Mode
-		skin mz.Skin
 	}{
-		{"more-light-mizan", mz.Light, mz.SkinMizan},
-		{"more-dark-mizan", mz.Dark, mz.SkinMizan},
-		{"more-light-bevel", mz.Light, mz.SkinBevel},
-		{"more-dark-bevel", mz.Dark, mz.SkinBevel},
+		{"more-light-mizan", mz.Light},
+		{"more-dark-mizan", mz.Dark},
 	} {
-		_, tt := page2(t, v.mode, v.skin)
+		_, tt := page2(t, v.mode)
 		tt.Advance(400 * time.Millisecond)
 		f, err := os.Create(filepath.Join(dir, v.name+".png"))
 		if err != nil {
@@ -125,7 +119,7 @@ func center(t *testing.T, tt *ui.Tester, s string) (float32, float32) {
 }
 
 func TestBoardDrag(t *testing.T) {
-	s, tt := page2(t, mz.Light, mz.SkinMizan)
+	s, tt := page2(t, mz.Light)
 	ax, ay := center(t, tt, "Sign-in screen")
 	bx, _ := center(t, tt, "Done")
 	r, _ := tt.Find("Dark theme")
@@ -141,7 +135,7 @@ func TestBoardDrag(t *testing.T) {
 
 // Within a column, a card dragged above another goes before it.
 func TestBoardReorder(t *testing.T) {
-	s, tt := page2(t, mz.Light, mz.SkinMizan)
+	s, tt := page2(t, mz.Light)
 	ax, ay := center(t, tt, "Report export")
 	r, _ := tt.Find("Sign-in screen")
 	drag(tt, ax, ay, ax, r.Y)
@@ -171,7 +165,7 @@ func titles(cards []*card) []string {
 }
 
 func TestSortableDrag(t *testing.T) {
-	s, tt := page2(t, mz.Light, mz.SkinMizan)
+	s, tt := page2(t, mz.Light)
 	ax, ay := center(t, tt, "Validate")
 	r, _ := tt.Find("Import data")
 	drag(tt, ax, ay, ax, r.Y+2)
@@ -182,7 +176,7 @@ func TestSortableDrag(t *testing.T) {
 
 // Alt+Down moves the focused row one place down, and the focus with it.
 func TestSortableKeys(t *testing.T) {
-	s, tt := page2(t, mz.Light, mz.SkinMizan)
+	s, tt := page2(t, mz.Light)
 	if err := tt.Click("Import data"); err != nil {
 		t.Fatal(err)
 	}
@@ -199,7 +193,7 @@ func TestSortableKeys(t *testing.T) {
 }
 
 func TestDropFiles(t *testing.T) {
-	s, tt := page2(t, mz.Light, mz.SkinMizan)
+	s, tt := page2(t, mz.Light)
 	x, y := center(t, tt, "Drop files here")
 	if !tt.DropFiles(x, y, "/tmp/a/report.csv") {
 		t.Fatal("the zone did not take the file")
@@ -217,7 +211,7 @@ func TestDropFiles(t *testing.T) {
 }
 
 func TestComposerSend(t *testing.T) {
-	s, tt := page2(t, mz.Light, mz.SkinMizan)
+	s, tt := page2(t, mz.Light)
 	if err := tt.Click("Message"); err != nil {
 		t.Fatal(err)
 	}
@@ -236,7 +230,7 @@ func TestDragOverSnapshot(t *testing.T) {
 	if dir == "" {
 		t.Skip("MIZAN_SNAPSHOTS not set")
 	}
-	_, tt := page2(t, mz.Light, mz.SkinMizan)
+	_, tt := page2(t, mz.Light)
 	ax, ay := center(t, tt, "Sign-in screen")
 	bx, by := center(t, tt, "Done")
 	tt.Press(ax, ay)
@@ -303,14 +297,13 @@ func TestAccentSnapshots(t *testing.T) {
 	for _, v := range []struct {
 		name string
 		mode mz.Mode
-		skin mz.Skin
 		pick string
 	}{
-		{"accent-orange-light", mz.Light, mz.SkinMizan, "Orange"},
-		{"accent-violet-dark", mz.Dark, mz.SkinBevel, "Violet"},
+		{"accent-orange-light", mz.Light, "Orange"},
+		{"accent-violet-dark", mz.Dark, "Violet"},
 	} {
 		s := New()
-		s.Mode, s.Skin = v.mode, v.skin
+		s.Mode = v.mode
 		tt := ui.NewTester(s.View, 1180, 1500)
 		if err := tt.Click(v.pick); err != nil {
 			t.Fatal(err)
@@ -326,15 +319,15 @@ func TestAccentSnapshots(t *testing.T) {
 }
 
 // page3 opens the layers page.
-func page3(mode mz.Mode, skin mz.Skin) (*State, *ui.Tester) {
+func page3(mode mz.Mode) (*State, *ui.Tester) {
 	s := New()
-	s.Mode, s.Skin, s.Page = mode, skin, 2
+	s.Mode, s.Page = mode, 2
 	return s, ui.NewTester(s.View, 1180, 860)
 }
 
 func TestDialog(t *testing.T) {
 	slow(t)
-	s, tt := page3(mz.Light, mz.SkinMizan)
+	s, tt := page3(mz.Light)
 	if err := tt.Click("Open dialog"); err != nil {
 		t.Fatal(err)
 	}
@@ -367,7 +360,7 @@ func TestDialog(t *testing.T) {
 
 func TestSheet(t *testing.T) {
 	slow(t)
-	s, tt := page3(mz.Light, mz.SkinMizan)
+	s, tt := page3(mz.Light)
 	tt.Click("Open sheet")
 	tt.Advance(500 * time.Millisecond)
 	if err := tt.Click("Save"); err != nil {
@@ -379,7 +372,7 @@ func TestSheet(t *testing.T) {
 }
 
 func TestMenu(t *testing.T) {
-	s, tt := page3(mz.Light, mz.SkinMizan)
+	s, tt := page3(mz.Light)
 	tt.Click("More")
 	tt.Advance(300 * time.Millisecond)
 	if err := tt.Click("Share"); err != nil {
@@ -408,7 +401,7 @@ func TestMenu(t *testing.T) {
 }
 
 func TestToast(t *testing.T) {
-	s, tt := page3(mz.Light, mz.SkinMizan)
+	s, tt := page3(mz.Light)
 	tt.Click("Archive")
 	tt.Advance(300 * time.Millisecond)
 	if !tt.HasText("3 reports archived") {
@@ -431,7 +424,7 @@ func TestToast(t *testing.T) {
 // A toast swiped past a third of its width goes; a short swipe springs
 // back.
 func TestToastSwipe(t *testing.T) {
-	_, tt := page3(mz.Light, mz.SkinMizan)
+	_, tt := page3(mz.Light)
 	tt.Click("Succeed")
 	tt.Advance(800 * time.Millisecond)
 	x, y := center(t, tt, "Export finished")
@@ -456,7 +449,7 @@ func TestToastSwipe(t *testing.T) {
 
 // A loading toast turns into its result in place.
 func TestToastLoading(t *testing.T) {
-	_, tt := page3(mz.Light, mz.SkinMizan)
+	_, tt := page3(mz.Light)
 	tt.Click("Upload")
 	tt.Advance(800 * time.Millisecond)
 	if !tt.HasText("Uploading Q3-report.pdf") {
@@ -470,7 +463,7 @@ func TestToastLoading(t *testing.T) {
 }
 
 func TestTooltip(t *testing.T) {
-	_, tt := page3(mz.Light, mz.SkinMizan)
+	_, tt := page3(mz.Light)
 	x, y := center(t, tt, "Share link")
 	tt.Move(x, y)
 	tt.Advance(2 * time.Second)
@@ -496,9 +489,8 @@ func TestLayerSnapshots(t *testing.T) {
 	for _, v := range []struct {
 		name string
 		mode mz.Mode
-		skin mz.Skin
-	}{{"light", mz.Light, mz.SkinMizan}, {"dark", mz.Dark, mz.SkinBevel}} {
-		_, tt := page3(v.mode, v.skin)
+	}{{"light", mz.Light}, {"dark", mz.Dark}} {
+		_, tt := page3(v.mode)
 		tt.Click("Open dialog")
 		tt.Advance(600 * time.Millisecond)
 		save(tt, "dialog-"+v.name)
@@ -526,7 +518,7 @@ func TestLayerSnapshots(t *testing.T) {
 
 func TestDialogDrag(t *testing.T) {
 	slow(t)
-	_, tt := page3(mz.Light, mz.SkinMizan)
+	_, tt := page3(mz.Light)
 	tt.Click("Open dialog")
 	tt.Advance(600 * time.Millisecond)
 	r0, ok := tt.Find("Delete the report?")
@@ -579,9 +571,8 @@ func TestPolishSnapshots(t *testing.T) {
 	for _, v := range []struct {
 		name string
 		mode mz.Mode
-		skin mz.Skin
-	}{{"light", mz.Light, mz.SkinMizan}, {"dark", mz.Dark, mz.SkinMizan}} {
-		_, tt := page3(v.mode, v.skin)
+	}{{"light", mz.Light}, {"dark", mz.Dark}} {
+		_, tt := page3(v.mode)
 		tt.Click("Open dialog")
 		tt.Advance(600 * time.Millisecond)
 		r, _ := tt.Find("Delete the report?")
@@ -601,7 +592,7 @@ func TestPolishSnapshots(t *testing.T) {
 
 // Toasts stack behind the newest, and spread out under the pointer.
 func TestToastStack(t *testing.T) {
-	_, tt := page3(mz.Light, mz.SkinMizan)
+	_, tt := page3(mz.Light)
 	tt.Click("Succeed")
 	tt.Click("Archive")
 	tt.Click("Fail")
@@ -621,7 +612,7 @@ func TestToastStack(t *testing.T) {
 }
 
 func TestTabs(t *testing.T) {
-	s, tt := page3(mz.Light, mz.SkinMizan)
+	s, tt := page3(mz.Light)
 	if err := tt.Click("Activity"); err != nil {
 		t.Fatal(err)
 	}
