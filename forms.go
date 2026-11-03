@@ -110,15 +110,26 @@ type NumberInputOptions struct {
 	Size           Size
 	Disabled       bool
 	Invalid        bool
+	// Error, if set, is given what is wrong with the text being typed, as
+	// "At most 10", for a Field around the input to show; "" while it is
+	// a number the input takes.
+	Error *string
 }
 
 // NumberInput is a number field: Input's inset well holding bold tabular
 // digits, with the raised − / + stepper on its right, the two halves of
 // one small button. The buttons and Up and Down step the value by Step
-// (ten steps with Shift), within Min and Max; what is typed applies as
-// soon as it is a number in range, and a field holding anything else
-// shows as invalid until it is corrected or loses the focus. It returns
-// the text input (for Changed, Focus).
+// (ten steps with Shift), within Min and Max; a button held steps on and
+// on, faster and faster.
+//
+// Only a number can be typed: digits, one decimal point (a comma is
+// taken as one) with no more decimals than Step has, and a leading minus
+// when Min is below zero; anything else is left out as it is typed or
+// pasted. What is typed applies as soon as it is a number in range on a
+// step; anything else marks the field invalid, says why in Error, and is
+// settled as the field loses the focus or Enter is pressed: brought into
+// range, to the nearest step, or, when it is no number, back to the
+// value. It returns the text input (for Changed, Focus).
 //
 //	mizan.NumberInput(c.Key("qty"), &app.qty, mizan.NumberInputOptions{Min: 1, Max: 99, Label: "Quantity"})
 func NumberInput(c *ui.Context, value *float64, o NumberInputOptions) ui.Element {
@@ -139,16 +150,39 @@ func NumberInput(c *ui.Context, value *float64, o NumberInputOptions) ui.Element
 		decimals = len(s) - strings.IndexByte(s, '.') - 1
 	}
 	format := func(v float64) string { return strconv.FormatFloat(v, 'f', decimals, 64) }
-	clamp := func(v float64) float64 {
+	round := func(v float64) float64 {
 		p := math.Pow(10, float64(decimals))
-		return math.Max(lo, math.Min(hi, math.Round(v*p)/p))
+		return math.Round(v*p) / p
 	}
+	clamp := func(v float64) float64 { return math.Max(lo, math.Min(hi, round(v))) }
+	// the steps count from Min, or from zero without bounds
+	base := 0.0
+	if bounded {
+		base = lo
+	}
+	onStep := func(v float64) bool {
+		n := (v - base) / step
+		return math.Abs(n-math.Round(n)) < 1e-9
+	}
+	snap := func(v float64) float64 { return clamp(base + math.Round((v-base)/step)*step) }
 
 	box := ui.Row(c).AlignItems(ui.Stretch).Height(m.NumH).Gap(4).Padding(4, 4, 4, m.NumPs).
 		Radius(m.NumR).MinWidth(0).Cursor(ui.CursorText)
 	text := ui.Local(box, "text", func() string { return format(*value) })
+	focused := ui.Local(box, "focused", func() bool { return false })
+	stepBy := func(n float64) {
+		*value = clamp(*value + n*step)
+		*text = format(*value)
+	}
+	// settle brings what was typed to a value the input takes
+	settle := func() {
+		if v, err := strconv.ParseFloat(*text, 64); err == nil {
+			*value = snap(v)
+		}
+		*text = format(*value)
+	}
 	var field ui.Element
-	bad := false
+	msg := ""
 	box.Children(func() {
 		ui.Row(c).Grow(1).MinWidth(0).AlignItems(ui.Center).Gap(m.InputGap).Children(func() {
 			if o.Prefix != "" {
@@ -163,10 +197,6 @@ func NumberInput(c *ui.Context, value *float64, o NumberInputOptions) ui.Element
 			if bounded {
 				field.Range(lo, hi, *value).Step(step)
 			}
-			stepBy := func(n float64) {
-				*value = clamp(*value + n*step)
-				*text = format(*value)
-			}
 			switch {
 			case field.Shortcut(0, ui.KeyUp):
 				stepBy(1)
@@ -178,17 +208,37 @@ func NumberInput(c *ui.Context, value *float64, o NumberInputOptions) ui.Element
 				stepBy(-10)
 			}
 			if field.Changed() {
-				if v, err := strconv.ParseFloat(strings.TrimSpace(*text), 64); err == nil && v >= lo && v <= hi {
-					*value = clamp(v)
+				at, _ := field.TextSelection()
+				if s, caret := numberText(*text, at, lo < 0, decimals); s != *text {
+					*text = s
+					field.SetTextSelection(caret, caret)
+				}
+				if v, err := strconv.ParseFloat(*text, 64); err == nil && v >= lo && v <= hi && onStep(v) {
+					*value = round(v)
 				}
 			}
-			if field.Focused() {
-				v, err := strconv.ParseFloat(strings.TrimSpace(*text), 64)
-				bad = err != nil || v < lo || v > hi
-			} else {
-				// what was typed, or what the app set, shown in full
+			switch {
+			case field.Focused() && field.Submitted():
+				settle()
+			case field.Focused():
+				v, err := strconv.ParseFloat(*text, 64)
+				switch {
+				case err != nil:
+					msg = "Enter a number"
+				case v < lo:
+					msg = "At least " + format(lo)
+				case v > hi:
+					msg = "At most " + format(hi)
+				case !onStep(v):
+					msg = "In steps of " + strconv.FormatFloat(step, 'f', -1, 64)
+				}
+			case *focused:
+				settle()
+			default:
+				// what the app set, shown in full
 				*text = format(*value)
 			}
+			*focused = field.Focused()
 			if o.Suffix != "" {
 				unit(c, o.Suffix, cl, m.NumPrefixFs)
 			}
@@ -221,20 +271,56 @@ func NumberInput(c *ui.Context, value *float64, o NumberInputOptions) ui.Element
 				}
 				e.TextColor(cl.Text).Transition(ui.ElementTransition{Duration: 150 * time.Millisecond, Colors: true})
 				e.Children(func() { ui.Icon(c, b.icon).Size(10, 10) })
-				if e.Clicked() && !off {
-					*value = clamp(*value + b.dir*step)
-					*text = format(*value)
-				}
+				hold(c, e, off, func() { stepBy(b.dir) })
 			}
 		})
 	})
-	t.well(box, field.Focused(), o.Invalid || bad)
+	field.Error(msg)
+	if o.Error != nil {
+		*o.Error = msg
+	}
+	t.well(box, field.Focused(), o.Invalid || msg != "")
 	if o.Disabled {
 		box.Opacity(0.4).Cursor(ui.CursorDefault)
 	} else if box.Clicked() {
 		field.Focus()
 	}
 	return field
+}
+
+// numberText keeps of s, typed into a NumberInput, what makes a number:
+// digits, a minus first when neg, one decimal point (a comma is one) with
+// no more than decimals digits after it. It returns the text and where
+// the caret, at at in s, is in it.
+func numberText(s string, at int, neg bool, decimals int) (string, int) {
+	var b strings.Builder
+	caret, n, point, after := 0, 0, false, 0
+	for i, r := range []rune(s) {
+		keep := true
+		switch {
+		case r >= '0' && r <= '9':
+			if point {
+				keep = after < decimals
+				after++
+			}
+		case r == '.' || r == ',':
+			keep = decimals > 0 && !point
+			point, r = point || keep, '.'
+		case r == '-' || r == '−':
+			keep = neg && n == 0
+			r = '-'
+		default:
+			keep = false
+		}
+		if keep {
+			b.WriteRune(r)
+			n++
+		}
+		if i < at {
+			caret = n
+		}
+	}
+	return b.String(), caret
 }
 
 // unit is a NumberInput's muted unit, at the stepper's size step.

@@ -227,12 +227,13 @@ func Switch(c *ui.Context, on *bool, o SwitchOptions) ui.Element {
 		}
 		sh.Apply(track)
 		lit := track.Animate("on", b2f(*on), 200*time.Millisecond)
-		x := track.Spring("x", 16*b2f(*on), ui.SpringOptions{Duration: 300 * time.Millisecond, Bounce: 0.25})
-		w := track.Animate("w", 18+4*b2f(pressed), 200*time.Millisecond)
-		if *on {
-			// the stretching knob grows toward the start of the row
-			x -= w - 18
-		}
+		// the knob's start and width move on one spring, so that it goes
+		// straight the new way: pressed, it stretches toward the middle
+		// of the track, and an "on" knob's end stays put as it does
+		spring := ui.SpringOptions{Duration: 300 * time.Millisecond, Bounce: 0.25}
+		stretch := 4 * b2f(pressed)
+		w := track.Spring("w", 18+stretch, spring)
+		x := track.Spring("x", 16*b2f(*on)-stretch*b2f(*on), spring)
 		track.Children(func() {
 			if t.Skin == SkinBevel {
 				led := ui.Box(c).Absolute().Left(7).Top(8).Size(6, 6).Radius(3).Opacity(lit).

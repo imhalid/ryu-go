@@ -15,11 +15,13 @@ type formsPage struct {
 
 	Notes, Bio      string
 	Quantity, Price float64
-	Dose            float64
-	Assignee        string
-	Country         string
-	Due, Start      time.Time
-	Tags, Labels    []string
+	// what is wrong with the number being typed, for the fields
+	QuantityErr, PriceErr string
+	Dose                  float64
+	Assignee              string
+	Country               string
+	Due, Start            time.Time
+	Tags, Labels          []string
 }
 
 // init gives the page its sample values, the first time it shows.
@@ -83,13 +85,13 @@ func (f *formsPage) view(c *ui.Context, t *mz.Tokens) {
 				ui.Column(c).Gap(16).Children(func() {
 					ui.Row(c).Gap(12).AlignItems(ui.Start).Children(func() {
 						ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
-							mz.Field(c, mz.FieldOptions{Label: "Quantity", Help: "1 to 10"}, func() {
-								mz.NumberInput(c.Key("qty"), &f.Quantity, mz.NumberInputOptions{Label: "Quantity", Min: 1, Max: 10})
+							mz.Field(c, mz.FieldOptions{Label: "Quantity", Help: "1 to 10", Error: f.QuantityErr}, func() {
+								mz.NumberInput(c.Key("qty"), &f.Quantity, mz.NumberInputOptions{Label: "Quantity", Min: 1, Max: 10, Error: &f.QuantityErr})
 							})
 						})
 						ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
-							mz.Field(c, mz.FieldOptions{Label: "Price"}, func() {
-								mz.NumberInput(c.Key("price"), &f.Price, mz.NumberInputOptions{Label: "Price", Min: 0, Max: 1000, Step: 0.5, Prefix: "$"})
+							mz.Field(c, mz.FieldOptions{Label: "Price", Error: f.PriceErr}, func() {
+								mz.NumberInput(c.Key("price"), &f.Price, mz.NumberInputOptions{Label: "Price", Min: 0, Max: 1000, Step: 0.5, Prefix: "$", Error: &f.PriceErr})
 							})
 						})
 					})

@@ -65,6 +65,36 @@ func TestTextarea(t *testing.T) {
 	}
 }
 
+// A stepper held steps once, then again and again after a pause, up to
+// the maximum; letting go does not step once more.
+func TestNumberInputHold(t *testing.T) {
+	s, tt := formsTester(mz.Light)
+	x, y := center(t, tt, "Increase")
+	tt.Press(x, y)
+	tt.Advance(200 * time.Millisecond)
+	if s.Forms.Quantity != 3 {
+		t.Fatalf("pressed: quantity %v, want 3", s.Forms.Quantity)
+	}
+	tt.Advance(500 * time.Millisecond)
+	if q := s.Forms.Quantity; q < 5 || q >= 10 {
+		t.Fatalf("held 0.7 s: quantity %v, want it repeating, under 10", q)
+	}
+	tt.Advance(time.Second)
+	tt.Release(x, y)
+	tt.Frame()
+	if s.Forms.Quantity != 10 {
+		t.Fatalf("held: quantity %v, want 10 (the maximum)", s.Forms.Quantity)
+	}
+	x, y = center(t, tt, "Decrease")
+	tt.Press(x, y)
+	tt.Frame()
+	tt.Release(x, y)
+	tt.Frame()
+	if s.Forms.Quantity != 9 {
+		t.Fatalf("a click: quantity %v, want 9", s.Forms.Quantity)
+	}
+}
+
 func TestNumberInput(t *testing.T) {
 	s, tt := formsTester(mz.Light)
 	if s.Forms.Quantity != 2 {
@@ -110,13 +140,20 @@ func TestNumberInput(t *testing.T) {
 	if s.Forms.Quantity != 7 {
 		t.Fatalf("70 is out of range, yet quantity is %v", s.Forms.Quantity)
 	}
-	// back in the field after leaving it, Up steps from the value
+	if !tt.HasText("At most 10") {
+		t.Fatalf("no message for 70 in %v", tt.Texts())
+	}
+	// leaving the field brings what was typed into range
 	tt.ClickAt(600, 20)
 	tt.Advance(300 * time.Millisecond)
+	if s.Forms.Quantity != 10 || tt.HasText("At most 10") {
+		t.Fatalf("70 left: quantity %v, want 10 and no message", s.Forms.Quantity)
+	}
+	// back in the field, Down steps from the value
 	clickField(t, tt, "Quantity")
-	tt.Key(0, ui.KeyUp)
-	if s.Forms.Quantity != 8 {
-		t.Fatalf("Up after leaving: quantity %v, want 8", s.Forms.Quantity)
+	tt.Key(0, ui.KeyDown)
+	if s.Forms.Quantity != 9 {
+		t.Fatalf("Down after leaving: quantity %v, want 9", s.Forms.Quantity)
 	}
 	// the price steps by halves and shows two decimals
 	clickField(t, tt, "Price")
@@ -124,6 +161,23 @@ func TestNumberInput(t *testing.T) {
 	tt.Frame()
 	if s.Forms.Price != 25 {
 		t.Fatalf("price %v, want 25", s.Forms.Price)
+	}
+	// only a number can be typed: no letters, a comma is a point, no
+	// more decimals than the step's
+	tt.Key(0, ui.KeyEnd)
+	for range 6 {
+		tt.Key(0, ui.KeyBackspace)
+	}
+	tt.Type("a1,77x")
+	tt.Frame()
+	if !tt.HasText("In steps of 0.5") {
+		t.Fatalf("typed a1,77x (1.7): no message in %v", tt.Texts())
+	}
+	// Enter brings it to the nearest step
+	tt.Key(0, ui.KeyEnter)
+	tt.Frame()
+	if s.Forms.Price != 1.5 || tt.HasText("In steps of 0.5") {
+		t.Fatalf("Enter: price %v, want 1.5", s.Forms.Price)
 	}
 }
 
