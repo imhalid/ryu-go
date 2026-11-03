@@ -27,7 +27,7 @@ func (s *State) layers(c *ui.Context, t *mz.Tokens) {
 	cl := t.Colors
 	ui.Row(c).Gap(mz.GapSection).AlignItems(ui.Start).Children(func() {
 		ui.Column(c).Grow(1).Basis(0).Gap(mz.GapSection).Children(func() {
-			mz.Card(c, mz.CardOptions{Title: "Dialog and sheet", Subtitle: "Draggable panels in a halo of progressive blur.", Pad: true}, func() {
+			mz.Card(c, mz.CardOptions{Title: "Dialog and sheet", Subtitle: "Draggable panels that spring in over a soft scrim.", Pad: true}, func() {
 				ui.Row(c).Gap(mz.GapControl).Children(func() {
 					if mz.Button(c.Key("openDialog"), "Open dialog", mz.ButtonOptions{}).Clicked() {
 						s.Dialog = true

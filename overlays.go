@@ -7,11 +7,10 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// Layers float above the page: dialogs and sheets on the card surface in a
-// halo of progressive blur, popovers, menus and toasts on frosted glass. They move
-// on springs, quick to arrive and quick to leave, and content scrolling in
-// a dialog or a sheet dissolves into its header and footer under a
-// progressive blur.
+// Layers float above the page: dialogs and sheets on the card surface over
+// a scrim, popovers, menus and toasts on frosted glass. They move on
+// springs, quick to arrive and quick to leave, and content scrolling in a
+// dialog or a sheet fades into its header and footer.
 
 var iconClose = Svg(16, 14, "M4.5 4.5l7 7M11.5 4.5l-7 7")
 
@@ -39,34 +38,54 @@ var (
 	springPop   = &ui.Animation{Spring: ui.SpringOptions{Duration: 220 * time.Millisecond, Bounce: 0.1}}
 	springRest  = ui.Animation{Spring: ui.SpringOptions{Duration: 420 * time.Millisecond, Bounce: 0.18}}
 	springTilt  = ui.Animation{Spring: ui.SpringOptions{Duration: 240 * time.Millisecond}}
-	springToast = &ui.Animation{Spring: ui.SpringOptions{Duration: 360 * time.Millisecond, Bounce: 0.16}}
+	// leaving is quicker than arriving, and never overshoots
+	exitPanel = ui.Animation{Duration: 150 * time.Millisecond, Ease: ui.EaseOut}
+	exitSheet = ui.Animation{Duration: 220 * time.Millisecond, Ease: ui.CubicBezier(0.4, 0, 1, 1)}
 )
 
-// halo paints a progressive blur around a panel, in place of a scrim
-// over the whole window: what is behind blurs most along the panel's edge
-// and less and less farther out, to nothing 64 DIPs away, under a faint
-// haze of the page's color. Rings of a light blur, each larger than the
-// last and rounded as the panel is, add up where they overlap, as blurs
-// do (their variances add), so the blur falls off smoothly and follows
-// the panel's corners. The halo is painted by the panel, so it moves,
-// tilts and fades with it.
-func (t *Tokens) halo(panel ui.Element, radius float32) {
-	const rings, step, blur = 8, 8, 1.8
-	haze := t.Colors.Bg.Alpha(0.05)
-	panel.Draw(func(p *ui.Painter, r ui.Rect) {
-		for i := rings; i >= 1; i-- {
-			k := float32(i * step)
-			ring := ui.Rect{X: r.X - k, Y: r.Y - k, W: r.W + 2*k, H: r.H + 2*k}
-			rr := radius + k
-			glass.Blur{Radius: blur}.PaintMaterial(p, ring, [4]float32{rr, rr, rr, rr})
-			p.Fill(ring, haze, rr)
+// presence builds a dialog's layer while *open is true, and on until it
+// has played out its exit: p goes from 0 to 1 as it opens (with enter) and
+// back to 0 as it closes (with exit), for build to move it by. A layer
+// whose parent appears with it gets no Transition, so the layer is moved
+// by hand. A click on the scrim or Escape sets *open to false. The state
+// lives on a host element that takes no room.
+func presence(c *ui.Context, open *bool, enter, exit ui.Animation, build func(backdrop, panel ui.Element, p float32)) ui.Element {
+	host := ui.Box(c).Absolute().Size(0, 0).PassThrough()
+	shown := ui.Local(host, "shown", func() bool { return false })
+	if *open && !*shown {
+		*shown = true
+		host.Jump("p", 0)
+	}
+	a := enter
+	if !*open {
+		a = exit
+	}
+	p := host.AnimateTo("p", b2f(*open), a)
+	if !*open && host.Settled("p") {
+		*shown = false
+	}
+	if !*shown {
+		return ui.Element{}
+	}
+	// while it closes, it is still built, but no longer *open: the pointer
+	// goes through it to the page, so that a click there is not lost
+	vis, closing := true, !*open
+	panel := ui.DialogBase(c, &vis, func(backdrop, panel ui.Element) {
+		build(backdrop, panel, p)
+		if closing {
+			backdrop.PassThrough().IgnoreInput(true)
+			panel.PassThrough().IgnoreInput(true)
 		}
 	})
+	if !vis {
+		*open = false
+	}
+	return panel
 }
 
 // Dialog shows a modal panel while *open is true: a card with the pop
-// shadow and a halo of progressive blur around it (the page around it is
-// not dimmed), that springs in from 94% and 10px below. Its
+// shadow over a scrim that fades in, that springs in from 94% and 10px
+// below, and fades out on the way down as it closes. Its
 // header drags it around the window (unless Fixed): it tilts with the
 // pointer's speed, a throw glides on, and it springs back inside the
 // window when let go; a double click on the header brings it back to the
@@ -83,16 +102,12 @@ func (t *Tokens) halo(panel ui.Element, radius float32) {
 //	}, func() { ui.Text(c, "This cannot be undone.") })
 func Dialog(c *ui.Context, open *bool, o DialogOptions, body func()) ui.Element {
 	t := From(c)
-	return ui.DialogBase(c, open, func(backdrop, panel ui.Element) {
-		backdrop.Padding(24, 16)
+	return presence(c, open, *springPanel, exitPanel, func(backdrop, panel ui.Element, p float32) {
+		backdrop.Padding(24, 16).Background(t.Colors.Scrim.Alpha(clamp01(p)))
 		panel.Width(or(o.Width, 480)).MaxWidthPercent(100).MaxHeight(720)
-		t.halo(panel, RadiusLg)
-		panel.Transition(ui.ElementTransition{
-			Animation: springPanel,
-			Enter:     &ui.Motion{Scale: 0.94, Y: 10},
-			Exit:      &ui.Motion{Scale: 0.97, Y: 6},
-		})
-		head := t.panelContent(c, open, o, body, false, RadiusLg)
+		card, head := t.panelContent(c, open, o, body, false, RadiusLg)
+		s := 0.94 + 0.06*p
+		card.Translate(0, 10*(1-p)).Scale(s, s).Opacity(clamp01(p))
 		if !o.Fixed {
 			t.float(backdrop, panel, head)
 		}
@@ -165,22 +180,17 @@ func rubberband(d float32) float32 {
 }
 
 // Sheet shows a panel along the window's end edge while *open is true,
-// with the halo of progressive blur along its inner edge, as Dialog's: it
-// springs in from past the edge, tilted a little, and straightens as it
-// lands. It closes as Dialog does.
+// over a scrim that fades in, as Dialog's: it springs in from past the
+// edge, tilted a little, and straightens as it lands; closing, it
+// speeds back out past the edge. It closes as Dialog does.
 func Sheet(c *ui.Context, open *bool, o DialogOptions, body func()) ui.Element {
 	t := From(c)
 	w := or(o.Width, 420)
-	return ui.DialogBase(c, open, func(backdrop, panel ui.Element) {
-		backdrop.AlignItems(ui.End).Justify(ui.Stretch)
+	return presence(c, open, *springSheet, exitSheet, func(backdrop, panel ui.Element, p float32) {
+		backdrop.AlignItems(ui.End).Justify(ui.Stretch).Background(t.Colors.Scrim.Alpha(clamp01(p)))
 		panel.Width(w).MaxWidthPercent(100).FillHeight()
-		t.halo(panel, 0)
-		panel.TransformOrigin(0, 0.5).Transition(ui.ElementTransition{
-			Animation: springSheet,
-			Enter:     &ui.Motion{X: w + 24, Rotate: 2, Opacity: 1},
-			Exit:      &ui.Motion{X: w + 24, Rotate: 2, Opacity: 1},
-		})
-		t.panelContent(c, open, o, body, true, 0)
+		card, _ := t.panelContent(c, open, o, body, true, 0)
+		card.TransformOrigin(0, 0.5).Translate((w+24)*(1-p), 0).Rotate(2 * (1 - p))
 	})
 }
 
@@ -190,16 +200,14 @@ func (t *Tokens) layer(e ui.Element, radius float32) {
 	t.Shadows.ShadowPop.Apply(e)
 }
 
-// panelContent builds a dialog's or a sheet's card, inside the panel that
-// paints its halo: its header, scrolling body and footer. It returns the
-// header.
-func (t *Tokens) panelContent(c *ui.Context, open *bool, o DialogOptions, body func(), sheet bool, radius float32) ui.Element {
+// panelContent builds a dialog's or a sheet's card, inside its panel: its
+// header, scrolling body and footer. It returns the card and the header.
+func (t *Tokens) panelContent(c *ui.Context, open *bool, o DialogOptions, body func(), sheet bool, radius float32) (card, head ui.Element) {
 	cl := t.Colors
-	var head ui.Element
-	panel := ui.Column(c).FillWidth().Grow(1).MinHeight(0)
-	t.layer(panel, radius)
-	sc := ui.Local(panel, "scroll", func() ui.ScrollState { return ui.ScrollState{} })
-	panel.Children(func() {
+	card = ui.Column(c).FillWidth().Grow(1).MinHeight(0)
+	t.layer(card, radius)
+	sc := ui.Local(card, "scroll", func() ui.ScrollState { return ui.ScrollState{} })
+	card.Children(func() {
 		head = ui.Row(c).AlignItems(ui.Start).Gap(12).Padding(22, 22, 0, 22)
 		if sheet {
 			head.AlignItems(ui.Center).Padding(18, 18, 6, 22)
@@ -231,9 +239,8 @@ func (t *Tokens) panelContent(c *ui.Context, open *bool, o DialogOptions, body f
 			ui.Scroll(c).Fill().TrackScroll(sc).Children(func() {
 				ui.Column(c).FillWidth().Padding(bp...).TextColor(cl.Text2).FontSize(FsBase).Children(body)
 			})
-			// content scrolling past the body's edges dissolves into the
-			// header and footer: blurred more and more, and faded into the
-			// card, the nearer the edge
+			// content scrolling past the body's edges fades into the
+			// header and footer, the more the nearer the edge
 			t.scrollEdge(c.Key("top"), false, sc.Y)
 			t.scrollEdge(c.Key("bottom"), true, sc.MaxY-sc.Y)
 		})
@@ -249,12 +256,12 @@ func (t *Tokens) panelContent(c *ui.Context, open *bool, o DialogOptions, body f
 		}
 		f.Children(o.Footer)
 	})
-	return head
+	return card, head
 }
 
-// scrollEdge is the progressive blur at a scroll body's top (or bottom)
-// edge: it shows as the content goes under that edge, by how far there is
-// to scroll on that side.
+// scrollEdge is the fade at a scroll body's top (or bottom) edge: it shows
+// as the content goes under that edge, by how far there is to scroll on
+// that side.
 func (t *Tokens) scrollEdge(c *ui.Context, bottom bool, past float32) {
 	const h = 40
 	angle := float32(180)
@@ -268,7 +275,6 @@ func (t *Tokens) scrollEdge(c *ui.Context, bottom bool, past float32) {
 		e.Top(0)
 	}
 	e.Opacity(e.AnimateTo("show", clamp01(past/24), ui.Animation{Duration: 120 * time.Millisecond}))
-	e.Material(glass.Blur{Radius: 7, Mask: &ui.LinearGradient{From: ui.RGB(0, 0, 0), To: ui.Transparent, Angle: angle}})
 	card := t.Colors.Card
 	e.Draw(func(p *ui.Painter, r ui.Rect) {
 		p.FillGradient(r, ui.LinearGradient{Angle: angle, Oklab: true, Stops: []ui.GradientStop{
@@ -471,48 +477,55 @@ func Toaster(c *ui.Context) ui.Element {
 	t := From(c)
 	cl := t.Colors
 	return ui.ToastViewportBase(c, func(viewport ui.Element, toasts []ui.Toast) {
-		viewport.Padding(16).AlignItems(ui.End).Justify(ui.End).Gap(8)
-		// the toasts first, to know whether the pointer is on the stack
-		parts := make([]ui.ToastParts, len(toasts))
-		roots := make([]ui.Element, len(toasts))
-		open := false
-		for i, tt := range toasts {
-			parts[i] = ui.ToastBase(c.Key(tt.ID), tt)
-			roots[i] = parts[i].Root
-			open = open || roots[i].Hovered() || roots[i].FocusWithin()
-		}
-		for i, tt := range toasts {
-			tone := cl.Accent
-			switch tt.Type {
-			case ToastSuccess:
-				tone = cl.Down
-			case ToastWarning:
-				tone = cl.Warn
-			case ToastError:
-				tone = cl.Up
+		viewport.Padding(16).AlignItems(ui.End).Justify(ui.End)
+		// the stack is as tall as the toasts it shows, so that the pointer
+		// on it, between two spread toasts too, keeps it spread
+		box := ui.Box(c).Width(380).MaxWidthPercent(100)
+		open := box.Hovered() || box.FocusWithin()
+		box.Children(func() {
+			// the toasts first, to know whether the pointer is on one
+			parts := make([]ui.ToastParts, len(toasts))
+			roots := make([]ui.Element, len(toasts))
+			for i, tt := range toasts {
+				parts[i] = ui.ToastBase(c.Key(tt.ID), tt)
+				roots[i] = parts[i].Root
+				open = open || roots[i].Hovered() || roots[i].FocusWithin()
 			}
-			p := parts[i]
-			r := p.Root.Row().Width(380).MaxWidthPercent(100).AlignItems(ui.Start).Gap(10).Padding(12, 10, 12, 14)
-			// frosted glass: the surface at 86% over what is behind, blurred,
-			// with a tint of the tone spreading from the top left corner
-			glow := Mix(ui.Color{}, tone, 0.12)
-			r.Radius(RadiusPop).Material(glass.Blur{Radius: 20}).Draw(func(p *ui.Painter, b ui.Rect) {
-				p.Fill(b, cl.Surface.Alpha(0.86), RadiusPop)
-				p.FillRadialGradient(b, ui.RadialGradient{Center: ui.Point{X: 0.001, Y: 0.001}, Radius: b.W * 0.7, Oklab: true,
-					Stops: []ui.GradientStop{{Color: glow, At: 0}, {Color: glow.Alpha(0), At: 1}}}, RadiusPop)
-			})
-			t.Shadows.ShadowPop.Apply(r)
-			r.FontSize(FsMd).TextColor(cl.Text).TransformOrigin(0.5, 1).Transition(ui.ElementTransition{
-				Animation: springToast, Position: true,
-				Enter: &ui.Motion{Y: 28, Scale: 0.96}, Exit: &ui.Motion{Y: 6, Scale: 0.95},
-			})
-			// a toast tucked behind shows only its glass
-			shown := r.AnimateTo("shown", b2f(open || i == len(toasts)-1), stackSpring)
-			r.Children(func() {
-				ui.Row(c).Grow(1).MinWidth(0).AlignItems(ui.Start).Gap(10).Opacity(shown).Children(func() { t.toastBody(c, p, tt, tone) })
-			})
-		}
-		stack(roots, open)
+			for i, tt := range toasts {
+				tone := cl.Accent
+				switch tt.Type {
+				case ToastSuccess:
+					tone = cl.Down
+				case ToastWarning:
+					tone = cl.Warn
+				case ToastError:
+					tone = cl.Up
+				}
+				p := parts[i]
+				r := p.Root.Row().AlignItems(ui.Start).Gap(10).Padding(12, 10, 12, 14)
+				// frosted glass: the surface at 86% over what is behind, blurred,
+				// with a tint of the tone spreading from the top left corner
+				glow := Mix(ui.Color{}, tone, 0.12)
+				r.Radius(RadiusPop).Material(glass.Blur{Radius: 20}).Draw(func(p *ui.Painter, b ui.Rect) {
+					p.Fill(b, cl.Surface.Alpha(0.86), RadiusPop)
+					p.FillRadialGradient(b, ui.RadialGradient{Center: ui.Point{X: 0.001, Y: 0.001}, Radius: b.W * 0.7, Oklab: true,
+						Stops: []ui.GradientStop{{Color: glow, At: 0}, {Color: glow.Alpha(0), At: 1}}}, RadiusPop)
+				})
+				t.Shadows.ShadowPop.Apply(r)
+				// it arrives by hand, in stack; it leaves sinking a little as it
+				// fades, from wherever the stack had it
+				r.FontSize(FsMd).TextColor(cl.Text).Transition(ui.ElementTransition{
+					Duration: 200 * time.Millisecond, Ease: ui.EaseOut, Colors: true,
+					Exit: &ui.Motion{Y: 10, Scale: 0.96},
+				})
+				// a toast tucked behind shows only its glass
+				shown := r.AnimateTo("shown", b2f(open || i == len(toasts)-1), stackSpring)
+				r.Children(func() {
+					ui.Row(c).Grow(1).MinWidth(0).AlignItems(ui.Start).Gap(10).Opacity(shown).Children(func() { t.toastBody(c, p, tt, tone) })
+				})
+			}
+			stack(box, roots, open)
+		})
 	})
 }
 
@@ -542,36 +555,62 @@ func (t *Tokens) toastBody(c *ui.Context, p ui.ToastParts, tt ui.Toast, tone ui.
 	x.TextColor(color).Children(func() { ui.Icon(c, iconClear) })
 }
 
-// stack tucks the older toasts behind the newest, each peeking 10 DIPs
-// above the one in front, 5% smaller, and the fourth on out of sight; with
-// the pointer on a toast or the keyboard focus in one, they spread out
-// into a list. They move between the two on a spring.
-func stack(roots []ui.Element, open bool) {
+// stack lays the toasts out by hand, each pinned to the bottom of the
+// stack's box and moved up from there, so that one arriving or leaving
+// moves the others on their springs and never through the layout. The
+// older toasts tuck behind the newest, each peeking 10 DIPs above the one
+// in front, 5% smaller and no taller than it; with the pointer on the
+// stack or the keyboard focus in a toast, they spread out into a list, 8
+// DIPs apart. The box grows and shrinks with them. A new toast rises from
+// below the stack as it fades in.
+func stack(box ui.Element, roots []ui.Element, open bool) {
+	const peek, gap, guess = 10, 8, 64
 	n := len(roots)
 	if n == 0 {
+		box.Height(box.AnimateTo("h", 0, stackSpring))
 		return
 	}
-	front := roots[n-1].LayoutBounds()
+	// the heights the last frame laid out; a new toast's is a guess, for a frame
+	hs := make([]float32, n)
 	for i, r := range roots {
-		d := float32(n - 1 - i) // 0 is the newest, in front
-		b := r.LayoutBounds()
-		var y, sx, sy, a float32 = 0, 1, 1, 1
-		if !open && d > 0 && b.H > 0 && front.H > 0 {
-			const peek = 10
-			// its top up to the front toast's top, then up by how deep it
-			// is; no taller than the front one, so that it hides behind it
-			y = front.Y - b.Y - min(d, 3)*peek
-			sx = 1 - 0.05*min(d, 3)
-			sy = sx * min(1, front.H/b.H)
-			if d >= 3 {
-				a = 0
-			}
+		if hs[i] = r.LayoutBounds().H; hs[i] == 0 {
+			hs[i] = guess
 		}
-		y = r.AnimateTo("stack-y", y, stackSpring)
+	}
+	front := hs[n-1]
+	h := front + float32(n-1)*peek
+	if open {
+		h = float32(n-1) * gap
+		for _, v := range hs {
+			h += v
+		}
+	}
+	box.Height(box.AnimateTo("h", h, stackSpring))
+	below := float32(0) // how tall the spread toasts in front are
+	for i := n - 1; i >= 0; i-- {
+		r, d, b := roots[i], float32(n-1-i), hs[i]
+		y, sx, sy := -below, float32(1), float32(1)
+		if !open && d > 0 {
+			sx = 1 - 0.05*d
+			sy = sx * min(1, front/b)
+			// its top d peeks above the front toast's top
+			y = b*sy - front - d*peek
+		}
+		below += b + gap
+		seen := ui.Local(r, "seen", func() bool { return false })
+		if !*seen {
+			*seen = true
+			r.Jump("in", 0)
+		}
+		in := r.AnimateTo("in", 1, toastIn)
+		y = r.AnimateTo("stack-y", y, stackSpring) + (1-in)*(b+16)
 		sx = r.AnimateTo("stack-sx", sx, stackSpring)
 		sy = r.AnimateTo("stack-sy", sy, stackSpring)
-		r.TransformOrigin(0.5, 0).Translate(0, y).Scale(sx, sy).Opacity(r.AnimateTo("stack-a", a, stackSpring))
+		r.Absolute().Left(0).Right(0).Bottom(0).TransformOrigin(0.5, 1).Translate(0, y).Scale(sx, sy).Opacity(clamp01(in))
 	}
 }
 
-var stackSpring = ui.Animation{Spring: ui.SpringOptions{Duration: 320 * time.Millisecond, Bounce: 0.08}}
+var (
+	stackSpring = ui.Animation{Spring: ui.SpringOptions{Duration: 380 * time.Millisecond, Bounce: 0.04}}
+	toastIn     = ui.Animation{Spring: ui.SpringOptions{Duration: 440 * time.Millisecond, Bounce: 0.06}}
+)

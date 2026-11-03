@@ -469,7 +469,7 @@ func TestDialogDrag(t *testing.T) {
 	}
 }
 
-// TestPolishSnapshots draws a scrolled dialog's blurred edges, a dialog
+// TestPolishSnapshots draws a scrolled dialog's faded edges, a dialog
 // being dragged, and the glass of a menu over the page.
 func TestPolishSnapshots(t *testing.T) {
 	dir := os.Getenv("MIZAN_SNAPSHOTS")
@@ -541,8 +541,8 @@ func TestTabs(t *testing.T) {
 	}
 }
 
-// slow skips a test under -short: dialogs and sheets blur what is behind
-// them, which the Tester draws on the CPU.
+// slow skips a test under -short: the layers draw glass and shadows,
+// which the Tester draws on the CPU.
 func slow(t *testing.T) {
 	if testing.Short() {
 		t.Skip("blurs on the CPU; skipped with -short")

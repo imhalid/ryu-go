@@ -83,15 +83,15 @@ The tokens are Go values in [tokens.go](tokens.go), written in OKLCH.
 
 ## Layers
 
-Layers move on quick springs.
+Layers move on quick springs: they spring in, and leave faster than they came.
 
 - **Dialogs** drag by their header: they lean into the motion, glide on when thrown and spring back inside the window.
-- **Halo instead of a scrim:** dialogs and sheets don't dim the window. A halo of progressive blur surrounds them, strongest along their edge.
-- **Scroll edges:** content scrolling inside a dialog or sheet dissolves into its header and footer under a progressive blur.
+- **Dialogs and sheets** come in over a soft scrim that fades in with them: a dialog rises from 94%, a sheet slides in from the edge, tilted a little. Closing, they fade or slide out, and let the pointer through to the page at once.
+- **Scroll edges:** content scrolling inside a dialog or sheet fades into its header and footer.
 - **Glass:** popovers, menus, tooltips and toasts are frosted glass, from MyGo's `plugins/glass`.
-- **Toasts:** they come from MyGo's `Context.AddToast`. Older ones tuck behind the newest and spread out under the pointer.
+- **Toasts:** they come from MyGo's `Context.AddToast`. A new one rises from below as it fades in; older ones tuck behind it and spread out under the pointer, all on springs.
 
-![A dialog in its blur halo](docs/dialog-halo-light.png)
+![A dialog over its scrim](docs/dialog-light.png)
 
 ![A menu and a stack of toasts on glass](docs/menu-toasts-light.png)
 
@@ -100,7 +100,7 @@ Layers move on quick springs.
 ```sh
 go vet ./...
 go test ./...         # interaction tests through ui.Tester
-go test -short ./...  # skips the tests that draw blur on the CPU
+go test -short ./...  # skips the tests that draw glass on the CPU
 MIZAN_SNAPSHOTS=/tmp/mizan go test -run 'Snapshot|SelectOpen' ./gallery/   # PNGs of every page
 ```
 
