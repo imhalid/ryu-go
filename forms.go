@@ -476,10 +476,7 @@ func optionItem[T comparable](c *ui.Context, t *Tokens, item ui.Element, op Opti
 		item.Opacity(0.35).Cursor(ui.CursorDefault)
 	}
 	item.Children(func() {
-		icon := ui.Icon(c, iconCheck).TextColor(check)
-		if !chosen {
-			icon.Invisible()
-		}
+		checkMark(c, 14, IconStroke, chosen, false, true, check)
 		if op.Dot != (ui.Color{}) {
 			d := dot(c, op.Dot)
 			if hl {

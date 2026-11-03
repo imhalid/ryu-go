@@ -10,8 +10,6 @@ import (
 // accent gradient when selected; knobs (Switch, Slider) are discs sitting
 // on the well, white, or metal in bevel.
 
-var iconDash = Svg(16, 12, "M4 8h8")
-
 // accentFill is the fill of a selection mark (CSS --accent-fill).
 func (t *Tokens) accentFill() ui.LinearGradient {
 	return ui.LinearGradient{Angle: 180, Oklab: true, From: t.Colors.ColorAccent500, To: t.Colors.ColorAccent600}
@@ -81,16 +79,56 @@ func Checkbox(c *ui.Context, checked *bool, label string, o CheckOptions) ui.Ele
 	t.choiceRow(c, e, label, o.Description, o.Disabled, func() {
 		box := ui.Box(c).Size(18, 18).Radius(6).Center().Shrink(0)
 		t.mark(box, on, e.Pressed() && !o.Disabled, e.FocusVisible())
-		box.Children(func() {
-			icon := iconCheck
-			if o.Indeterminate {
-				icon = iconDash
-			}
-			i := ui.Icon(c, icon).Size(12, 12).TextColor(t.Colors.OnAccent)
-			pop(i, on)
-		})
+		box.Children(func() { checkMark(c, 12, 1.75, on, o.Indeterminate, false, t.Colors.OnAccent) })
 	})
 	return e
+}
+
+// checkMark draws a check (or a dash) size DIPs wide in a stroke width
+// wide, as a pen would: on, the stroke runs from the short arm through the
+// long one, easing in and out; off, it draws itself back the way it came,
+// quicker, and fades with the box's fill, so that no white stroke is left
+// on the empty well. drawIn draws a mark that shows from the start too,
+// once its pop-up list has opened (a list closes as an option is chosen,
+// so the change itself is seldom seen). It takes its room even off.
+func checkMark(c *ui.Context, size, width float32, on, dash, drawIn bool, color ui.Color) ui.Element {
+	m := ui.Box(c).Size(size, size).Shrink(0)
+	key := "check"
+	if dash {
+		key = "dash"
+	}
+	if drawIn {
+		if seen := ui.Local(m, "seen", func() bool { return false }); !*seen {
+			*seen = true
+			m.Jump(key, 0)
+		}
+	}
+	a := ui.Animation{Duration: 260 * time.Millisecond, Ease: ui.CubicBezier(0.65, 0, 0.35, 1)}
+	if drawIn {
+		a.Delay = 90 * time.Millisecond
+	}
+	if !on {
+		a = ui.Animation{Duration: 120 * time.Millisecond, Ease: ui.EaseOut}
+	}
+	drawn := m.AnimateTo(key, b2f(on), a)
+	if drawn <= 0.001 {
+		return m
+	}
+	if !on {
+		m.Opacity(drawn * drawn)
+	}
+	m.Draw(func(p *ui.Painter, r ui.Rect) {
+		// the icon's path, in a 16-unit box scaled to the mark
+		at := func(x, y float32) (float32, float32) { return r.X + x*r.W/16, r.Y + y*r.H/16 }
+		var path ui.Path
+		if dash {
+			path.MoveTo(at(4, 8)).LineTo(at(12, 8))
+		} else {
+			path.MoveTo(at(3.5, 8.5)).LineTo(at(6.5, 11.5)).LineTo(at(12.5, 4.5))
+		}
+		p.StrokePath(path.Trim(0, drawn), width, color)
+	})
+	return m
 }
 
 // Radio is an 18px round radio button and its label: when selected, the

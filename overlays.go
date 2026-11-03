@@ -372,10 +372,7 @@ func (m *MenuList) Item(label string, o ItemOptions) bool {
 	}
 	e.TextColor(text).Children(func() {
 		if o.Checkable {
-			i := ui.Icon(c, iconCheck).Size(14, 14).TextColor(text)
-			if !o.Checked {
-				i.Invisible()
-			}
+			checkMark(c, 14, IconStroke, o.Checked, false, true, text)
 		}
 		if o.Icon != nil {
 			ui.Icon(c, o.Icon).TextColor(muted)
