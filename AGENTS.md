@@ -23,7 +23,7 @@ Kullanıcı için küçük geri bildirimler ve animasyonlar çok önemli. Bir et
 - **Ters yöne kaçma yok.** Bir öğe hedefine giderken önce geri gidip sonra ilerlemez. Konum ve genişlik birlikte değişiyorsa aynı yayla sürülür (Switch düğmesi: `x` ve `w` aynı yayda).
 - **Ani sıçrama yok.** Bir değer iki farklı yoldan yazılıyorsa (yerleşim değişimi + transform) toplamı kare kare sürekli olmalı. Yeni yerleşime geçtiğin karede transform'u aynı miktarda geri al (`Jump`), sonra sıfıra yürüt (FLIP).
 - **Fiziksel his.** Tutulan şey kalkar (biraz büyür, gölgesi `ShadowPop` olur), hıza göre hafifçe eğilir (`DragVelocity`, ±2–2.5°), bırakılınca yerine süzülür. Çevresindekiler ona yer açar; mavi çizgi gibi işaretlerle yetinilmez.
-- **Basınca tepki.** Basılan düğme 1px iner ya da %96–98'e küçülür; tutulan düğme (stepper) önce bir adım atar, 400 ms sonra hızlanarak tekrarlar.
+- **Basınca tepki.** Basılan düğme 1px iner ya da %96–98'e küçülür; Segmented'in hapı basılınca her yandan 2px içe sıkışır ve bırakınca yayla açılır (`springSqueeze`). Basınca renk değişmez (dolgu, koyulaşma yok): tepki yalnız harekettir; tutulan düğme (stepper) önce bir adım atar, 400 ms sonra hızlanarak tekrarlar.
 - **Ortamın canlı ama sakin olması.** Bir hedef "seni alırım" diyorsa düz renk yerine yavaşça yaşayan bir şey olabilir: kayan bulut gölgesi gibi `noise` ile dolaşan yumuşak lekeler (`cloud`). Çok hafif, çok yavaş (dönem birkaç saniye), dikkat dağıtmaz.
 - **İşaretler çizilir.** Onay işareti belirmez, kalemle çizilir gibi kısa koldan uzun kola akar (`checkMark`, `Path.Trim` 0→1, 260 ms); kaldırılırken geldiği yoldan, daha hızlı ve dolguyla birlikte solarak geri çekilir. Açılan listelerde (Select, Combobox, Menu) seçili öğenin işareti liste açıldıktan ~90 ms sonra çizilir: seçim yapınca liste kapandığından değişimin kendisi pek görünmez.
 - **Radio noktası açılır.** Seçilince dolgu önce gelir, nokta ~40 ms sonra merkezden sekmeden açılır (`dotMark`, 240 ms); bırakılınca 90 ms'de küçülüp söner. Yaylı "pop" kullanılmaz.
@@ -40,6 +40,7 @@ Kullanıcı için küçük geri bildirimler ve animasyonlar çok önemli. Bir et
 | `springSheet` | Sheet girişi | 380 ms, bounce 0.06 |
 | `springPop` | Popover, Menu | 220 ms, bounce 0.1 |
 | `springPill` | Segmented hapı, Tabs alt çizgisi | 280 ms, bounce 0.14 |
+| `springSqueeze` | Basılan hapın sıkışıp açılması | 220 ms, bounce 0.25 |
 | `springShift` | Yer açan kartlar | 320 ms, bounce 0.06 |
 | `springLand` | Bırakılan kartın inişi | 380 ms, bounce 0.16 |
 | `springLift` | Kartın kalkışı | 260 ms, bounce 0.2 |

@@ -343,7 +343,7 @@ func Segmented(c *ui.Context, selected *int, labels []string, o SegmentedOptions
 	// frame laid them out. Until then, the chosen segment paints its own.
 	segs := make([]ui.Element, len(labels))
 	var seps []ui.Element
-	keys := false
+	keys, held := false, false
 	tr.Children(func() {
 		for i, l := range labels {
 			if i > 0 {
@@ -369,6 +369,9 @@ func Segmented(c *ui.Context, selected *int, labels []string, o SegmentedOptions
 			}
 			if s.Pressed() && !o.Disabled {
 				s.Scale(0.97, 0.97)
+				if *selected == i {
+					held = true
+				}
 			}
 			s.Transition(ui.ElementTransition{Duration: 200 * time.Millisecond, Colors: true})
 			s.Children(func() {
@@ -394,7 +397,10 @@ func Segmented(c *ui.Context, selected *int, labels []string, o SegmentedOptions
 	} else {
 		x, w = tr.AnimateTo("pill-x", x, springPill), tr.AnimateTo("pill-w", w, springPill)
 	}
-	pill := ui.Rect{X: x, Y: sb.Y - tb.Y, W: w, H: sb.H}
+	// held, the pill gives under the press, in by 2px a side, and springs
+	// back as it is let go
+	sq := tr.AnimateTo("squeeze", b2f(held), springSqueeze)
+	pill := ui.Rect{X: x + 2*sq, Y: sb.Y - tb.Y + sq, W: w - 4*sq, H: sb.H - 2*sq}
 	// the separators the pill passes over go out as it does
 	for _, sep := range seps {
 		if b := sep.LayoutBounds(); b.W > 0 && b.X-tb.X > pill.X-2 && b.X-tb.X < pill.X+pill.W+2 {
@@ -402,7 +408,8 @@ func Segmented(c *ui.Context, selected *int, labels []string, o SegmentedOptions
 		}
 	}
 	tr.Draw(func(p *ui.Painter, r ui.Rect) {
-		t.paintRaised(p, ui.Rect{X: r.X + pill.X, Y: r.Y + pill.Y, W: pill.W, H: pill.H}, RadiusInner, t.Shadows.ShadowRaised)
+		pr := ui.Rect{X: r.X + pill.X, Y: r.Y + pill.Y, W: pill.W, H: pill.H}
+		t.paintRaised(p, pr, RadiusInner, t.Shadows.ShadowRaised)
 	})
 	return tr
 }
@@ -410,6 +417,9 @@ func Segmented(c *ui.Context, selected *int, labels []string, o SegmentedOptions
 // springPill is how Segmented's pill slides: quick, with a hint of
 // overshoot.
 var springPill = ui.Animation{Spring: ui.SpringOptions{Duration: 280 * time.Millisecond, Bounce: 0.14}}
+
+// springSqueeze is how a pressed pill gives and springs back.
+var springSqueeze = ui.Animation{Spring: ui.SpringOptions{Duration: 220 * time.Millisecond, Bounce: 0.25}}
 
 // paintRaised paints the raised material with a painter, as raised() styles
 // an element: its shadows, the control gradient, the inset highlight and
