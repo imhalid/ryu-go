@@ -28,11 +28,13 @@ Kullanıcı için küçük geri bildirimler ve animasyonlar çok önemli. Bir et
 - **İşaretler çizilir.** Onay işareti belirmez, kalemle çizilir gibi kısa koldan uzun kola akar (`checkMark`, `Path.Trim` 0→1, 260 ms); kaldırılırken geldiği yoldan, daha hızlı ve dolguyla birlikte solarak geri çekilir. Açılan listelerde (Select, Combobox, Menu) seçili öğenin işareti liste açıldıktan ~90 ms sonra çizilir: seçim yapınca liste kapandığından değişimin kendisi pek görünmez.
 - **Radio noktası açılır.** Seçilince dolgu önce gelir, nokta ~40 ms sonra merkezden sekmeden açılır (`dotMark`, 240 ms); bırakılınca 90 ms'de küçülüp söner. Yaylı "pop" kullanılmaz.
 - **Bitiş parıltısı.** Progress %100'e varınca dolgu oturduktan sonra (~380 ms) üstünden bir kez yumuşak bir beyaz bant geçer (`finish`, 1.1 s); baştan dolu çubukta oynamaz. Meter'de yok: dolu ölçer "bitti" demek değildir.
-- **Toast gelince border beam döner.** Web Mizan'ın BorderBeam'i (`src/components/border-beam/`) birebir: kenarda 1px halkada conic gradient bir hüzme (iki ucu sönen uzun bant, %66'da parlak baş; koyu temada baş tonun beyaza %65 açılmışı), altında aynı hüzmenin geniş ve soluk kopyası ışıma olarak camın *altında* çizilir, yalnız kenardan taşan kısmı görünür. Gelişte ton noktasından başlayıp bir tur döner ve söner (2.4 s `EaseInOut`). `StrokePathConicGradient` ile; kenar boyunca kesilmiş (`Trim`) katmanlı çizgi "amatör" bulundu, hale ve camdan geçen bant da "basit". Mutlak konumlu alt öğe içeriğin üstüne boyanır: ışıma gibi alta gerekenler ebeveynin kendi `Draw`'ında çizilir.
+- **Toast gelince border beam döner.** Web Mizan'ın BorderBeam'i (`src/components/border-beam/`) birebir: kenarda 1px halkada conic gradient bir hüzme (iki ucu sönen uzun bant, %66'da parlak baş; koyu temada baş tonun beyaza %65 açılmışı), altında aynı hüzmenin geniş ve soluk kopyası ışıma olarak camın *altında* çizilir, yalnız kenardan taşan kısmı görünür. Gelişte iki ışık olarak döner: biri ton noktasının hizasından (sol kenarın ortası) üst kenar boyunca sağa, öbürü karşısından alt kenar boyunca sola; her biri yalnız yarım tur, yavaşça (3 s `EaseInOut`), birbirinin başladığı yerde söner. `StrokePathConicGradient` ile; kenar boyunca kesilmiş (`Trim`) katmanlı çizgi "amatör" bulundu, hale ve camdan geçen bant da "basit". Mutlak konumlu alt öğe içeriğin üstüne boyanır: ışıma gibi alta gerekenler ebeveynin kendi `Draw`'ında çizilir.
+- **Toast acele etmez.** Gelişte alttan yükselip %96'dan büyür (`toastIn` 700 ms, bounce 0.14); yığın 560 ms'lik yayla yer açar; gidişte 340 ms'de iner, küçülür, söner. Kaydırınca işaretçiyi izler; üçte birini geçerse ya da savrulursa sağa devam edip söner, sonra kapanır (çıkış kopyası kaydırmayı bilmez, o yüzden elle); kısa kalırsa yayla döner, sola lastik gibi direnir. `ToastLoading` spinner'la gelir; aynı ID ile sonuç gelince spinner söner, nokta açılır, metin çapraz geçişle değişir, beam yeniden döner.
 - **Onay ışıkları ince.** Bir işlem tamamlanınca kenarda koşan ışık (`rise`): 1px çekirdek, dar parıltı, ~1.5 s, `EaseInOut`, tek eğri (animasyonun eğrisini yolda ikinci kez eğme).
 - **Blur yok.** Dialog ve Sheet'te bulanık hale kullanılmaz; yerine solup gelen `Scrim`. Cam (`glass`) yalnız popover, menü, tooltip ve toast'ta.
 - **Az hareket isteği.** MyGo `AnimateTo` ve `Keyframes` `ReduceMotion`'da hedefe hemen gider; elle zaman sayan çizimler (`p.Now()`) de bunu gözetmeli.
-- **Reddedilenler:** NumberInput'ta NumberFlow tarzı yuvarlanan rakamlar istenmedi (kaldırıldı); benzer "sayaç dönmesi" önerileri getirme. Spinner'a kuyruklu, haleli parlama denendi, beğenilmedi; spinner düz kalır.
+- **Reddedilenler:** Toast'ta kalan süreyi gösteren geri sayım çizgisi "klasik" bulundu, kaldırıldı; geri sayım gösterme.
+- **Reddedilenler (eski):** NumberInput'ta NumberFlow tarzı yuvarlanan rakamlar istenmedi (kaldırıldı); benzer "sayaç dönmesi" önerileri getirme. Spinner'a kuyruklu, haleli parlama denendi, beğenilmedi; spinner düz kalır.
 
 ### Tablo (`table.go`)
 
@@ -55,7 +57,8 @@ Kullanıcı için küçük geri bildirimler ve animasyonlar çok önemli. Bir et
 | `springShift` | Yer açan kartlar | 320 ms, bounce 0.06 |
 | `springLand` | Bırakılan kartın inişi | 380 ms, bounce 0.16 |
 | `springLift` | Kartın kalkışı | 260 ms, bounce 0.2 |
-| `stackSpring` | Toast yığını | 380 ms, bounce 0.04 |
+| `stackSpring` | Toast yığını | 560 ms, bounce 0.08 |
+| `toastIn` | Toast gelişi | 700 ms, bounce 0.14 |
 | `springBar` | Progress dolumu | 500 ms, bounce 0 |
 | `springSelBar` | Tablo seçim çubuğu | 320 ms, bounce 0.1 |
 | `springOpen` | Tablo satır ayrıntısı | 320 ms, bounce 0.04 |
@@ -95,6 +98,5 @@ Bekleyen fikirler (yapıldıkça sil):
 
 - Panoya kopyala düğmesi: ikon onay işaretine dönüşsün, 1.5 s sonra geri dönsün.
 - Tabs: içerik, sekme değişiminin yönünden kayarak gelsin.
-- Toast: sağa kaydırarak kapatma (eşik altında lastik gibi geri dönsün).
 - Form gönderiminde geçersiz alan hafifçe yatay sallansın, odak ona gitsin.
 - Sortable ve board: kenara yaklaşınca liste kendiliğinden kaysın.

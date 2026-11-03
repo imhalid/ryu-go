@@ -3,6 +3,8 @@
 package gallery
 
 import (
+	"time"
+
 	"github.com/egoist/mygo/ui"
 	mz "github.com/imhalid/mizan-go"
 )
@@ -38,6 +40,7 @@ type State struct {
 
 	// The layers page: what is open, and what its controls set.
 	Dialog, Sheet, Pop, Menu bool
+	uploadAt                 time.Time
 	Sort                     string
 	Last                     string
 	Tab                      int

@@ -1,6 +1,7 @@
 package mizan
 
 import (
+	"slices"
 	"time"
 
 	"github.com/egoist/mygo/plugins/glass"
@@ -457,23 +458,29 @@ func Tooltip(c *ui.Context, anchor ui.Element, text string) ui.Element {
 // Show a toast with MyGo's Context.AddToast, giving Type one of these.
 //
 //	c.AddToast(ui.Toast{Title: "Saved", Type: mizan.ToastSuccess})
+//
+// A ToastLoading toast shows a spinner in place of its mark; give it a
+// Timeout of -1 and, when the work is done, add a toast of the same ID and
+// another type: it turns into it where it is.
 const (
 	ToastInfo    = ""
 	ToastSuccess = "success"
 	ToastWarning = "warning"
 	ToastError   = "error"
+	ToastLoading = "loading"
 )
 
 // Toaster draws the window's toasts in its bottom right corner: frosted
-// glass with the pop shadow, a tint of their tone in the top left corner, a dot of
-// the tone, the title and description, an action and a close button. As
-// one arrives, Mizan's border beam turns once round it in its tone. The
-// newest is in front, at the bottom, with the older ones tucked behind it
-// until the pointer comes onto them (see stack). Call it once in the view,
-// wherever.
+// glass with the pop shadow, a tint of their tone in the top left corner, a
+// dot of the tone (a spinner while loading), the title and description, an
+// action and a close button. As one arrives it rises from below the
+// stack, growing to its size, and Mizan's border beam lights its border
+// in its tone, two lights running half way round from opposite sides. The newest is in front, at the bottom, with the older ones
+// tucked behind it until the pointer comes onto them (see stack). A toast
+// swiped to the end side goes, flung on with the swipe; let go short of
+// that, it springs back. Call it once in the view, wherever.
 func Toaster(c *ui.Context) ui.Element {
 	t := From(c)
-	cl := t.Colors
 	return ui.ToastViewportBase(c, func(viewport ui.Element, toasts []ui.Toast) {
 		viewport.Padding(16).AlignItems(ui.End).Justify(ui.End)
 		// the stack is as tall as the toasts it shows, so that the pointer
@@ -489,70 +496,150 @@ func Toaster(c *ui.Context) ui.Element {
 				roots[i] = parts[i].Root
 				open = open || roots[i].Hovered() || roots[i].FocusWithin()
 			}
+			xs := make([]float32, len(toasts))
 			for i, tt := range toasts {
-				tone := cl.Accent
-				switch tt.Type {
-				case ToastSuccess:
-					tone = cl.Down
-				case ToastWarning:
-					tone = cl.Warn
-				case ToastError:
-					tone = cl.Up
-				}
-				p := parts[i]
-				r := p.Root.Row().AlignItems(ui.Start).Gap(10).Padding(12, 10, 12, 14)
-				// arriving, a beam of its tone runs once round its border
-				if seen := ui.Local(r, "beam-seen", func() bool { return false }); !*seen {
-					*seen = true
-					r.Jump("beam", 0)
-				}
-				beam := r.AnimateTo("beam", 1, ui.Animation{Duration: 2400 * time.Millisecond, Delay: 150 * time.Millisecond, Ease: ui.EaseInOut})
-				// frosted glass: the surface at 86% over what is behind, blurred,
-				// with a tint of the tone spreading from the top left corner
-				glow := Mix(ui.Color{}, tone, 0.12)
-				ring, halo, beaming := t.beam(beam, tone)
-				r.Radius(RadiusPop).Material(glass.Blur{Radius: 20}).Draw(func(p *ui.Painter, b ui.Rect) {
-					if beaming {
-						// the beam's glow under the glass: only what spills past
-						// its edge shows, as behind Mizan's opaque cards
-						for _, w := range []float32{18, 11, 5} {
-							p.StrokePathConicGradient(roundBorder(b, RadiusPop), w, halo)
-						}
-					}
-					p.Fill(b, cl.Surface.Alpha(0.86), RadiusPop)
-					p.FillRadialGradient(b, ui.RadialGradient{Center: ui.Point{X: 0.001, Y: 0.001}, Radius: b.W * 0.7, Oklab: true,
-						Stops: []ui.GradientStop{{Color: glow, At: 0}, {Color: glow.Alpha(0), At: 1}}}, RadiusPop)
-				})
-				if beaming {
-					r.DrawOver(func(p *ui.Painter, b ui.Rect) {
-						b = ui.Rect{X: b.X + 0.5, Y: b.Y + 0.5, W: b.W - 1, H: b.H - 1}
-						p.StrokePathConicGradient(roundBorder(b, RadiusPop-0.5), 1, ring)
-					})
-				}
-				t.Shadows.ShadowPop.Apply(r)
-				// it arrives by hand, in stack; it leaves sinking a little as it
-				// fades, from wherever the stack had it
-				r.FontSize(FsMd).TextColor(cl.Text).Transition(ui.ElementTransition{
-					Duration: 200 * time.Millisecond, Ease: ui.EaseOut, Colors: true,
-					Exit: &ui.Motion{Y: 10, Scale: 0.96},
-				})
-				// a toast tucked behind shows only its glass
-				shown := r.AnimateTo("shown", b2f(open || i == len(toasts)-1), stackSpring)
-				r.Children(func() {
-					ui.Row(c).Grow(1).MinWidth(0).AlignItems(ui.Start).Gap(10).Opacity(shown).Children(func() { t.toastBody(c, p, tt, tone) })
-				})
+				xs[i] = t.toast(c, parts[i], tt, open || i == len(toasts)-1)
 			}
-			stack(box, roots, open)
+			stack(box, roots, xs, open)
 		})
 	})
 }
 
+// toast styles and builds one toast; shown is whether its content shows
+// (a toast tucked behind shows only its glass). It returns how far it is
+// swiped.
+func (t *Tokens) toast(c *ui.Context, p ui.ToastParts, tt ui.Toast, shown bool) float32 {
+	cl := t.Colors
+	tone := t.toastTone(tt.Type)
+	r := p.Root.Row().AlignItems(ui.Start).Gap(10).Padding(12, 10, 14, 14)
+
+	// a new type, as a loading toast done: the beam turns again
+	kind := ui.Local(r, "type", func() string { return tt.Type })
+	if seen := ui.Local(r, "beam-seen", func() bool { return false }); !*seen || *kind != tt.Type {
+		*seen = true
+		r.Jump("beam", 0)
+	}
+	*kind = tt.Type
+	beam := r.AnimateTo("beam", 1, ui.Animation{Duration: 3000 * time.Millisecond, Delay: 260 * time.Millisecond, Ease: ui.EaseInOut})
+
+	swiped, gone := t.swipe(c, r, tt.ID)
+
+	// frosted glass: the surface at 86% over what is behind, blurred, with
+	// a tint of the tone spreading from the top left corner
+	tint := Mix(ui.Color{}, tone, 0.12)
+	ring, halo, beaming := t.beam(beam, tone)
+	r.Radius(RadiusPop).Material(glass.Blur{Radius: 20}).Draw(func(pt *ui.Painter, b ui.Rect) {
+		if beaming {
+			// the beam's glow under the glass: only what spills past its
+			// edge shows, as behind Mizan's opaque cards
+			for _, w := range []float32{18, 11, 5} {
+				pt.StrokePathConicGradient(roundBorder(b, RadiusPop), w, halo)
+			}
+		}
+		pt.Fill(b, cl.Surface.Alpha(0.86), RadiusPop)
+		pt.FillRadialGradient(b, ui.RadialGradient{Center: ui.Point{X: 0.001, Y: 0.001}, Radius: b.W * 0.7, Oklab: true,
+			Stops: []ui.GradientStop{{Color: tint, At: 0}, {Color: tint.Alpha(0), At: 1}}}, RadiusPop)
+	})
+	vis := r.AnimateTo("shown", b2f(shown), stackSpring)
+	if beaming {
+		r.DrawOver(func(pt *ui.Painter, b ui.Rect) {
+			b = ui.Rect{X: b.X + 0.5, Y: b.Y + 0.5, W: b.W - 1, H: b.H - 1}
+			pt.StrokePathConicGradient(roundBorder(b, RadiusPop-0.5), 1, ring)
+		})
+	}
+	t.Shadows.ShadowPop.Apply(r)
+	// it leaves sinking and shrinking a little as it fades, from wherever
+	// the stack had it; swiped, it goes on the way it was flung
+	// swiped away, it is out of sight already as it closes
+	var exit *ui.Motion
+	if !gone {
+		exit = &ui.Motion{Y: 16, Scale: 0.94}
+	}
+	r.FontSize(FsMd).TextColor(cl.Text).Transition(ui.ElementTransition{
+		Duration: 340 * time.Millisecond, Ease: ui.CubicBezier(0.32, 0.72, 0, 1), Colors: true, Exit: exit,
+	})
+	r.Children(func() {
+		ui.Row(c).Grow(1).MinWidth(0).AlignItems(ui.Start).Gap(10).Opacity(vis).Children(func() { t.toastBody(c, p, tt, tone) })
+	})
+	return swiped
+}
+
+// toastTone is the tone of a toast's type.
+func (t *Tokens) toastTone(kind string) ui.Color {
+	cl := t.Colors
+	switch kind {
+	case ToastSuccess:
+		return cl.Down
+	case ToastWarning:
+		return cl.Warn
+	case ToastError:
+		return cl.Up
+	}
+	return cl.Accent
+}
+
+// swipe lets a toast be swiped to the end side: it follows the pointer,
+// fading as it goes; let go past a third of its width, or flung, it goes on
+// past the end edge as it fades and then closes, else it springs back.
+// Pulled the other way, it gives a little, as a rubber band. It returns how
+// far the toast shows swiped, and whether it is on its way out.
+func (t *Tokens) swipe(c *ui.Context, r ui.Element, id string) (float32, bool) {
+	type swipeState struct {
+		x          float32
+		held, gone bool
+	}
+	s := *ui.Local(r, "swipe", func() *swipeState { return &swipeState{} })
+	w := max(r.LayoutBounds().W, 1)
+	end := w + 60
+	dx, _, pressed := r.Dragged()
+	vis := func(x float32) float32 {
+		if x < 0 {
+			return -rubberband(-x) * 0.4
+		}
+		return x
+	}
+	fade := func(x float32) { r.Opacity(1 - clamp01(x/end)) }
+	switch {
+	case s.gone:
+		x := r.AnimateTo("swipe", end, ui.Animation{Duration: 260 * time.Millisecond, Ease: ui.EaseOut})
+		fade(x)
+		if x >= end-1 {
+			c.CloseToast(id)
+		}
+		return x, true
+	case pressed:
+		s.held = true
+		s.x += dx
+		x := r.Jump("swipe", vis(s.x))
+		fade(x * 0.55)
+		return x, false
+	case s.held:
+		s.held = false
+		vx := float32(0)
+		if v, _, ok := r.DragEnded(); ok {
+			vx = v
+		}
+		if s.x > w/3 || vx > 700 {
+			s.gone = true
+			c.AnimationFrame()
+			return r.AnimateTo("swipe", end, ui.Animation{Duration: 260 * time.Millisecond, Ease: ui.EaseOut}), true
+		}
+		s.x = 0
+	}
+	x := r.AnimateTo("swipe", 0, ui.Animation{Spring: ui.SpringOptions{Duration: 420 * time.Millisecond, Bounce: 0.22}})
+	fade(max(x, 0) * 0.55)
+	return x, false
+}
+
 // beam is Mizan's border beam, run once as a toast arrives (f from 0 to
-// 1): the gradients of a 1px ring along the border with a light of its
-// tone in it, a long band fading at both ends to a bright head (in the
-// dark theme, the tone lifted toward white), turning once round from the
-// toast's dot; and of its glow, the same band wider and fainter. It fades
-// in as it starts and out as it ends; ok is false while it does not run.
+// 1), as two lights: one rises by the toast's dot, at the middle of its
+// start edge, and runs along the top to the end edge; the other rises
+// opposite it and runs along the bottom to the start edge. Each goes half
+// way round, slowly, and they fade as they meet the other's start. It
+// returns the gradients of the 1px ring along the border, each light a
+// long band fading at both ends to a bright head (in the dark theme, the
+// tone lifted toward white), and of their glow, the same bands wider and
+// fainter; ok is false while it does not run.
 func (t *Tokens) beam(f float32, tone ui.Color) (ring, glow ui.ConicGradient, ok bool) {
 	if f <= 0 || f >= 1 {
 		return ring, glow, false
@@ -562,23 +649,33 @@ func (t *Tokens) beam(f float32, tone ui.Color) (ring, glow ui.ConicGradient, ok
 		head = Mix(tone, ui.RGB(255, 255, 255), 0.65)
 	}
 	vis := min(1, f*5) * min(1, (1-f)*4)
-	// the head starts at the start edge, by the dot: the band's head is
-	// 66% round from the angle the gradient starts at
-	from := 270 - 0.66*360 + 360*f
+	// a band's head is 16% round from the angle the gradient starts at,
+	// the other's half a turn on: the first starts at the start edge (270
+	// degrees, by the dot), and both turn half a turn
+	from := 270 - 0.16*360 + 180*f
 	at := func(c ui.Color, a, pos float32) ui.GradientStop {
 		return ui.GradientStop{Color: c.Alpha(a * vis), At: pos}
 	}
-	ring = ui.ConicGradient{Angle: from, Oklab: true, Stops: []ui.GradientStop{
-		at(tone, 0, 0), at(tone, 0, 0.54), at(tone, 0.12, 0.57), at(tone, 0.4, 0.612),
-		at(head, 0.75, 0.645), at(head, 0.95, 0.66), at(head, 0.75, 0.675),
-		at(tone, 0.4, 0.708), at(tone, 0.12, 0.75), at(tone, 0, 0.78), at(tone, 0, 1),
-	}}
-	// three strokes of it, widening, add up to a soft glow of a third
+	// one band's stops, around its head at h, for the ring and the glow
+	ringBand := func(h float32) []ui.GradientStop {
+		return []ui.GradientStop{
+			at(tone, 0, h-0.12), at(tone, 0.12, h-0.09), at(tone, 0.4, h-0.048),
+			at(head, 0.75, h-0.015), at(head, 0.95, h), at(head, 0.75, h+0.015),
+			at(tone, 0.4, h+0.048), at(tone, 0.12, h+0.09), at(tone, 0, h+0.12),
+		}
+	}
 	const g = 0.1
-	glow = ui.ConicGradient{Angle: from, Oklab: true, Stops: []ui.GradientStop{
-		at(tone, 0, 0), at(tone, 0, 0.44), at(tone, 0.3*g, 0.55), at(head, 0.9*g, 0.66),
-		at(tone, 0.3*g, 0.77), at(tone, 0, 0.88), at(tone, 0, 1),
-	}}
+	glowBand := func(h float32) []ui.GradientStop {
+		return []ui.GradientStop{
+			at(tone, 0, h-0.16), at(tone, 0.3*g, h-0.08), at(head, 0.9*g, h),
+			at(tone, 0.3*g, h+0.08), at(tone, 0, h+0.16),
+		}
+	}
+	gap := func(a, b float32) []ui.GradientStop { return []ui.GradientStop{at(tone, 0, a), at(tone, 0, b)} }
+	ring = ui.ConicGradient{Angle: from, Oklab: true, Stops: slices.Concat(
+		gap(0, 0.02), ringBand(0.16), gap(0.3, 0.52), ringBand(0.66), gap(0.8, 1))}
+	glow = ui.ConicGradient{Angle: from, Oklab: true, Stops: slices.Concat(
+		glowBand(0.16), gap(0.34, 0.48), glowBand(0.66), gap(0.84, 1))}
 	return ring, glow, true
 }
 
@@ -596,15 +693,30 @@ func roundBorder(r ui.Rect, radius float32) *ui.Path {
 	return &p
 }
 
-// toastBody builds a toast's content: the tone's dot, the title and
-// description, the action and the close button.
+// toastBody builds a toast's content: the tone's dot (a spinner while
+// loading), the title and description, the action and the close button.
+// When a loading toast turns into its result, the spinner fades as the dot
+// opens in its place, and the new words rise in as the old ones rise away.
 func (t *Tokens) toastBody(c *ui.Context, p ui.ToastParts, tt ui.Toast, tone ui.Color) {
 	cl := t.Colors
-	ui.Box(c).Size(8, 8).Radius(4).Background(tone).Margin(6, 0, 0, 0).Shrink(0)
+	mark := ui.Box(c).Size(12, 12).Margin(4, 0, 0, -2).Shrink(0)
+	done := mark.AnimateTo("done", b2f(tt.Type != ToastLoading), ui.Animation{Duration: 360 * time.Millisecond, Ease: ui.CubicBezier(0.2, 0.8, 0.2, 1)})
+	mark.Children(func() {
+		if done < 1 {
+			Spinner(c.Key("spin"), SpinnerOptions{Size: 12, Color: cl.Accent}).Absolute().Left(0).Top(0).
+				Opacity(1-done).Scale(1-0.4*done, 1-0.4*done)
+		}
+		if done > 0 {
+			ui.Box(c.Key("dot")).Absolute().Left(2).Top(2).Size(8, 8).Radius(4).Background(tone).
+				Scale(done, done).Opacity(clamp01(done * 2))
+		}
+	})
+	words := ui.ElementTransition{Duration: 260 * time.Millisecond, Ease: ui.EaseOut,
+		Enter: &ui.Motion{Y: 6}, Exit: &ui.Motion{Y: -6}}
 	ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-		ui.Text(c, tt.Title).FontWeight(600).Wrap()
+		ui.Text(c.Key("t:"+tt.Title), tt.Title).FontWeight(600).Wrap().Transition(words)
 		if tt.Description != "" {
-			ui.Text(c, tt.Description).TextColor(cl.Muted).FontSize(FsSm).Wrap()
+			ui.Text(c.Key("d:"+tt.Description), tt.Description).TextColor(cl.Muted).FontSize(FsSm).Wrap().Transition(words)
 		}
 	})
 	if tt.Action != "" {
@@ -619,6 +731,9 @@ func (t *Tokens) toastBody(c *ui.Context, p ui.ToastParts, tt ui.Toast, tone ui.
 		x.Background(cl.Fill)
 		color = cl.Text
 	}
+	if x.Pressed() {
+		x.Scale(0.9, 0.9)
+	}
 	x.TextColor(color).Children(func() { ui.Icon(c, iconClear) })
 }
 
@@ -629,8 +744,9 @@ func (t *Tokens) toastBody(c *ui.Context, p ui.ToastParts, tt ui.Toast, tone ui.
 // in front, 5% smaller and no taller than it; with the pointer on the
 // stack or the keyboard focus in a toast, they spread out into a list, 8
 // DIPs apart. The box grows and shrinks with them. A new toast rises from
-// below the stack as it fades in.
-func stack(box ui.Element, roots []ui.Element, open bool) {
+// below the stack, growing from 96% as it fades in; xs are how far each is
+// swiped.
+func stack(box ui.Element, roots []ui.Element, xs []float32, open bool) {
 	const peek, gap, guess = 10, 8, 64
 	n := len(roots)
 	if n == 0 {
@@ -670,14 +786,20 @@ func stack(box ui.Element, roots []ui.Element, open bool) {
 			r.Jump("in", 0)
 		}
 		in := r.AnimateTo("in", 1, toastIn)
-		y = r.AnimateTo("stack-y", y, stackSpring) + (1-in)*(b+16)
-		sx = r.AnimateTo("stack-sx", sx, stackSpring)
-		sy = r.AnimateTo("stack-sy", sy, stackSpring)
-		r.Absolute().Left(0).Right(0).Bottom(0).TransformOrigin(0.5, 1).Translate(0, y).Scale(sx, sy).Opacity(clamp01(in))
+		y = r.AnimateTo("stack-y", y, stackSpring) + (1-in)*(b+20)
+		grow := 0.96 + 0.04*in
+		sx = r.AnimateTo("stack-sx", sx, stackSpring) * grow
+		sy = r.AnimateTo("stack-sy", sy, stackSpring) * grow
+		r.Absolute().Left(0).Right(0).Bottom(0).TransformOrigin(0.5, 1).Translate(xs[i], y).Scale(sx, sy)
+		if in < 1 {
+			r.Opacity(clamp01(in * 1.6))
+		}
 	}
 }
 
 var (
-	stackSpring = ui.Animation{Spring: ui.SpringOptions{Duration: 380 * time.Millisecond, Bounce: 0.04}}
-	toastIn     = ui.Animation{Spring: ui.SpringOptions{Duration: 440 * time.Millisecond, Bounce: 0.06}}
+	// a toast arrives unhurried, with a soft settle; the stack moves at a
+	// calm pace as it makes room
+	stackSpring = ui.Animation{Spring: ui.SpringOptions{Duration: 560 * time.Millisecond, Bounce: 0.08}}
+	toastIn     = ui.Animation{Spring: ui.SpringOptions{Duration: 700 * time.Millisecond, Bounce: 0.14}}
 )

@@ -95,7 +95,7 @@ Layers move on quick springs: they spring in, and leave faster than they came.
 - **Drag and drop:** a card picked up lifts and follows the pointer, leaning into the motion; the cards where it would go slide apart, and it flies into its place when let go. A column taking it glows, a cloud's shadow of the accent drifting across it, and a light runs up both its sides as it lands. Sortable rows also move with Alt+Up and Alt+Down.
 - **Table:** rows built only as far as they show, sorted by a click on a header (Shift-click adds a key), chosen with checkboxes (Shift-click for a range) under a selection bar that springs in over the toolbar. A column picked up by its header lifts and the others slide aside for it; its end edge resizes it. Rows slide to their new places as the sort changes, new ones fade in, removed ones fade where they were, and a page turns sideways. Search, a view menu for columns and density, opening rows for details, a pinned first column, pages, and loading, empty and error states come with it.
 - **Glass:** popovers, menus, tooltips and toasts are frosted glass, from MyGo's `plugins/glass`.
-- **Toasts:** they come from MyGo's `Context.AddToast`. A new one rises from below as it fades in; older ones tuck behind it and spread out under the pointer, all on springs.
+- **Toasts:** they come from MyGo's `Context.AddToast`. A new one rises from below, growing to its size, as two lights of Mizan's border beam run round it from opposite sides; older ones tuck behind it and spread out under the pointer. A swipe to the side sends one away, and a `ToastLoading` toast turns into its result in place.
 
 ![A dialog over its scrim](docs/dialog-light.png)
 

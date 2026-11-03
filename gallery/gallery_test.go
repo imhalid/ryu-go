@@ -428,6 +428,47 @@ func TestToast(t *testing.T) {
 	}
 }
 
+// A toast swiped past a third of its width goes; a short swipe springs
+// back.
+func TestToastSwipe(t *testing.T) {
+	_, tt := page3(mz.Light, mz.SkinMizan)
+	tt.Click("Succeed")
+	tt.Advance(800 * time.Millisecond)
+	x, y := center(t, tt, "Export finished")
+	swipe := func(by float32) {
+		tt.Press(x, y)
+		for i := 1; i <= 8; i++ {
+			tt.Move(x+by*float32(i)/8, y)
+			tt.Advance(16 * time.Millisecond)
+		}
+		tt.Release(x+by, y)
+		tt.Advance(600 * time.Millisecond)
+	}
+	swipe(40)
+	if r, ok := tt.Find("Export finished"); !ok || r.X-x > 20 {
+		t.Fatalf("a short swipe: the toast at %v (%v), want it back", r, ok)
+	}
+	swipe(200)
+	if tt.HasText("Export finished") {
+		t.Fatal("a long swipe left the toast")
+	}
+}
+
+// A loading toast turns into its result in place.
+func TestToastLoading(t *testing.T) {
+	_, tt := page3(mz.Light, mz.SkinMizan)
+	tt.Click("Upload")
+	tt.Advance(800 * time.Millisecond)
+	if !tt.HasText("Uploading Q3-report.pdf") {
+		t.Fatal("no loading toast")
+	}
+	tt.Advance(1600 * time.Millisecond)
+	tt.Advance(600 * time.Millisecond)
+	if tt.HasText("Uploading Q3-report.pdf") || !tt.HasText("Q3-report.pdf uploaded") {
+		t.Fatalf("the upload did not turn into its result: %v", tt.Texts())
+	}
+}
+
 func TestTooltip(t *testing.T) {
 	_, tt := page3(mz.Light, mz.SkinMizan)
 	x, y := center(t, tt, "Share link")

@@ -1,6 +1,8 @@
 package gallery
 
 import (
+	"time"
+
 	"github.com/egoist/mygo/ui"
 	mz "github.com/imhalid/mizan-go"
 )
@@ -63,6 +65,21 @@ func (s *State) layers(c *ui.Context, t *mz.Tokens) {
 					}
 					if mz.Button(c.Key("toastErr"), "Fail", mz.ButtonOptions{Danger: true, Variant: mz.Soft}).Clicked() {
 						c.AddToast(ui.Toast{ID: "err", Title: "Upload failed", Description: "The connection was lost.", Type: mz.ToastError, Timeout: -1})
+					}
+					if mz.Button(c.Key("toastLoad"), "Upload", mz.ButtonOptions{}).Clicked() {
+						c.AddToast(ui.Toast{ID: "upload", Title: "Uploading Q3-report.pdf", Description: "2.4 MB", Type: mz.ToastLoading, Timeout: -1})
+						s.uploadAt = c.Now()
+					}
+					if !s.uploadAt.IsZero() {
+						// a stand-in for the upload finishing: the same toast turns
+						// into its result
+						const took = 2200 * time.Millisecond
+						if left := took - c.Now().Sub(s.uploadAt); left > 0 {
+							c.After(left)
+						} else {
+							s.uploadAt = time.Time{}
+							c.AddToast(ui.Toast{ID: "upload", Title: "Q3-report.pdf uploaded", Description: "Shared with the finance team.", Type: mz.ToastSuccess})
+						}
 					}
 				})
 			})
