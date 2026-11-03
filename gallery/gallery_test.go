@@ -127,11 +127,47 @@ func center(t *testing.T, tt *ui.Tester, s string) (float32, float32) {
 func TestBoardDrag(t *testing.T) {
 	s, tt := page2(t, mz.Light, mz.SkinMizan)
 	ax, ay := center(t, tt, "Sign-in screen")
-	bx, by := center(t, tt, "Done")
-	drag(tt, ax, ay, bx, by+40)
-	if got := s.Cards[0].col; got != 2 {
-		t.Fatalf("card column %d, want 2", got)
+	bx, _ := center(t, tt, "Done")
+	r, _ := tt.Find("Dark theme")
+	drag(tt, ax, ay, bx, r.Y+r.H+30)
+	if k := s.cardNamed("Sign-in screen"); k.col != 2 {
+		t.Fatalf("card column %d, want 2", k.col)
 	}
+	// below Dark theme, the column's only card
+	if s.Cards[len(s.Cards)-1].Title != "Sign-in screen" {
+		t.Fatalf("order %v, want Sign-in screen after Dark theme", titles(s.Cards))
+	}
+}
+
+// Within a column, a card dragged above another goes before it.
+func TestBoardReorder(t *testing.T) {
+	s, tt := page2(t, mz.Light, mz.SkinMizan)
+	ax, ay := center(t, tt, "Report export")
+	r, _ := tt.Find("Sign-in screen")
+	drag(tt, ax, ay, ax, r.Y)
+	if got := titles(s.Cards)[:2]; got[0] != "Report export" || got[1] != "Sign-in screen" {
+		t.Fatalf("order %v, want Report export first", titles(s.Cards))
+	}
+	if k := s.cardNamed("Report export"); k.col != 0 {
+		t.Fatalf("column %d, want 0", k.col)
+	}
+}
+
+func (s *State) cardNamed(title string) *card {
+	for _, k := range s.Cards {
+		if k.Title == title {
+			return k
+		}
+	}
+	return nil
+}
+
+func titles(cards []*card) []string {
+	var out []string
+	for _, k := range cards {
+		out = append(out, k.Title)
+	}
+	return out
 }
 
 func TestSortableDrag(t *testing.T) {
@@ -141,6 +177,24 @@ func TestSortableDrag(t *testing.T) {
 	drag(tt, ax, ay, ax, r.Y+2)
 	if s.Steps[0] != "Validate" {
 		t.Fatalf("order %v", s.Steps)
+	}
+}
+
+// Alt+Down moves the focused row one place down, and the focus with it.
+func TestSortableKeys(t *testing.T) {
+	s, tt := page2(t, mz.Light, mz.SkinMizan)
+	if err := tt.Click("Import data"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Key(ui.Alt, ui.KeyDown)
+	tt.Advance(50 * time.Millisecond)
+	if s.Steps[0] != "Map columns" || s.Steps[1] != "Import data" {
+		t.Fatalf("Alt+Down: order %v", s.Steps)
+	}
+	tt.Key(ui.Alt, ui.KeyDown)
+	tt.Advance(400 * time.Millisecond)
+	if s.Steps[2] != "Import data" {
+		t.Fatalf("Alt+Down again: order %v, want the focus to follow the row", s.Steps)
 	}
 }
 

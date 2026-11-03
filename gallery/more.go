@@ -1,6 +1,7 @@
 package gallery
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -88,10 +89,7 @@ func (s *State) board(c *ui.Context, t *mz.Tokens) {
 						}
 					}
 					ui.Column(c.Key(col)).Grow(1).Basis(0).MinWidth(0).Children(func() {
-						k, ok := mz.DropArea[*card](c, mz.DropAreaOptions{
-							Title: title, Count: itoa(n), Fill: true,
-							Accept: func(v any) bool { return v.(*card).col != col },
-						}, func() {
+						mz.DropArea(c, mz.DropAreaOptions{Title: title, Count: itoa(n), Fill: true}, func() {
 							for _, k := range s.Cards {
 								if k.col != col {
 									continue
@@ -101,15 +99,32 @@ func (s *State) board(c *ui.Context, t *mz.Tokens) {
 									ui.Row(c).Children(func() { mz.Badge(c, k.Tag, mz.ToneNeutral) })
 								})
 							}
-						})
-						if ok {
-							k.col = col
-						}
+						}, func(k *card, index int) { s.moveCard(k, col, index) })
 					})
 				}
 			})
 		})
 	})
+}
+
+// moveCard puts k in column col, before the index-th of the column's
+// other cards (at its end past them).
+func (s *State) moveCard(k *card, col, index int) {
+	rest := slices.DeleteFunc(slices.Clone(s.Cards), func(x *card) bool { return x == k })
+	at, n := len(rest), 0
+	for i, x := range rest {
+		if x.col != col {
+			continue
+		}
+		if n == index {
+			at = i
+			break
+		}
+		n++
+		at = i + 1
+	}
+	k.col = col
+	s.Cards = slices.Insert(rest, at, k)
 }
 
 func (s *State) files(c *ui.Context, t *mz.Tokens) {

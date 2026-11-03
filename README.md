@@ -91,6 +91,7 @@ Layers move on quick springs: they spring in, and leave faster than they came.
 - **Dialogs** drag by their header: they lean into the motion, glide on when thrown and spring back inside the window.
 - **Dialogs and sheets** come in over a soft scrim that fades in with them: a dialog rises from 94%, a sheet slides in from the edge, tilted a little. Closing, they fade or slide out, and let the pointer through to the page at once.
 - **Scroll edges:** content scrolling inside a dialog or sheet fades into its header and footer.
+- **Drag and drop:** a card picked up lifts and follows the pointer, leaning into the motion; the cards where it would go slide apart, and it flies into its place when let go. A column taking it glows, a cloud's shadow of the accent drifting across it, and a light runs up both its sides as it lands. Sortable rows also move with Alt+Up and Alt+Down.
 - **Glass:** popovers, menus, tooltips and toasts are frosted glass, from MyGo's `plugins/glass`.
 - **Toasts:** they come from MyGo's `Context.AddToast`. A new one rises from below as it fades in; older ones tuck behind it and spread out under the pointer, all on springs.
 
