@@ -270,3 +270,159 @@ func TestAccentSnapshots(t *testing.T) {
 		f.Close()
 	}
 }
+
+// page3 opens the layers page.
+func page3(mode mz.Mode, skin mz.Skin) (*State, *ui.Tester) {
+	s := New()
+	s.Mode, s.Skin, s.Page = mode, skin, 2
+	return s, ui.NewTester(s.View, 1180, 860)
+}
+
+func TestDialog(t *testing.T) {
+	s, tt := page3(mz.Light, mz.SkinMizan)
+	if err := tt.Click("Open dialog"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Advance(400 * time.Millisecond)
+	if !tt.HasText("Delete the report?") {
+		t.Fatal("the dialog did not open")
+	}
+	tt.Key(0, ui.KeyEscape)
+	tt.Advance(400 * time.Millisecond)
+	if s.Dialog || tt.HasText("Delete the report?") {
+		t.Fatal("Escape did not close the dialog")
+	}
+	tt.Click("Open dialog")
+	tt.Advance(400 * time.Millisecond)
+	if err := tt.Click("Delete report"); err != nil {
+		t.Fatal(err)
+	}
+	if s.Dialog || s.Last != "Deleted" {
+		t.Fatalf("confirm: open %v, last %q", s.Dialog, s.Last)
+	}
+	tt.Click("Open dialog")
+	tt.Advance(400 * time.Millisecond)
+	if err := tt.Click("Close"); err != nil {
+		t.Fatal(err)
+	}
+	if s.Dialog {
+		t.Fatal("the close button did not close the dialog")
+	}
+}
+
+func TestSheet(t *testing.T) {
+	s, tt := page3(mz.Light, mz.SkinMizan)
+	tt.Click("Open sheet")
+	tt.Advance(500 * time.Millisecond)
+	if err := tt.Click("Save"); err != nil {
+		t.Fatal(err)
+	}
+	if s.Sheet || s.Last != "Saved" {
+		t.Fatalf("sheet: open %v, last %q", s.Sheet, s.Last)
+	}
+}
+
+func TestMenu(t *testing.T) {
+	s, tt := page3(mz.Light, mz.SkinMizan)
+	tt.Click("More")
+	tt.Advance(300 * time.Millisecond)
+	if err := tt.Click("Share"); err != nil {
+		t.Fatal(err)
+	}
+	if s.Menu || s.Last != "Share" {
+		t.Fatalf("menu: open %v, last %q", s.Menu, s.Last)
+	}
+	// the keys: the first item has the focus, Down moves to the next
+	tt.Click("More")
+	tt.Advance(300 * time.Millisecond)
+	tt.Key(0, ui.KeyDown)
+	tt.Key(0, ui.KeyEnter)
+	tt.Frame()
+	if s.Last != "Share" || s.Menu {
+		t.Fatalf("keys: open %v, last %q", s.Menu, s.Last)
+	}
+	tt.Click("Sort")
+	tt.Advance(300 * time.Millisecond)
+	if err := tt.Click("Date"); err != nil {
+		t.Fatal(err)
+	}
+	if s.Sort != "Date" {
+		t.Fatalf("sort %q", s.Sort)
+	}
+}
+
+func TestToast(t *testing.T) {
+	s, tt := page3(mz.Light, mz.SkinMizan)
+	tt.Click("Archive")
+	tt.Advance(300 * time.Millisecond)
+	if !tt.HasText("3 reports archived") {
+		t.Fatal("no toast")
+	}
+	if err := tt.Click("Undo"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Advance(500 * time.Millisecond)
+	if s.Last != "Undo" || tt.HasText("3 reports archived") {
+		t.Fatalf("undo: last %q", s.Last)
+	}
+	tt.Click("Notify")
+	tt.Advance(5 * time.Second)
+	if tt.HasText("Report shared") {
+		t.Fatal("the toast did not time out")
+	}
+}
+
+func TestTooltip(t *testing.T) {
+	_, tt := page3(mz.Light, mz.SkinMizan)
+	x, y := center(t, tt, "Share link")
+	tt.Move(x, y)
+	tt.Advance(2 * time.Second)
+	if !tt.HasText("Share the report") {
+		t.Fatal("no tooltip")
+	}
+}
+
+// TestLayerSnapshots draws the layers open.
+func TestLayerSnapshots(t *testing.T) {
+	dir := os.Getenv("MIZAN_SNAPSHOTS")
+	if dir == "" {
+		t.Skip("MIZAN_SNAPSHOTS not set")
+	}
+	save := func(tt *ui.Tester, name string) {
+		f, err := os.Create(filepath.Join(dir, name+".png"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		png.Encode(f, tt.Image())
+		f.Close()
+	}
+	for _, v := range []struct {
+		name string
+		mode mz.Mode
+		skin mz.Skin
+	}{{"light", mz.Light, mz.SkinMizan}, {"dark", mz.Dark, mz.SkinBevel}} {
+		_, tt := page3(v.mode, v.skin)
+		tt.Click("Open dialog")
+		tt.Advance(600 * time.Millisecond)
+		save(tt, "dialog-"+v.name)
+		tt.Key(0, ui.KeyEscape)
+		tt.Advance(600 * time.Millisecond)
+		tt.Click("Open sheet")
+		tt.Advance(800 * time.Millisecond)
+		save(tt, "sheet-"+v.name)
+		tt.Key(0, ui.KeyEscape)
+		tt.Advance(600 * time.Millisecond)
+		tt.Click("Succeed")
+		tt.Click("Archive")
+		tt.Click("Fail")
+		tt.Advance(600 * time.Millisecond)
+		tt.Click("More")
+		tt.Advance(300 * time.Millisecond)
+		tt.Key(0, ui.KeyDown)
+		x, y := center(t, tt, "Share link")
+		_ = x
+		tt.Move(x+300, y)
+		tt.Advance(300 * time.Millisecond)
+		save(tt, "menu-toast-"+v.name)
+	}
+}

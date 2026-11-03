@@ -26,7 +26,7 @@ type State struct {
 	ViewMode           int
 	Volume, Zoom       float64
 
-	// Page is 0: controls; 1: chat, drag and drop, and indicators.
+	// Page is 0: controls; 1: chat, drag and drop, and indicators; 2: layers.
 	Page  int
 	Msgs  []mz.ChatMessage
 	Draft string
@@ -34,6 +34,11 @@ type State struct {
 	steps ui.ListState
 	Cards []*card
 	Files []file
+
+	// The layers page: what is open, and what its controls set.
+	Dialog, Sheet, Pop, Menu bool
+	Sort                     string
+	Last                     string
 }
 
 // card is a task on the board; col is the column it is in.
@@ -73,6 +78,7 @@ var search = mz.Svg(16, 15, "M7 12.5a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM14.5
 func (s *State) View(c *ui.Context) {
 	t := mz.Root(c, mz.Options{Mode: s.Mode, Skin: s.Skin, Accent: s.Accent})
 	ui.Scroll(c).Fill().Children(func() { s.page(c, t) })
+	mz.Toaster(c)
 }
 
 func (s *State) page(c *ui.Context, t *mz.Tokens) {
@@ -85,7 +91,7 @@ func (s *State) page(c *ui.Context, t *mz.Tokens) {
 			ui.Row(c).Gap(mz.GapControl).Children(func() {
 				s.accents(c, t)
 				ui.Box(c).Size(8, 0)
-				for i, name := range []string{"Controls", "Chat and drag"} {
+				for i, name := range []string{"Controls", "Chat and drag", "Layers"} {
 					o := mz.ButtonOptions{Size: mz.Sm}
 					if s.Page == i {
 						o.Color = t.Colors.Accent
@@ -117,6 +123,10 @@ func (s *State) page(c *ui.Context, t *mz.Tokens) {
 				}
 			})
 		})
+		if s.Page == 2 {
+			s.layers(c, t)
+			return
+		}
 		if s.Page == 1 {
 			s.more(c, t)
 			return
