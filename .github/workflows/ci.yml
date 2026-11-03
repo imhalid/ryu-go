@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Format
+        run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
+      - name: Vet
+        run: go vet ./...
+      - name: Test
+        run: go test -count=1 ./...
+      - name: Build for every platform, without cgo
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          GOOS=linux go build ./...
+          GOOS=darwin go build ./...
+          GOOS=windows go build ./...
+          GOOS=js GOARCH=wasm go build ./...
+      - name: Snapshots
+        run: mkdir -p snapshots && MIZAN_SNAPSHOTS=$PWD/snapshots go test -count=1 -run 'Snapshot|SelectOpen' ./gallery/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: snapshots
+          path: snapshots
