@@ -2,22 +2,23 @@ package mizan
 
 import "github.com/egoist/mygo/ui"
 
-// CardOptions, Card'ın seçenekleridir.
+// CardOptions are the options of Card.
 type CardOptions struct {
 	Title    string
 	Subtitle string
-	// Pad, panele pad-card (28px) iç dolgu verir; yoksa yalnız 10px dikey
-	// (içine tablo ya da liste kenardan kenara oturur).
+	// Pad gives the panel pad-card (28px) padding; otherwise only 10px
+	// vertically (a table or a list inside sits edge to edge).
 	Pad bool
-	// Actions, başlığın sağındaki düğmeleri kurar.
+	// Actions builds the buttons to the right of the title.
 	Actions func()
 }
 
-// Card, başlığı panelin dışında, üstünde duran yüzeydir. Panel kart renginde,
-// radius-lg köşeli; kenarı üstte belirgin, aşağı doğru sönen bir gradyandır
-// (koyu temada gölge görünmez, kenar ayırır).
+// Card is a surface whose title stands outside the panel, above it. The panel
+// is in the card color with radius-lg corners; its border is a gradient,
+// strong at the top and fading downwards (in the dark theme shadows don't
+// show, so the border separates).
 //
-//	mizan.Card(c, mizan.CardOptions{Title: "Aktif kullanıcı", Pad: true}, func() {
+//	mizan.Card(c, mizan.CardOptions{Title: "Active users", Pad: true}, func() {
 //		...
 //	})
 func Card(c *ui.Context, o CardOptions, body func()) ui.Element {
@@ -51,7 +52,7 @@ func Card(c *ui.Context, o CardOptions, body func()) ui.Element {
 	return card
 }
 
-// edge, kart kenarının gradyanıdır: %10'da en belirgin, %90'da en soluk.
+// edge is the card border's gradient: strongest at 10%, faintest at 90%.
 func (t *Tokens) edge() ui.LinearGradient {
 	c := t.Colors
 	return ui.LinearGradient{Angle: 180, Stops: []ui.GradientStop{
@@ -62,23 +63,24 @@ func (t *Tokens) edge() ui.LinearGradient {
 	}}
 }
 
-// FieldOptions, Field'ın seçenekleridir.
+// FieldOptions are the options of Field.
 type FieldOptions struct {
 	Label string
-	// Help, alanın altındaki soluk açıklamadır; Error verilince onun yerine
-	// Up renginde hata yazılır.
+	// Help is the muted description under the field; when Error is set, the
+	// error is written in the Up color instead.
 	Help  string
 	Error string
-	// Required, etiketin yanına soluk bir yıldız koyar.
+	// Required puts a muted asterisk next to the label.
 	Required bool
 }
 
-// Field, etiket, kontrol ve açıklamadan oluşan dikey gruptur: etiket fs-sm
-// 500 soluk, kontrolle arası gap-field. Hatalı alanda etiket Up rengine
-// döner; kontrolün kendisi Invalid ile işaretlenir.
+// Field is a vertical group of a label, a control and a description: the
+// label is fs-sm 500 muted, gap-field away from the control. In an invalid
+// field the label turns the Up color; the control itself is marked with
+// Invalid.
 //
-//	mizan.Field(c, mizan.FieldOptions{Label: "E-posta", Error: app.emailErr}, func() {
-//		mizan.Input(c.Key("email"), &app.email, mizan.InputOptions{Label: "E-posta", Invalid: app.emailErr != ""})
+//	mizan.Field(c, mizan.FieldOptions{Label: "Email", Error: app.emailErr}, func() {
+//		mizan.Input(c.Key("email"), &app.email, mizan.InputOptions{Label: "Email", Invalid: app.emailErr != ""})
 //	})
 func Field(c *ui.Context, o FieldOptions, control func()) ui.Element {
 	cl := From(c).Colors

@@ -1,22 +1,24 @@
-// Package mizan, Mizan tasarım dilinin MyGo native UI (package ui) için
-// bileşenleridir. Web kütüphanesinin kodu taşınmaz; görsel dili taşınır:
-// aynı token'lar (tokens.json'dan üretilir), aynı yüzey dili (kabarık
-// kontrol, gömük alan, kart kenarı), aynı boyut kademeleri ve yazı ölçeği.
+// Package mizan provides the components of the Mizan design language for
+// MyGo's native UI (package ui). It ports the web library's visual language,
+// not its code: the same tokens (written directly in tokens.go as OKLCH
+// values), the same surface language (raised control, inset well, card
+// edge), the same size steps and type scale.
 //
-// Davranış (odak, klavye, erişilebilirlik) MyGo'nun görünümsüz bileşenlerinden
-// gelir (ButtonBase, TextInputBase, SelectBase…); bu paket yalnız görünüşü verir.
+// Behavior (focus, keyboard, accessibility) comes from MyGo's unstyled
+// components (ButtonBase, TextInputBase, SelectBase…); this package only
+// provides the look.
 //
 //	func (a *app) view(c *ui.Context) {
 //		t := mizan.Root(c, mizan.Options{})
-//		mizan.Card(c, mizan.CardOptions{Title: "Rapor", Pad: true}, func() {
-//			mizan.Input(c.Key("q"), &a.query, mizan.InputOptions{Placeholder: "Ara"})
-//			if mizan.Button(c.Key("go"), "Uygula", mizan.ButtonOptions{Color: t.Colors.Accent, Variant: mizan.Solid}).Clicked() {
+//		mizan.Card(c, mizan.CardOptions{Title: "Report", Pad: true}, func() {
+//			mizan.Input(c.Key("q"), &a.query, mizan.InputOptions{Placeholder: "Search"})
+//			if mizan.Button(c.Key("go"), "Apply", mizan.ButtonOptions{Color: t.Colors.Accent, Variant: mizan.Solid}).Clicked() {
 //				...
 //			}
 //		})
 //	}
 //
-// Tema (Light, Dark), malzeme (SkinMizan, SkinBevel) ve boyut (Sm, Md, Lg)
-// Root'ta pencerenin bütününe, Scope ile bir bölgeye verilir; en yakın
-// kapsam kazanır. Bileşenler değerleri From(c) ile okur.
+// The theme (Light, Dark), skin (SkinMizan, SkinBevel) and size (Sm, Md, Lg)
+// are given to the whole window with Root and to a region with Scope; the
+// nearest scope wins. Components read the values with From(c).
 package mizan

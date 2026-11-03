@@ -2,38 +2,38 @@ package mizan
 
 import "github.com/egoist/mygo/ui"
 
-// InputOptions, Input'un seçenekleridir.
+// InputOptions are the options of Input.
 type InputOptions struct {
 	Placeholder string
-	// Prefix ve Suffix, alanın içindeki soluk ekler: ikon ya da metin önde,
-	// birim arkada ("₺", "kg").
+	// Prefix and Suffix are muted adornments inside the field: an icon or
+	// text in front, a unit behind ("$", "kg").
 	PrefixIcon *ui.SVG
 	Prefix     string
 	Suffix     string
-	// Clearable, alan doluyken temizle düğmesi gösterir.
+	// Clearable shows a clear button while the field is not empty.
 	Clearable bool
-	// Password, yazıyı gizler; göster/gizle düğmesi ekler.
+	// Password hides the text and adds a show/hide button.
 	Password bool
-	// Label, alanın erişilebilirlik adıdır; Field içinde Field'ın etiketi.
+	// Label is the field's accessibility name; inside a Field, the Field's label.
 	Label    string
 	Size     Size
 	Disabled bool
-	// Invalid, alanı hatalı gösterir: kenar ve halka Up renginde.
+	// Invalid shows the field as invalid: border and ring in the Up color.
 	Invalid bool
 }
 
-// Input, gömük metin alanıdır: opak kuyu, ince kenar; odakta yüzeye açılır
-// ve vurgu halkası alır. Yazının kendisini (Changed, Submitted, Focus için)
-// döndürür.
+// Input is an inset text field: an opaque well with a thin border; on focus
+// it lightens to the surface and gets an accent ring. It returns the text
+// input itself (for Changed, Submitted, Focus).
 //
-//	mizan.Input(c.Key("q"), &app.query, mizan.InputOptions{Placeholder: "Ara", Clearable: true})
+//	mizan.Input(c.Key("q"), &app.query, mizan.InputOptions{Placeholder: "Search", Clearable: true})
 func Input(c *ui.Context, value *string, o InputOptions) ui.Element {
 	t := sizedFrom(c, o.Size)
 	m := t.Metrics
 	cl := t.Colors
 	fs := m.InputFs
 	if fs == 0 {
-		// md'de yazı çevreden kalıtılır: gövde metni
+		// at md the font size is inherited: body text
 		fs = FsBase
 	}
 
@@ -60,15 +60,15 @@ func Input(c *ui.Context, value *string, o InputOptions) ui.Element {
 			adorn(c, o.Suffix, cl)
 		}
 		if o.Clearable && *value != "" && !o.Disabled {
-			if inputButton(c.Key("clear"), t, iconClear, "Temizle").Clicked() {
+			if inputButton(c.Key("clear"), t, iconClear, "Clear").Clicked() {
 				*value = ""
 				field.Focus()
 			}
 		}
 		if o.Password {
-			icon, label := iconEye, "Göster"
+			icon, label := iconEye, "Show"
 			if *reveal {
-				icon, label = iconEyeOff, "Gizle"
+				icon, label = iconEyeOff, "Hide"
 			}
 			if inputButton(c.Key("reveal"), t, icon, label).Clicked() {
 				*reveal = !*reveal
@@ -84,13 +84,13 @@ func Input(c *ui.Context, value *string, o InputOptions) ui.Element {
 	return field
 }
 
-// adorn, alanın içindeki soluk, tabular ektir.
+// adorn is a muted, tabular adornment inside the field.
 func adorn(c *ui.Context, s string, cl Colors) {
 	ui.Text(c, s).TextColor(cl.Muted).NoWrap().Unselectable().FontFeatures("tnum")
 }
 
-// inputButton, gömük alanın içindeki küçük, düz, yuvarlak düğmedir
-// (temizle, göster/gizle).
+// inputButton is the small, flat, round button inside the inset field
+// (clear, show/hide).
 func inputButton(c *ui.Context, t *Tokens, icon *ui.SVG, label string) ui.Element {
 	m := t.Metrics
 	b := ui.ButtonBase(c).Label(label).Center().Size(m.InputBtn, m.InputBtn).

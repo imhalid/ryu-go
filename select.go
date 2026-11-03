@@ -6,20 +6,20 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// Option, seçimdeki bir seçenektir; her yerde aynı biçim: değer ve etiket.
+// Option is an option of a selection, in the same shape everywhere: a value and a label.
 type Option[T comparable] struct {
 	Value T
 	Label string
-	// Description, etiketin yanındaki soluk açıklamadır.
+	// Description is the muted description next to the label.
 	Description string
-	// Dot, seçeneğin önündeki seri rengi noktasıdır (Colors.C1…C8).
+	// Dot is the series-color dot in front of the option (Colors.C1…C8).
 	Dot      ui.Color
 	Disabled bool
 }
 
-// SelectOptions, Select'in seçenekleridir.
+// SelectOptions are the options of Select.
 type SelectOptions struct {
-	// Placeholder, değer seçenekler arasında değilken görünen soluk metindir.
+	// Placeholder is the muted text shown while the value is not among the options.
 	Placeholder string
 	Label       string
 	Size        Size
@@ -27,13 +27,14 @@ type SelectOptions struct {
 	Invalid     bool
 }
 
-// Select, aramasız seçim listesidir: tetikleyici kabarık alan (düğmeyle
-// aynı malzeme, alanın ölçüleri), liste cam açılır panel; gezilen seçenek
-// vurgu gradyanıyla dolar, seçilenin yanında onay işareti durur.
+// Select is a selection list without search: the trigger is a raised field
+// (the button's skin, a field's dimensions), the list a glass popup panel;
+// the highlighted option fills with the accent gradient, and a check mark
+// stands next to the selected one.
 //
 //	mizan.Select(c.Key("range"), &app.rangeDays, []mizan.Option[int]{
-//		{Value: 7, Label: "Son 7 gün"},
-//		{Value: 30, Label: "Son 30 gün"},
+//		{Value: 7, Label: "Last 7 days"},
+//		{Value: 30, Label: "Last 30 days"},
 //	}, mizan.SelectOptions{})
 func Select[T comparable](c *ui.Context, value *T, options []Option[T], o SelectOptions) ui.Element {
 	t := sizedFrom(c, o.Size)
@@ -54,12 +55,12 @@ func Select[T comparable](c *ui.Context, value *T, options []Option[T], o Select
 	case o.Invalid:
 		tr.BorderColor(cl.Up)
 	case open:
-		// açık alan: vurgu kenarı ve yumuşak halka (Input'un odağı gibi)
+		// open field: accent border and a soft ring (like Input's focus)
 		tr.BorderColor(cl.ColorAccent500)
 		t.Shadows.Ring.Apply(tr)
 	}
 	if tr.Pressed() && !o.Disabled {
-		// alan basınca aşağı inmez, hafifçe küçülür
+		// a pressed field does not move down; it shrinks slightly
 		tr.Scale(0.99, 0.99)
 	}
 
@@ -126,18 +127,19 @@ func Select[T comparable](c *ui.Context, value *T, options []Option[T], o Select
 	return tr
 }
 
-// dot, 8px seri rengi noktasıdır (Chips ile aynı).
+// dot is the 8px series-color dot (the same as in Chips).
 func dot(c *ui.Context, color ui.Color) ui.Element {
 	return ui.Box(c).Size(8, 8).Radius(RadiusPill).Background(color).Shrink(0)
 }
 
-// popover, açılır yüzeyi boyar: cam zemin, köşe radius-pop, 0,5px çizgi ve
-// iki katman yayılan gölge; tetikleyiciden gap-field uzakta, %96 boyuttan
-// saydam başlayarak açılır.
+// popover paints the popup surface: glass background, radius-pop corners, a
+// 0.5px line and a two-layer spreading shadow; it sits gap-field away from
+// the trigger and opens from 96% size, starting transparent.
 func popover(t *Tokens, panel ui.Element) {
-	// Mizan'da cam: --pop yarı saydam + backdrop-filter bulanıklığı. MyGo'da
-	// arkayı bulanıklaştıran katman yok; saydam bırakılırsa alttaki yazı
-	// okunurdu, renk kart zemininin üstünde opak hâle getirilir.
+	// In Mizan, glass is a translucent --pop plus a backdrop-filter blur. MyGo
+	// has no layer that blurs what is behind; left translucent, the text
+	// underneath would show through, so the color is made opaque over the card
+	// background.
 	panel.Margin(GapField, 0, 0, 0).Padding(PadPop).Radius(RadiusPop).Background(over(t.Colors.Pop, t.Colors.Card)).
 		TextColor(t.Colors.Text)
 	t.Shadows.ShadowPop.Apply(panel)

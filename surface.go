@@ -6,18 +6,20 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// Yüzeyin iki dili vardır: kabarık (düğme, Select tetikleyicisi) ışığı
-// üstten alır; gömük (Input, Checkbox, Segmented rayı) opak bir kuyudur.
-// Bileşenler bu iki fonksiyonla boyanır, kendi gradyanını yazmaz.
+// The surface has two languages: raised (button, Select trigger) takes the
+// light from above; inset (Input, Checkbox, Segmented track) is an opaque
+// well. Components are painted with these two functions and don't write
+// their own gradients.
 
-// raisedState, kabarık yüzeyin etkileşim hâlidir.
+// raisedState is the interaction state of a raised surface.
 type raisedState struct {
 	hovered, pressed, focus, disabled bool
 }
 
-// controlGradient, kabarık kontrolün zeminidir (CSS --control). Mizan'da
-// en koyu bant altın %72'sinde, alt kenar yeniden biraz açılır (yansıyan
-// ışık); bevel'de düz zemin ve üstten sönen parlama.
+// controlGradient is the background of a raised control (CSS --control). In
+// Mizan the darkest band is at 72% and the bottom edge lightens a little
+// again (reflected light); in bevel, a flat background and a sheen fading
+// from the top.
 func (t *Tokens) controlGradient(top, bottom ui.Color) ui.LinearGradient {
 	if t.Skin == SkinBevel {
 		c := t.Colors
@@ -34,12 +36,12 @@ func (t *Tokens) controlGradient(top, bottom ui.Color) ui.LinearGradient {
 	}}
 }
 
-// over, yarı saydam a'yı opak b'nin üstüne koyar.
+// over puts a translucent a over an opaque b.
 func over(a, b ui.Color) ui.Color {
 	return Mix(b, ui.Color{R: a.R, G: a.G, B: a.B, A: 255}, float32(a.A)/255)
 }
 
-// brighten, bir gradyanın bütün duraklarına filter: brightness uygular.
+// brighten applies filter: brightness to every stop of a gradient.
 func brighten(g ui.LinearGradient, f float32) ui.LinearGradient {
 	if f == 1 {
 		return g
@@ -52,10 +54,10 @@ func brighten(g ui.LinearGradient, f float32) ui.LinearGradient {
 	return g
 }
 
-// raised, e'yi kabarık kontrol olarak boyar: gradyan zemin, 1px kenar,
-// üstte iç parlama ve temas gölgesi. Hover parlatır (koyuda aydınlatır),
-// basmak 1px aşağı indirir ve karartır; klavye odağı halkayı gölgenin
-// yerine koyar.
+// raised paints e as a raised control: gradient background, 1px border, an
+// inner highlight at the top and a contact shadow. Hover darkens it slightly
+// in light and lightens it in dark (ControlHover), pressing moves it down 1px and darkens it; keyboard
+// focus puts the ring in place of the shadow.
 func (t *Tokens) raised(e ui.Element, g ui.LinearGradient, border ui.Color, shadow Shadow, s raisedState) {
 	f := float32(1)
 	switch {
@@ -77,8 +79,9 @@ func (t *Tokens) raised(e ui.Element, g ui.LinearGradient, border ui.Color, shad
 	e.FocusRing(false).Transition(ui.ElementTransition{Duration: 150 * time.Millisecond, Colors: true, Ease: ui.EaseOut})
 }
 
-// well, e'yi gömük alan olarak boyar: opak zemin, ince kenar; odakta yüzey
-// rengine açılır, kenar vurgu rengini, çevresi yumuşak halkayı alır.
+// well paints e as an inset field: opaque background, thin border; on focus
+// it lightens to the surface color, the border takes the accent color and
+// the outside a soft ring.
 func (t *Tokens) well(e ui.Element, focus, invalid bool) {
 	c := t.Colors
 	bg, border, shadow := c.Well, c.WellBorder, t.Shadows.WellShadow

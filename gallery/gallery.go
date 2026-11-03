@@ -1,5 +1,5 @@
-// Package gallery, Mizan bileşenlerinin vitrinidir: her bileşen her
-// boyutta, iki temada ve iki malzemede yan yana.
+// Package gallery is the showcase of Mizan's components: each component in
+// every size, side by side in both themes and both materials.
 package gallery
 
 import (
@@ -7,7 +7,7 @@ import (
 	mz "github.com/imhalid/mizan-go"
 )
 
-// State, vitrinin durumudur.
+// State is the state of the showcase.
 type State struct {
 	Mode  mz.Mode
 	Skin  mz.Skin
@@ -24,7 +24,7 @@ type State struct {
 	ViewMode           int
 	Volume, Zoom       float64
 
-	// Page, 0: kontroller; 1: sohbet, sürükle-bırak ve göstergeler.
+	// Page is 0: controls; 1: chat, drag and drop, and indicators.
 	Page  int
 	Msgs  []mz.ChatMessage
 	Draft string
@@ -34,7 +34,7 @@ type State struct {
 	Files []file
 }
 
-// card, panodaki bir iştir; col, bulunduğu sütundur.
+// card is a task on the board; col is the column it is in.
 type card struct {
 	Title, Tag string
 	col        int
@@ -42,32 +42,32 @@ type card struct {
 
 type file struct{ Name, Size string }
 
-// New, örnek değerlerle bir vitrin durumu verir.
+// New returns a showcase state with sample values.
 func New() *State {
 	return &State{
-		Range: 30, Email: "ada@", Pass: "gizli",
+		Range: 30, Email: "ada@", Pass: "secret",
 		Mail: true, Plan: "week", Tier: "pro", Sync: true, Volume: 64, Zoom: 1.25,
 		Msgs: []mz.ChatMessage{
-			{Author: "Ayşe Yılmaz", Text: "Haftalık rapor hazır mı?", Time: "09:41"},
-			{Author: "Ayşe Yılmaz", Text: "Toplantıdan önce bir göz atmak istiyorum.", Time: "09:41"},
-			{Mine: true, Text: "Neredeyse; son grafikleri ekliyorum.", Time: "09:43", Status: mz.Read},
-			{Mine: true, Text: "On dakikaya paylaşırım.", Time: "09:43", Status: mz.Sent},
-			{Author: "Mert Kaya", Text: "Ben de veri kaynaklarını kontrol ettim, sorun yok 👍", Time: "09:45"},
+			{Author: "Maya Chen", Text: "Is the weekly report ready?", Time: "09:41"},
+			{Author: "Maya Chen", Text: "I'd like to take a look before the meeting.", Time: "09:41"},
+			{Mine: true, Text: "Almost; I'm adding the last charts.", Time: "09:43", Status: mz.Read},
+			{Mine: true, Text: "I'll share it in ten minutes.", Time: "09:43", Status: mz.Sent},
+			{Author: "Leo Park", Text: "I checked the data sources too, all good 👍", Time: "09:45"},
 		},
-		Steps: []string{"Veriyi içe aktar", "Sütunları eşle", "Doğrula", "Yayınla"},
+		Steps: []string{"Import data", "Map columns", "Validate", "Publish"},
 		Cards: []*card{
-			{Title: "Giriş ekranı", Tag: "Tasarım", col: 0},
-			{Title: "Rapor dışa aktarma", Tag: "Web", col: 0},
-			{Title: "Bildirim izinleri", Tag: "iOS", col: 1},
-			{Title: "Karanlık tema", Tag: "Tasarım", col: 2},
+			{Title: "Sign-in screen", Tag: "Design", col: 0},
+			{Title: "Report export", Tag: "Web", col: 0},
+			{Title: "Notification permissions", Tag: "iOS", col: 1},
+			{Title: "Dark theme", Tag: "Design", col: 2},
 		},
-		Files: []file{{"Q3-rapor.pdf", "2,4 MB"}, {"hasta-listesi-ekim-2026-son-hali.xlsx", "860 KB"}},
+		Files: []file{{"Q3-report.pdf", "2.4 MB"}, {"patient-list-october-2026-final-version.xlsx", "860 KB"}},
 	}
 }
 
 var search = mz.Svg(16, 15, "M7 12.5a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM14.5 14.5l-3.6-3.6")
 
-// View, vitrini kurar.
+// View builds the showcase.
 func (s *State) View(c *ui.Context) {
 	t := mz.Root(c, mz.Options{Mode: s.Mode, Skin: s.Skin})
 	ui.Scroll(c).Fill().Children(func() { s.page(c, t) })
@@ -78,10 +78,10 @@ func (s *State) page(c *ui.Context, t *mz.Tokens) {
 		ui.Row(c).AlignItems(ui.End).Justify(ui.SpaceBetween).Gap(16).Children(func() {
 			ui.Column(c).Gap(4).Children(func() {
 				mz.Text(c, "Mizan", mz.TDisplay)
-				mz.Text(c, "Sakin, veri yoğun arayüzler için native bileşenler.", mz.TLede).TextColor(t.Colors.Muted)
+				mz.Text(c, "Native components for calm, data-dense interfaces.", mz.TLede).TextColor(t.Colors.Muted)
 			})
 			ui.Row(c).Gap(mz.GapControl).Children(func() {
-				for i, name := range []string{"Kontroller", "Sohbet ve sürükle"} {
+				for i, name := range []string{"Controls", "Chat and drag"} {
 					o := mz.ButtonOptions{Size: mz.Sm}
 					if s.Page == i {
 						o.Color = t.Colors.Accent
@@ -91,9 +91,9 @@ func (s *State) page(c *ui.Context, t *mz.Tokens) {
 					}
 				}
 				ui.Box(c).Size(8, 0)
-				mode := "Koyu"
+				mode := "Dark"
 				if t.Dark {
-					mode = "Açık"
+					mode = "Light"
 				}
 				if mz.Button(c.Key("mode"), mode, mz.ButtonOptions{Size: mz.Sm}).Clicked() {
 					s.Mode = mz.Dark
@@ -130,72 +130,72 @@ func (s *State) page(c *ui.Context, t *mz.Tokens) {
 
 func (s *State) buttons(c *ui.Context, t *mz.Tokens) {
 	cl := t.Colors
-	mz.Card(c, mz.CardOptions{Title: "Button", Subtitle: "Tek tür kabarık hap; renk, dolgu ve boyut.", Pad: true}, func() {
+	mz.Card(c, mz.CardOptions{Title: "Button", Subtitle: "One kind of raised pill; color, fill and size.", Pad: true}, func() {
 		ui.Column(c).Gap(14).Children(func() {
 			ui.Row(c).Gap(mz.GapControl).Wrap().AlignItems(ui.Center).Children(func() {
-				if mz.Button(c.Key("default"), "Varsayılan", mz.ButtonOptions{}).Clicked() {
+				if mz.Button(c.Key("default"), "Default", mz.ButtonOptions{}).Clicked() {
 					s.Count++
 				}
-				mz.Button(c.Key("icon"), "Ara", mz.ButtonOptions{Icon: search})
-				mz.Button(c.Key("iconOnly"), "Ara", mz.ButtonOptions{Icon: search, IconOnly: true})
-				mz.Button(c.Key("soft"), "Vurgu", mz.ButtonOptions{Color: cl.Accent})
-				mz.Button(c.Key("solid"), "Dışa aktar", mz.ButtonOptions{Color: cl.Accent, Variant: mz.Solid})
-				mz.Button(c.Key("danger"), "Sil", mz.ButtonOptions{Danger: true})
-				mz.Button(c.Key("dangerSoft"), "Kaldır", mz.ButtonOptions{Danger: true, Variant: mz.Soft})
-				mz.Button(c.Key("loading"), "Kaydediliyor", mz.ButtonOptions{Loading: true})
-				mz.Button(c.Key("disabled"), "Kapalı", mz.ButtonOptions{Disabled: true})
+				mz.Button(c.Key("icon"), "Search", mz.ButtonOptions{Icon: search})
+				mz.Button(c.Key("iconOnly"), "Search", mz.ButtonOptions{Icon: search, IconOnly: true})
+				mz.Button(c.Key("soft"), "Accent", mz.ButtonOptions{Color: cl.Accent})
+				mz.Button(c.Key("solid"), "Export", mz.ButtonOptions{Color: cl.Accent, Variant: mz.Solid})
+				mz.Button(c.Key("danger"), "Delete", mz.ButtonOptions{Danger: true})
+				mz.Button(c.Key("dangerSoft"), "Remove", mz.ButtonOptions{Danger: true, Variant: mz.Soft})
+				mz.Button(c.Key("loading"), "Saving", mz.ButtonOptions{Loading: true})
+				mz.Button(c.Key("disabled"), "Disabled", mz.ButtonOptions{Disabled: true})
 			})
 			ui.Row(c).Gap(mz.GapControl).Wrap().Children(func() {
 				for i, col := range []ui.Color{cl.C1, cl.C2, cl.C3, cl.C4, cl.C5, cl.C6, cl.C7, cl.C8} {
-					mz.Button(c.Key(i), "Seri", mz.ButtonOptions{Color: col, Size: mz.Sm})
+					mz.Button(c.Key(i), "Series", mz.ButtonOptions{Color: col, Size: mz.Sm})
 				}
 			})
-			mz.Text(c, "Varsayılan düğmeye basıldı: "+itoa(s.Count), mz.TCaption).TextColor(cl.Muted)
+			mz.Text(c, "Default button presses: "+itoa(s.Count), mz.TCaption).TextColor(cl.Muted)
 		})
 	})
 }
 
 func (s *State) fields(c *ui.Context, t *mz.Tokens) {
-	mz.Card(c, mz.CardOptions{Title: "Form", Subtitle: "Gömük alanlar ve kabarık tetikleyici.", Pad: true}, func() {
+	mz.Card(c, mz.CardOptions{Title: "Form", Subtitle: "Inset fields and a raised trigger.", Pad: true}, func() {
 		ui.Column(c).Gap(16).Children(func() {
-			mz.Field(c, mz.FieldOptions{Label: "Arama"}, func() {
-				mz.Input(c.Key("q"), &s.Query, mz.InputOptions{Label: "Arama", Placeholder: "Hasta, dosya, rapor…", PrefixIcon: search, Clearable: true})
+			mz.Field(c, mz.FieldOptions{Label: "Search"}, func() {
+				mz.Input(c.Key("q"), &s.Query, mz.InputOptions{Label: "Search", Placeholder: "Patients, files, reports…", PrefixIcon: search, Clearable: true})
 			})
-			mz.Field(c, mz.FieldOptions{Label: "E-posta", Error: "Geçerli bir e-posta adresi girin.", Required: true}, func() {
-				mz.Input(c.Key("email"), &s.Email, mz.InputOptions{Label: "E-posta", Invalid: true})
+			mz.Field(c, mz.FieldOptions{Label: "Email", Error: "Enter a valid email address.", Required: true}, func() {
+				mz.Input(c.Key("email"), &s.Email, mz.InputOptions{Label: "Email", Invalid: true})
 			})
-			mz.Field(c, mz.FieldOptions{Label: "Parola", Help: "En az 12 karakter."}, func() {
-				mz.Input(c.Key("pass"), &s.Pass, mz.InputOptions{Label: "Parola", Password: true})
+			mz.Field(c, mz.FieldOptions{Label: "Password", Help: "At least 12 characters."}, func() {
+				mz.Input(c.Key("pass"), &s.Pass, mz.InputOptions{Label: "Password", Password: true})
 			})
-			mz.Field(c, mz.FieldOptions{Label: "Dönem"}, func() {
+			mz.Field(c, mz.FieldOptions{Label: "Period"}, func() {
 				mz.Select(c.Key("range"), &s.Range, []mz.Option[int]{
-					{Value: 7, Label: "Son 7 gün"},
-					{Value: 30, Label: "Son 30 gün", Description: "varsayılan"},
-					{Value: 90, Label: "Son 90 gün"},
-					{Value: 365, Label: "Son bir yıl", Disabled: true},
-				}, mz.SelectOptions{Label: "Dönem"})
+					{Value: 7, Label: "Last 7 days"},
+					{Value: 30, Label: "Last 30 days", Description: "default"},
+					{Value: 90, Label: "Last 90 days"},
+					{Value: 365, Label: "Last year", Disabled: true},
+				}, mz.SelectOptions{Label: "Period"})
 			})
-			mz.Field(c, mz.FieldOptions{Label: "Ekip"}, func() {
+			mz.Field(c, mz.FieldOptions{Label: "Team"}, func() {
 				mz.Select(c.Key("team"), &s.Team, []mz.Option[string]{
 					{Value: "web", Label: "Web", Dot: t.Colors.C1},
 					{Value: "ios", Label: "iOS", Dot: t.Colors.C2},
 					{Value: "and", Label: "Android", Dot: t.Colors.C3},
-				}, mz.SelectOptions{Label: "Ekip", Placeholder: "Ekip seçin"})
+				}, mz.SelectOptions{Label: "Team", Placeholder: "Choose a team"})
 			})
 		})
 	})
 }
 
 func (s *State) sizes(c *ui.Context, t *mz.Tokens) {
-	mz.Card(c, mz.CardOptions{Title: "Boyut", Subtitle: "sm · md · lg: aynı kademede düğme ve alan aynı boyda.", Pad: true}, func() {
+	mz.Card(c, mz.CardOptions{Title: "Size", Subtitle: "sm · md · lg: a button and a field of the same step are the same height.", Pad: true}, func() {
 		ui.Column(c).Gap(14).Children(func() {
 			for _, z := range []mz.Size{mz.Sm, mz.Md, mz.Lg} {
 				mz.Scope(c.Key(z), mz.Options{Size: z}).Children(func() {
 					ui.Row(c).Gap(mz.GapControl).AlignItems(ui.Center).Children(func() {
 						ui.Column(c).Grow(1).Children(func() {
-							mz.Input(c.Key("in"), &s.Query, mz.InputOptions{Label: "Arama", Placeholder: "Ara"})
+							mz.Input(c.Key("in"), &s.Query, mz.InputOptions{Label: "Search", Placeholder: "Search"})
 						})
-						mz.Button(c.Key("b"), "Uygula", mz.ButtonOptions{Color: t.Colors.Accent, Variant: mz.Solid})
+						mz.Button(c.Key("b"), "Apply", mz.ButtonOptions{Color: t.Colors.Accent, Variant: mz.Solid})
 					})
 				})
 			}

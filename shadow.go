@@ -2,18 +2,18 @@ package mizan
 
 import "github.com/egoist/mygo/ui"
 
-// ShadowLayer, CSS box-shadow'un bir katmanıdır.
+// ShadowLayer is one layer of a CSS box-shadow.
 type ShadowLayer struct {
 	X, Y, Blur, Spread float32
 	Color              ui.Color
-	// Inset, katmanı kutunun içine çizer (box-shadow: inset).
+	// Inset draws the layer inside the box (box-shadow: inset).
 	Inset bool
 }
 
-// Shadow, üst üste binen gölge katmanlarıdır, CSS'teki sırayla: ilki en üstte.
+// Shadow is a stack of shadow layers, in CSS order: the first on top.
 type Shadow []ShadowLayer
 
-// Apply, gölgeyi e'ye verir ve e'yi döndürür.
+// Apply gives the shadow to e and returns e.
 func (s Shadow) Apply(e ui.Element) ui.Element {
 	for _, l := range s {
 		if l.Color.A == 0 {
@@ -28,7 +28,7 @@ func (s Shadow) Apply(e ui.Element) ui.Element {
 	return e
 }
 
-// With, s'nin ardına o'nun katmanlarını ekler (CSS'te virgülle sıralamak).
+// With appends o's layers after s's (listing them with commas in CSS).
 func (s Shadow) With(o ...ShadowLayer) Shadow {
 	return append(append(Shadow(nil), s...), o...)
 }

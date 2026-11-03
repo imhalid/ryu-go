@@ -2,31 +2,31 @@ package mizan
 
 import "github.com/egoist/mygo/ui"
 
-// Mode, temadır: açık, koyu ya da sistemin görünümü. CSS'te data-theme.
+// Mode is the theme: light, dark or the system's appearance. data-theme in CSS.
 type Mode uint8
 
 const (
-	// ModeInherit çevreden alır; pencerenin kökünde sistemi izler.
+	// ModeInherit inherits it; at the window's root it follows the system.
 	ModeInherit Mode = iota
 	Light
 	Dark
 )
 
-// Skin, yüzeyin dilidir (data-skin): ışık çizgisi, gölge, gömük alan, topuz.
-// Renk teması değildir; açık ve koyu her malzemede çalışır.
+// Skin is the surface's language (data-skin): light line, shadow, inset
+// well, knob. It is not a color theme; light and dark work in every skin.
 type Skin uint8
 
 const (
-	// SkinInherit çevreden alır; kökte SkinMizan.
+	// SkinInherit inherits it; SkinMizan at the root.
 	SkinInherit Skin = iota
 	SkinMizan
-	// SkinBevel, kabarık kenarlı dil: üstte ışık, altta gölge çizgisi, metal topuz.
+	// SkinBevel is the language of raised edges: a light line at the top, a shadow line at the bottom, a metal knob.
 	SkinBevel
 )
 
 const skinCount = 2
 
-// Size, yoğunluk kademesidir (data-size). Sıfır çevreden alır; kökte Md.
+// Size is the density step (data-size). Zero inherits it; Md at the root.
 type Size uint8
 
 const (
@@ -36,16 +36,16 @@ const (
 	Lg
 )
 
-// Options, bir bölgenin teması, malzemesi ve boyutudur. Verilmeyen alan
-// çevreden gelir; en yakın kapsam kazanır.
+// Options are a region's theme, skin and size. Fields left unset are
+// inherited; the nearest scope wins.
 type Options struct {
 	Mode Mode
 	Skin Skin
 	Size Size
 }
 
-// Tokens, bir kapsamdaki çözülmüş değerlerdir: renkler, gölgeler ve boyut
-// kademesinin ölçüleri. Bileşenler değerleri yalnız buradan okur.
+// Tokens are the resolved values of a scope: colors, shadows and the size
+// step's dimensions. Components read values only from here.
 type Tokens struct {
 	Dark bool
 	Skin Skin
@@ -55,23 +55,24 @@ type Tokens struct {
 	Shadows Shadows
 	Metrics Metrics
 
-	// ControlHover, kabarık kontrolün hover parlaklığıdır: açıkta hafif
-	// kararır, koyuda aydınlanır (CSS --control-hover).
+	// ControlHover is the hover brightness of a raised control: slightly
+	// darker in light, lighter in dark (CSS --control-hover).
 	ControlHover float32
 
-	// theme, bu kapsamın MyGo teması: yerleşik widget'lar da Mizan renklerini
-	// alır, Context.Theme bu işaretçiyi verdiği için kapsam ondan bulunur.
+	// theme is this scope's MyGo theme: the built-in widgets get Mizan's
+	// colors too, and since Context.Theme returns this pointer, the scope is
+	// found from it.
 	theme *ui.Theme
 }
 
-// Font aileleri: sistem yazısı (tek aile) ve eş aralıklı.
+// Font families: the system font (a single family) and monospace.
 const (
 	FontSans = "SF Pro Text, Helvetica Neue, Inter, system-ui"
 	FontMono = "SF Mono, JetBrains Mono, Menlo, Consolas, monospace"
 )
 
-// cache[malzeme][koyu][kademe]; registry temanın işaretçisinden kapsamı bulur.
-// Görünümler ana iş parçacığında kurulur, kilit gerekmez.
+// cache[skin][dark][size step]; registry finds the scope from the theme's
+// pointer. Views are built on the main thread, so no lock is needed.
 var (
 	cache    [skinCount][2][3]*Tokens
 	registry = map[*ui.Theme]*Tokens{}
@@ -89,9 +90,9 @@ func tokensFor(skin Skin, dark bool, size Size) *Tokens {
 		Dark:    dark,
 		Skin:    skin,
 		Size:    size,
-		Colors:  genColors[si][di],
-		Shadows: genShadows[si][di],
-		Metrics: genMetrics[zi],
+		Colors:  skinColors[si][di],
+		Shadows: skinShadows[si][di],
+		Metrics: sizeMetrics[zi],
 	}
 	t.ControlHover = 0.98
 	if dark {
@@ -103,8 +104,8 @@ func tokensFor(skin Skin, dark bool, size Size) *Tokens {
 	return t
 }
 
-// uiTheme, MyGo'nun yerleşik widget'larına (kaydırma çubuğu, menü, ipucu,
-// odak halkası) Mizan'ın renklerini ve ölçülerini verir.
+// uiTheme gives MyGo's built-in widgets (scroll bar, menu, tooltip, focus
+// ring) Mizan's colors and dimensions.
 func (t *Tokens) uiTheme() *ui.Theme {
 	c := t.Colors
 	th := ui.LightTheme()
@@ -133,8 +134,8 @@ func (t *Tokens) uiTheme() *ui.Theme {
 	return th
 }
 
-// From, c'nin kapsamındaki token'ları verir: en yakın Scope'unki, yoksa
-// Root'unki. Root çağrılmamışsa sistemin görünümünde varsayılanlar.
+// From returns the tokens of c's scope: the nearest Scope's, otherwise
+// Root's. If Root was not called, the defaults in the system's appearance.
 func From(c *ui.Context) *Tokens {
 	if t := registry[c.Theme()]; t != nil {
 		return t
@@ -142,7 +143,7 @@ func From(c *ui.Context) *Tokens {
 	return tokensFor(SkinMizan, c.Theme().Dark, Md)
 }
 
-// Painting, boyarken (Element.Draw) kapsamın token'larını verir.
+// Painting returns the scope's tokens while painting (Element.Draw).
 func Painting(p *ui.Painter) *Tokens {
 	if t := registry[p.Theme()]; t != nil {
 		return t
@@ -150,8 +151,8 @@ func Painting(p *ui.Painter) *Tokens {
 	return tokensFor(SkinMizan, p.Theme().Dark, Md)
 }
 
-// Root, pencerenin bütününe Mizan'ı verir; görünümün başında, her karede
-// çağrılır. ModeInherit sistemin açık/koyu görünümünü izler.
+// Root gives Mizan to the whole window; it is called at the start of the
+// view, every frame. ModeInherit follows the system's light/dark appearance.
 //
 //	func (a *app) view(c *ui.Context) {
 //		mizan.Root(c, mizan.Options{})
@@ -160,7 +161,7 @@ func Painting(p *ui.Painter) *Tokens {
 func Root(c *ui.Context, o Options) *Tokens {
 	dark := c.Theme().Dark
 	if prev := registry[c.Theme()]; prev != nil {
-		// aynı karede ikinci çağrı: sistemin görünümü önceki çağrıdadır
+		// second call in the same frame: the system's appearance is in the previous call
 		dark = prev.Dark
 	}
 	switch o.Mode {
@@ -174,13 +175,13 @@ func Root(c *ui.Context, o Options) *Tokens {
 	return t
 }
 
-// Scope, çocukları başka tema, malzeme ya da boyutla kurulan bir sütundur
-// (CSS'te bir kaba data-theme, data-skin, data-size vermek). Verilmeyen alan
-// çevreden gelir. Arka plan boyamaz; bölgenin zemini isteniyorsa
-// Background(mizan.From(c).Colors.Bg) ile verilir.
+// Scope is a column whose children are built with another theme, skin or
+// size (giving a container data-theme, data-skin, data-size in CSS). Fields
+// left unset are inherited. It paints no background; if the region needs
+// one, give it with Background(mizan.From(c).Colors.Bg).
 //
 //	mizan.Scope(c, mizan.Options{Size: mizan.Sm}).Gap(8).Children(func() {
-//		mizan.Button(c, "Dışa aktar", mizan.ButtonOptions{})
+//		mizan.Button(c, "Export", mizan.ButtonOptions{})
 //	})
 func Scope(c *ui.Context, o Options) ui.Element {
 	return ui.Themed(c, scoped(c, o).theme).Background(ui.Transparent)
@@ -206,16 +207,16 @@ func or[T comparable](v, d T) T {
 	return v
 }
 
-// TypeStyle, tokens.json › type'taki bir yazı stilidir.
+// TypeStyle is a text style of the type scale in tokens.go.
 type TypeStyle struct {
 	Size, LineHeight float32
 	Weight           int
-	// Tracking, harf aralığıdır, em cinsinden (-0.02 = -0.02em).
+	// Tracking is the letter spacing, in em (-0.02 = -0.02em).
 	Tracking float32
 	Mono     bool
 }
 
-// Apply, stili bir metin öğesine verir.
+// Apply gives the style to a text element.
 func (s TypeStyle) Apply(e ui.Element) ui.Element {
 	e.FontSize(s.Size).FontWeight(s.Weight).LineHeight(s.LineHeight)
 	if s.Tracking != 0 {
@@ -227,9 +228,9 @@ func (s TypeStyle) Apply(e ui.Element) ui.Element {
 	return e
 }
 
-// Text, metni bir yazı stiliyle yazar.
+// Text writes s in a type style.
 //
-//	mizan.Text(c, "Haftalık aktif kullanıcı", mizan.TTitle)
+//	mizan.Text(c, "Weekly active users", mizan.TTitle)
 func Text(c *ui.Context, s string, style TypeStyle) ui.Element {
 	return style.Apply(ui.Text(c, s))
 }

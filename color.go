@@ -6,13 +6,13 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// oklch, CSS'in oklch(l c h / a) rengidir; token'lar bununla yazılır.
+// oklch is CSS's oklch(l c h / a) color; the tokens are written with it.
 func oklch(l, c, h, a float32) ui.Color { return ui.Oklch(l, c, h).Alpha(a) }
 
-// Mix, CSS'in color-mix(in oklab, a, b t)'sidir: a'dan b'ye t kadar. Saydam
-// renkler önceden çarpılmış karışır (color-mix gibi): Mix(c, ui.Color{}, 0.55)
-// c'nin %45 opak hâlidir, rengi kararmaz. in oklch yazılmaz: nötrler h 286
-// taşıdığından kırmızı ile gri karışınca ton mora kayardı.
+// Mix is CSS's color-mix(in oklab, a, b t): from a towards b by t.
+// Translucent colors mix premultiplied (like color-mix): Mix(c, ui.Color{},
+// 0.55) is c at 45% opacity, without darkening. It is not in oklch: neutrals
+// carry h 286, so mixing red with gray would shift the hue towards purple.
 func Mix(a, b ui.Color, t float32) ui.Color {
 	t = max(0, min(t, 1))
 	aa, ba := float64(a.A)/255, float64(b.A)/255
@@ -29,16 +29,16 @@ func Mix(a, b ui.Color, t float32) ui.Color {
 	return fromOklab(l, x, y, alpha)
 }
 
-// Brightness, CSS'in filter: brightness(f)'idir: renk kanallarını f ile çarpar.
-// Düğmenin hover ve basılı hâli bununla açılır ya da kararır.
+// Brightness is CSS's filter: brightness(f): it multiplies the color channels
+// by f. The button's hover and pressed states lighten or darken with it.
 func Brightness(c ui.Color, f float32) ui.Color {
 	m := func(v uint8) uint8 { return uint8(max(0, min(float32(v)*f+0.5, 255))) }
 	return ui.Color{R: m(c.R), G: m(c.G), B: m(c.B), A: c.A}
 }
 
-// capLightness, CSS'in oklch(from c min(l, maxL) c h)'sidir: ton ve canlılık
-// kalır, renk yalnız maxL'den açıksa koyulaşır. Dolu düğmede beyaz yazının
-// okunacağı açıklık sınırı.
+// capLightness is CSS's oklch(from c min(l, maxL) c h): hue and chroma stay,
+// and the color darkens only if it is lighter than maxL. It is the lightness
+// limit at which white text stays readable on a solid button.
 func capLightness(c ui.Color, maxL float64) ui.Color {
 	l, a, b := toOklab(c)
 	if l <= maxL {
@@ -47,7 +47,7 @@ func capLightness(c ui.Color, maxL float64) ui.Color {
 	return fromOklab(maxL, a, b, float64(c.A)/255)
 }
 
-// lighten, oklab açıklığına d ekler (oklch(from c calc(l + d) c h)).
+// lighten adds d to the oklab lightness (oklch(from c calc(l + d) c h)).
 func lighten(c ui.Color, d float64) ui.Color {
 	l, a, b := toOklab(c)
 	return fromOklab(max(0, min(l+d, 1)), a, b, float64(c.A)/255)

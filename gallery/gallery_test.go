@@ -11,12 +11,12 @@ import (
 	mz "github.com/imhalid/mizan-go"
 )
 
-// TestSnapshots, MIZAN_SNAPSHOTS klasörüne vitrinin dört hâlini çizer:
-// açık/koyu × mizan/bevel. Görsel karşılaştırma için.
+// TestSnapshots draws the showcase's four variants into the MIZAN_SNAPSHOTS
+// directory: light/dark × mizan/bevel. For visual comparison.
 func TestSnapshots(t *testing.T) {
 	dir := os.Getenv("MIZAN_SNAPSHOTS")
 	if dir == "" {
-		t.Skip("MIZAN_SNAPSHOTS yok")
+		t.Skip("MIZAN_SNAPSHOTS not set")
 	}
 	for _, v := range []struct {
 		name string
@@ -42,17 +42,17 @@ func TestSnapshots(t *testing.T) {
 	}
 }
 
-// TestSelectOpen, açık Select listesini çizer.
+// TestSelectOpen draws an open Select list.
 func TestSelectOpen(t *testing.T) {
 	dir := os.Getenv("MIZAN_SNAPSHOTS")
 	if dir == "" {
-		t.Skip("MIZAN_SNAPSHOTS yok")
+		t.Skip("MIZAN_SNAPSHOTS not set")
 	}
 	for _, mode := range []mz.Mode{mz.Light, mz.Dark} {
 		s := New()
 		s.Mode = mode
 		tt := ui.NewTester(s.View, 1180, 1000)
-		tt.Click("Son 30 gün")
+		tt.Click("Last 30 days")
 		tt.Advance(500 * time.Millisecond)
 		tt.Key(0, ui.KeyDown)
 		tt.Advance(500 * time.Millisecond)
@@ -69,19 +69,19 @@ func TestSelectOpen(t *testing.T) {
 	}
 }
 
-// page2, ikinci sayfayı açan bir test ortamı kurar.
+// page2 sets up a tester showing the second page.
 func page2(t *testing.T, mode mz.Mode, skin mz.Skin) (*State, *ui.Tester) {
 	s := New()
 	s.Mode, s.Skin, s.Page = mode, skin, 1
 	return s, ui.NewTester(s.View, 1180, 1180)
 }
 
-// TestPage2Snapshots, ikinci sayfayı (sohbet, sürükle-bırak, göstergeler)
-// dört hâlde çizer.
+// TestPage2Snapshots draws the second page (chat, drag and drop, indicators)
+// in four variants.
 func TestPage2Snapshots(t *testing.T) {
 	dir := os.Getenv("MIZAN_SNAPSHOTS")
 	if dir == "" {
-		t.Skip("MIZAN_SNAPSHOTS yok")
+		t.Skip("MIZAN_SNAPSHOTS not set")
 	}
 	for _, v := range []struct {
 		name string
@@ -104,7 +104,7 @@ func TestPage2Snapshots(t *testing.T) {
 	}
 }
 
-// drag, işaretçiyi a'dan b'ye adım adım sürükler.
+// drag drags the pointer from a to b in steps.
 func drag(tt *ui.Tester, ax, ay, bx, by float32) {
 	tt.Press(ax, ay)
 	for i := 1; i <= 10; i++ {
@@ -119,72 +119,72 @@ func drag(tt *ui.Tester, ax, ay, bx, by float32) {
 func center(t *testing.T, tt *ui.Tester, s string) (float32, float32) {
 	r, ok := tt.Find(s)
 	if !ok {
-		t.Fatalf("%q yok", s)
+		t.Fatalf("no %q", s)
 	}
 	return r.X + r.W/2, r.Y + r.H/2
 }
 
 func TestBoardDrag(t *testing.T) {
 	s, tt := page2(t, mz.Light, mz.SkinMizan)
-	ax, ay := center(t, tt, "Giriş ekranı")
-	bx, by := center(t, tt, "Bitti")
+	ax, ay := center(t, tt, "Sign-in screen")
+	bx, by := center(t, tt, "Done")
 	drag(tt, ax, ay, bx, by+40)
 	if got := s.Cards[0].col; got != 2 {
-		t.Fatalf("kart sütunu %d, 2 olmalı", got)
+		t.Fatalf("card column %d, want 2", got)
 	}
 }
 
 func TestSortableDrag(t *testing.T) {
 	s, tt := page2(t, mz.Light, mz.SkinMizan)
-	ax, ay := center(t, tt, "Doğrula")
-	r, _ := tt.Find("Veriyi içe aktar")
+	ax, ay := center(t, tt, "Validate")
+	r, _ := tt.Find("Import data")
 	drag(tt, ax, ay, ax, r.Y+2)
-	if s.Steps[0] != "Doğrula" {
-		t.Fatalf("sıra %v", s.Steps)
+	if s.Steps[0] != "Validate" {
+		t.Fatalf("order %v", s.Steps)
 	}
 }
 
 func TestDropFiles(t *testing.T) {
 	s, tt := page2(t, mz.Light, mz.SkinMizan)
-	x, y := center(t, tt, "Dosyaları buraya bırakın")
-	if !tt.DropFiles(x, y, "/tmp/a/rapor.csv") {
-		t.Fatal("bölge dosyayı almadı")
+	x, y := center(t, tt, "Drop files here")
+	if !tt.DropFiles(x, y, "/tmp/a/report.csv") {
+		t.Fatal("the zone did not take the file")
 	}
 	tt.Frame()
-	if n := len(s.Files); n != 3 || s.Files[2].Name != "rapor.csv" {
-		t.Fatalf("dosyalar %v", s.Files)
+	if n := len(s.Files); n != 3 || s.Files[2].Name != "report.csv" {
+		t.Fatalf("files %v", s.Files)
 	}
-	if err := tt.Click("Kaldır"); err != nil {
+	if err := tt.Click("Remove"); err != nil {
 		t.Fatal(err)
 	}
 	if len(s.Files) != 2 {
-		t.Fatalf("kaldırılmadı: %v", s.Files)
+		t.Fatalf("not removed: %v", s.Files)
 	}
 }
 
 func TestComposerSend(t *testing.T) {
 	s, tt := page2(t, mz.Light, mz.SkinMizan)
-	if err := tt.Click("Mesaj"); err != nil {
+	if err := tt.Click("Message"); err != nil {
 		t.Fatal(err)
 	}
-	tt.Type("Merhaba")
+	tt.Type("Hello")
 	tt.Key(0, ui.KeyEnter)
 	tt.Frame()
 	last := s.Msgs[len(s.Msgs)-1]
-	if !last.Mine || last.Text != "Merhaba" || s.Draft != "" {
-		t.Fatalf("son mesaj %+v, taslak %q", last, s.Draft)
+	if !last.Mine || last.Text != "Hello" || s.Draft != "" {
+		t.Fatalf("last message %+v, draft %q", last, s.Draft)
 	}
 }
 
-// TestDragOverSnapshot, kart "Bitti" sütununun üstündeyken çizer.
+// TestDragOverSnapshot draws a card held over the "Done" column.
 func TestDragOverSnapshot(t *testing.T) {
 	dir := os.Getenv("MIZAN_SNAPSHOTS")
 	if dir == "" {
-		t.Skip("MIZAN_SNAPSHOTS yok")
+		t.Skip("MIZAN_SNAPSHOTS not set")
 	}
 	_, tt := page2(t, mz.Light, mz.SkinMizan)
-	ax, ay := center(t, tt, "Giriş ekranı")
-	bx, by := center(t, tt, "Bitti")
+	ax, ay := center(t, tt, "Sign-in screen")
+	bx, by := center(t, tt, "Done")
 	tt.Press(ax, ay)
 	for i := 1; i <= 10; i++ {
 		f := float32(i) / 10
@@ -204,38 +204,38 @@ func TestChoices(t *testing.T) {
 		click string
 		ok    func() bool
 	}{
-		{"Anlık bildirim", func() bool { return s.Push }},
-		{"Bülten", func() bool { return !s.Mail }},
-		{"Aylık", func() bool { return s.Plan == "month" }},
-		{"Kurumsal", func() bool { return s.Tier == "team" }},
-		{"Eşitleme", func() bool { return !s.Sync }},
-		{"Takvim", func() bool { return s.ViewMode == 2 }},
+		{"Push notifications", func() bool { return s.Push }},
+		{"Newsletter", func() bool { return !s.Mail }},
+		{"Monthly", func() bool { return s.Plan == "month" }},
+		{"Enterprise", func() bool { return s.Tier == "team" }},
+		{"Sync", func() bool { return !s.Sync }},
+		{"Calendar", func() bool { return s.ViewMode == 2 }},
 	} {
 		if err := tt.Click(step.click); err != nil {
 			t.Fatal(err)
 		}
 		tt.Advance(300 * time.Millisecond)
 		if !step.ok() {
-			t.Fatalf("%q tıklanınca durum değişmedi", step.click)
+			t.Fatalf("clicking %q did not change the state", step.click)
 		}
 	}
-	if err := tt.Click("Kapalı"); err != nil {
+	if err := tt.Click("Disabled"); err != nil {
 		t.Fatal(err)
 	}
-	// slider: sağ ok bir adım artırır, sürükleme sona götürür
-	r, ok := tt.Find("Ses")
+	// slider: the right arrow adds a step, dragging goes to the end
+	r, ok := tt.Find("Volume")
 	if !ok {
-		t.Fatal("Ses kaydırıcısı yok")
+		t.Fatal("no Volume slider")
 	}
 	tt.ClickAt(r.X+r.W/2, r.Y+r.H/2)
 	tt.Key(0, ui.KeyRight)
 	before := s.Volume
 	tt.Key(0, ui.KeyRight)
 	if s.Volume != before+1 {
-		t.Fatalf("ses %v, %v olmalı", s.Volume, before+1)
+		t.Fatalf("volume %v, want %v", s.Volume, before+1)
 	}
 	drag(tt, r.X+r.W/2, r.Y+r.H/2, r.X+r.W+40, r.Y+r.H/2)
 	if s.Volume != 100 {
-		t.Fatalf("ses %v, 100 olmalı", s.Volume)
+		t.Fatalf("volume %v, want 100", s.Volume)
 	}
 }

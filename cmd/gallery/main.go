@@ -1,4 +1,4 @@
-// Gallery, Mizan bileşenlerinin vitrinini bir pencerede açar.
+// Gallery opens the showcase of Mizan's components in a window.
 //
 //	go run ./cmd/gallery
 package main

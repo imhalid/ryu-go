@@ -2,41 +2,41 @@ package mizan
 
 import "github.com/egoist/mygo/ui"
 
-// Variant, renkli düğmenin dolgusudur.
+// Variant is the fill of a colored button.
 type Variant uint8
 
 const (
-	// Soft, renge çalan kabarık yüzey; etiket renk ile metin arasında.
+	// Soft is a raised surface tinted with the color; the label is between the color and the text.
 	Soft Variant = iota + 1
-	// Solid, renkli gradyan, beyaz etiket.
+	// Solid is a colored gradient with a white label.
 	Solid
 )
 
-// ButtonOptions, Button'ın seçenekleridir; sıfır değer kabarık nötr düğmedir.
+// ButtonOptions are the options of Button; the zero value is a raised neutral button.
 type ButtonOptions struct {
-	// Color verilirse düğme o renge çalar (Colors.C1…C8, Accent, Up, Down).
+	// Color, if set, tints the button with that color (Colors.C1…C8, Accent, Up, Down).
 	Color ui.Color
-	// Variant, Color ile: Soft (varsayılan) ya da Solid.
+	// Variant, with Color: Soft (the default) or Solid.
 	Variant Variant
-	// Danger, yıkıcı eylem: Up renginde, varsayılan Solid. Color verilirse yok sayılır.
+	// Danger marks a destructive action: in the Up color, Solid by default. Ignored if Color is set.
 	Danger bool
-	// Icon, etiketin önündeki ikon; IconOnly ile kare ikon düğmesi
-	// (kenarı control-h), etiket yalnız erişilebilirlik adı olur.
+	// Icon is the icon in front of the label; with IconOnly, a square icon
+	// button (control-h on a side), and the label is only the accessibility name.
 	Icon     *ui.SVG
 	IconOnly bool
-	// Size verilmezse çevredeki kapsamdan.
+	// Size, if not set, comes from the enclosing scope.
 	Size Size
-	// Loading, dönen işaret gösterir ve tıklamayı kapatır; soluklaşmaz.
+	// Loading shows a spinner and disables clicks; the button does not fade.
 	Loading  bool
 	Disabled bool
-	// Block, düğmeyi satır boyunca genişletir.
+	// Block stretches the button across the row.
 	Block bool
 }
 
-// Button, kabarık hap düğmedir: tek tür, boyu aynı kademedeki alanlarla
-// aynı (control-h). Clicked ile basıldığını bildirir.
+// Button is a raised pill button: a single kind, as tall as the fields of
+// the same size step (control-h). Clicked reports that it was pressed.
 //
-//	if mizan.Button(c.Key("export"), "Dışa aktar", mizan.ButtonOptions{Color: t.Colors.Accent, Variant: mizan.Solid}).Clicked() {
+//	if mizan.Button(c.Key("export"), "Export", mizan.ButtonOptions{Color: t.Colors.Accent, Variant: mizan.Solid}).Clicked() {
 //		...
 //	}
 func Button(c *ui.Context, label string, o ButtonOptions) ui.Element {
@@ -68,8 +68,8 @@ func Button(c *ui.Context, label string, o ButtonOptions) ui.Element {
 	case tint == (ui.Color{}):
 		t.raised(e, t.controlGradient(cl.ControlTop, cl.ControlBottom), cl.ControlBorder, t.Shadows.ControlShadow, s)
 	case solid:
-		// dolgunun açıklığı OKLCH'de sınırlanır (üst 0,52, alt 0,46): ton ve
-		// canlılık kalır, beyaz yazı ≥ 4,5:1 okunur
+		// the fill's lightness is capped in OKLCH (top 0.52, bottom 0.46): hue
+		// and chroma stay, and white text reads at ≥ 4.5:1
 		top := capLightness(tint, 0.52)
 		bottom := capLightness(lighten(tint, -0.06), 0.46)
 		g := ui.LinearGradient{Angle: 180, Oklab: true, From: top, To: bottom}
@@ -79,7 +79,7 @@ func Button(c *ui.Context, label string, o ButtonOptions) ui.Element {
 	default:
 		g := t.controlGradient(Mix(cl.ControlTop, tint, 0.1), Mix(cl.ControlBottom, tint, 0.2))
 		t.raised(e, g, Mix(cl.ControlBorder, tint, 0.32), t.Shadows.ControlShadow, s)
-		// renk ile metin rengi yarı yarıya: iki temada ≥ 4,5:1
+		// half the color, half the text color: ≥ 4.5:1 in both themes
 		text = Mix(cl.Text, tint, 0.5)
 	}
 	if o.Loading {
@@ -101,9 +101,9 @@ func Button(c *ui.Context, label string, o ButtonOptions) ui.Element {
 	return e
 }
 
-// sizedFrom, kapsamın token'larını bileşenin kendi boyut kademesiyle verir
-// (bileşenin Size'ı çevreden geleni ezer). Sarmalayıcı öğe kurmaz: c'nin
-// anahtarı (c.Key) bileşenin kendi öğesine kalır.
+// sizedFrom gives the scope's tokens at the component's own size step (the
+// component's Size overrides the inherited one). It builds no wrapper
+// element: c's key (c.Key) stays with the component's own element.
 func sizedFrom(c *ui.Context, s Size) *Tokens {
 	if s == SizeInherit {
 		return From(c)

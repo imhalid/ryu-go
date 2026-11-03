@@ -6,12 +6,13 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// IconStroke, bütün ikonların ekrandaki çizgi kalınlığıdır (DIP). Kalınlık
-// viewBox'tan ve boyuttan hesaplanır: her boyutta ekranda aynı ağırlık.
+// IconStroke is the on-screen stroke width of every icon (DIP). The stroke
+// width is computed from the viewBox and the size: the same weight on screen
+// at every size.
 const IconStroke = 1.6
 
-// Svg, Mizan'ın çizgi ikonudur: dolgusuz, metin renginde kontur, yuvarlak
-// uçlar. viewBox 0 0 box box'tır; size ekrandaki genişliktir.
+// Svg is Mizan's line icon: no fill, a stroke in the text color, round caps.
+// The viewBox is 0 0 box box; size is the on-screen width.
 func Svg(box, size float32, paths ...string) *ui.SVG {
 	src := fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %g %g" width="%g" height="%g" fill="none" stroke="currentColor" stroke-width="%g" stroke-linecap="round" stroke-linejoin="round">`,
 		box, box, size, size, IconStroke*box/size)

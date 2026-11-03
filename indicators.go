@@ -7,18 +7,18 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// Tone, durum renkli küçük öğelerin (Badge, StatusDot) tonudur. Renk tek
-// başına anlam taşımaz: yanında her zaman metin ya da ad durur.
+// Tone is the tone of small status-colored items (Badge, StatusDot). Color
+// alone carries no meaning: text or a name always stands beside it.
 type Tone uint8
 
 const (
-	// ToneDefault, metin rengidir.
+	// ToneDefault is the text color.
 	ToneDefault Tone = iota
 	ToneUp
 	ToneDown
 	ToneWarn
 	ToneMuted
-	// ToneNeutral, gri etikettir: zemin soluk metinden değil dolgudan.
+	// ToneNeutral is a gray label: its background comes from the fill, not the muted text.
 	ToneNeutral
 )
 
@@ -37,10 +37,10 @@ func (t *Tokens) tone(n Tone) ui.Color {
 	return c.Text
 }
 
-// Badge, metin renginin %10'u zeminli haptır: hangi tonda olursa olsun
-// zemin metinle uyumlu. Sayılar tabular.
+// Badge is a pill on a background of 10% of its text color: whatever the
+// tone, the background matches the text. Numbers are tabular.
 //
-//	mizan.Badge(c, "+4,2%", mizan.ToneDown)
+//	mizan.Badge(c, "+4.2%", mizan.ToneDown)
 func Badge(c *ui.Context, text string, tone Tone) ui.Element {
 	t := From(c)
 	color := t.tone(tone)
@@ -53,7 +53,7 @@ func Badge(c *ui.Context, text string, tone Tone) ui.Element {
 	})
 }
 
-// Tag, sayfa başlığının yanındaki büyük nötr haptır.
+// Tag is the large neutral pill next to a page title.
 func Tag(c *ui.Context, text string) ui.Element {
 	t := From(c)
 	return ui.Box(c).Padding(6, 12).Radius(RadiusPill).Background(t.Colors.Fill).Shrink(0).Children(func() {
@@ -61,20 +61,20 @@ func Tag(c *ui.Context, text string) ui.Element {
 	})
 }
 
-// DotState, StatusDot'un durumudur.
+// DotState is the state of StatusDot.
 type DotState uint8
 
 const (
 	DotOff DotState = iota
-	// DotLive, yeşil nokta ve dışa yayılıp sönen halka.
+	// DotLive is a green dot with a ring that spreads outward and fades.
 	DotLive
 	DotDelayed
 )
 
-// StatusDot, durum noktası ve metnidir: canlıda nokta 1,8 saniyede bir
-// dışa yayılıp söner (hareket azaltılınca durur).
+// StatusDot is a status dot and its text: when live, the dot spreads
+// outward and fades every 1.8 seconds (it stops when motion is reduced).
 //
-//	mizan.StatusDot(c, mizan.DotLive, "Canlı")
+//	mizan.StatusDot(c, mizan.DotLive, "Live")
 func StatusDot(c *ui.Context, state DotState, text string) ui.Element {
 	t := From(c)
 	color := t.Colors.Muted
@@ -87,7 +87,7 @@ func StatusDot(c *ui.Context, state DotState, text string) ui.Element {
 	return ui.Row(c).AlignItems(ui.Center).Gap(7).Children(func() {
 		d := ui.Box(c).Size(8, 8).Radius(RadiusPill).Background(color).Shrink(0)
 		if state == DotLive {
-			// halka: noktanın kendi gölgesi, yarıçapı 2,6 katına açılırken söner
+			// the ring: the dot's own shadow, fading as its radius opens to 2.6 times
 			p := d.Keyframes("pulse", []ui.Keyframe{{At: 0, Value: 0}, {At: 1800 * time.Millisecond, Value: 1, Ease: ui.EaseOut}},
 				ui.KeyframeOptions{Repeat: ui.RepeatForever})
 			d.Shadow(0, 0, 0, 6.4*p, color.Alpha(0.6*(1-p)))
@@ -96,8 +96,8 @@ func StatusDot(c *ui.Context, state DotState, text string) ui.Element {
 	})
 }
 
-// Kbd, klavye tuşlarıdır: düğmeyle aynı kabarık malzeme, yazıya göre
-// ölçeklenir. Birleşik kısayolda tuşlar yan yana.
+// Kbd shows keyboard keys: the same raised skin as a button, scaled to the
+// text. In a combined shortcut, the keys sit side by side.
 //
 //	mizan.Kbd(c, "⌘", "K")
 func Kbd(c *ui.Context, keys ...string) ui.Element {
@@ -117,25 +117,26 @@ func Kbd(c *ui.Context, keys ...string) ui.Element {
 	})
 }
 
-// AvatarOptions, Avatar'ın seçenekleridir.
+// AvatarOptions are the options of Avatar.
 type AvatarOptions struct {
-	// Image, baş harflerin yerine gösterilen resimdir.
+	// Image is the picture shown instead of the initials.
 	Image *ui.Bitmap
-	// Color verilmezse addan seri renklerinden (C1…C8) biri seçilir: aynı
-	// ad her yerde aynı renk.
+	// Color, if unset, is one of the series colors (C1…C8) picked from the
+	// name: the same name gets the same color everywhere.
 	Color ui.Color
-	// Solid, zemini rengin kendisi, baş harfleri beyaz yapar.
+	// Solid makes the background the color itself and the initials white.
 	Solid bool
-	// Online, sağ altta yeşil durum noktası gösterir.
+	// Online shows a green status dot at the bottom right.
 	Online bool
-	// Size, çaptır (varsayılan 32).
+	// Size is the diameter (default 32).
 	Size float32
 }
 
-// Avatar, kişinin resmi ya da baş harfleridir: zemin rengin %16'sı kart
-// üstünde, harfler rengin %62'si metin üstünde (iki temada okunur).
+// Avatar is a person's picture or initials: the background is 16% of the
+// color over the card, the letters 62% of the color over the text (legible
+// in both themes).
 //
-//	mizan.Avatar(c, "Ayşe Yılmaz", mizan.AvatarOptions{Online: true})
+//	mizan.Avatar(c, "Jane Smith", mizan.AvatarOptions{Online: true})
 func Avatar(c *ui.Context, name string, o AvatarOptions) ui.Element {
 	t := From(c)
 	cl := t.Colors
@@ -163,7 +164,7 @@ func Avatar(c *ui.Context, name string, o AvatarOptions) ui.Element {
 	return e
 }
 
-// series, s'nin FNV-1a özetinden bir seri rengi seçer.
+// series picks a series color from the FNV-1a hash of s.
 func (t *Tokens) series(s string) ui.Color {
 	h := uint32(2166136261)
 	for i := 0; i < len(s); i++ {
@@ -173,7 +174,7 @@ func (t *Tokens) series(s string) ui.Color {
 	return [...]ui.Color{c.C1, c.C2, c.C3, c.C4, c.C5, c.C6, c.C7, c.C8}[h%8]
 }
 
-// initials, adın ilk ve son sözcüğünün baş harfleridir.
+// initials returns the initials of the name's first and last words.
 func initials(name string) string {
 	var first, last rune
 	in := false
@@ -198,17 +199,18 @@ func initials(name string) string {
 	return s
 }
 
-// EmptyStateOptions, EmptyState'in seçenekleridir.
+// EmptyStateOptions are the options of EmptyState.
 type EmptyStateOptions struct {
 	Icon        *ui.SVG
 	Title       string
 	Description string
-	// Action, altta tek eylemi (çoğunlukla kabarık bir Button) kurar.
+	// Action builds the single action at the bottom (usually a raised Button).
 	Action func()
 }
 
-// EmptyState, boş, hata ya da ilk kullanım durumudur: ortalı sütun, renk
-// vurgusu yok (ikon da nötr bir kuyuda); durum metinle anlatılır.
+// EmptyState is an empty, error or first-use state: a centered column with
+// no color accent (the icon too sits in a neutral well); the state is told
+// in text.
 func EmptyState(c *ui.Context, o EmptyStateOptions) ui.Element {
 	cl := From(c).Colors
 	return ui.Column(c).AlignItems(ui.Center).Gap(6).Padding(32, 20).Children(func() {

@@ -6,20 +6,21 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// Seçim kontrolleri gömük başlar (kuyu, axis kenarı) ve seçilince vurgu
-// gradyanıyla dolar; topuzlar (Switch, Slider) kuyunun üstünde duran
-// beyaz ya da bevel'de metal disklerdir.
+// Choice controls start inset (a well, an axis border) and fill with the
+// accent gradient when selected; knobs (Switch, Slider) are discs sitting
+// on the well, white, or metal in bevel.
 
 var iconDash = Svg(16, 12, "M4 8h8")
 
-// accentFill, seçim işaretinin dolgusudur (CSS --accent-fill).
+// accentFill is the fill of a selection mark (CSS --accent-fill).
 func (t *Tokens) accentFill() ui.LinearGradient {
 	return ui.LinearGradient{Angle: 180, Oklab: true, From: t.Colors.ColorAccent500, To: t.Colors.ColorAccent600}
 }
 
-// mark, Checkbox ve Radio'nun kutusunu boyar: boşken kuyu, seçiliyken
-// vurgu gradyanı, üstte parlama ve altta vurguya çalan temas gölgesi.
-// Basılıyken %92'ye küçülür; klavye odağı halkayı gölgenin yerine koyar.
+// mark paints the box of Checkbox and Radio: a well when empty; when
+// selected, the accent gradient, a sheen on top and a contact shadow tinted
+// toward the accent below. It shrinks to 92% while pressed; keyboard focus
+// puts the ring in place of the shadow.
 func (t *Tokens) mark(e ui.Element, on, pressed, focus bool) {
 	cl := t.Colors
 	sh := t.Shadows.WellShadow
@@ -39,8 +40,8 @@ func (t *Tokens) mark(e ui.Element, on, pressed, focus bool) {
 	e.Transition(ui.ElementTransition{Duration: 150 * time.Millisecond, Colors: true, Ease: ui.EaseOut})
 }
 
-// pop, işaretin içindekini (tik, nokta) yarı boyuttan, saydam başlatıp
-// yayla yerine oturtur.
+// pop starts the mark's contents (check, dot) at half size and transparent,
+// and springs them into place.
 func pop(e ui.Element, on bool) {
 	v := e.Spring("pop", b2f(on), ui.SpringOptions{Duration: 220 * time.Millisecond, Bounce: 0.35})
 	s := 0.45 + 0.55*v
@@ -56,19 +57,20 @@ func b2f(b bool) float32 {
 
 func clamp01(v float32) float32 { return min(max(v, 0), 1) }
 
-// CheckOptions, Checkbox'ın seçenekleridir.
+// CheckOptions are the options of Checkbox.
 type CheckOptions struct {
-	// Description, etiketin altındaki soluk açıklamadır.
+	// Description is the muted description below the label.
 	Description string
-	// Indeterminate, kutuyu yarım (çizgi) gösterir: bazı alt seçenekler seçili.
+	// Indeterminate shows the box half-checked (a dash): some sub-options are selected.
 	Indeterminate bool
 	Disabled      bool
 }
 
-// Checkbox, 18px kare onay kutusu ve etiketidir: boşken gömük, seçiliyken
-// vurgu gradyanı ve beyaz tik. Satırın tamamı tıklanır.
+// Checkbox is an 18px square checkbox and its label: inset when empty, the
+// accent gradient and a white check when checked. The whole row is
+// clickable.
 //
-//	mizan.Checkbox(c.Key("mail"), &app.mail, "E-posta bildirimleri", mizan.CheckOptions{})
+//	mizan.Checkbox(c.Key("mail"), &app.mail, "Email notifications", mizan.CheckOptions{})
 func Checkbox(c *ui.Context, checked *bool, label string, o CheckOptions) ui.Element {
 	t := From(c)
 	e := ui.CheckboxBase(c, checked).Disabled(o.Disabled)
@@ -91,12 +93,13 @@ func Checkbox(c *ui.Context, checked *bool, label string, o CheckOptions) ui.Ele
 	return e
 }
 
-// Radio, 18px yuvarlak seçim düğmesi ve etiketidir: seçiliyken vurgu
-// gradyanı ortasında 7px beyaz nokta. ui.RadioGroup içinde kullanın.
+// Radio is an 18px round radio button and its label: when selected, the
+// accent gradient with a 7px white dot in its middle. Use it inside
+// ui.RadioGroup.
 //
 //	ui.RadioGroup(c, func() {
-//		mizan.Radio(c.Key("d"), &app.plan, "day", "Günlük", mizan.CheckOptions{})
-//		mizan.Radio(c.Key("w"), &app.plan, "week", "Haftalık", mizan.CheckOptions{})
+//		mizan.Radio(c.Key("d"), &app.plan, "day", "Daily", mizan.CheckOptions{})
+//		mizan.Radio(c.Key("w"), &app.plan, "week", "Weekly", mizan.CheckOptions{})
 //	}).Label("Plan")
 func Radio[T comparable](c *ui.Context, selected *T, value T, label string, o CheckOptions) ui.Element {
 	t := From(c)
@@ -115,8 +118,8 @@ func Radio[T comparable](c *ui.Context, selected *T, value T, label string, o Ch
 	return e
 }
 
-// choiceRow, işaret ile etiketi yan yana dizer: açıklama varsa işaret ilk
-// satırın ortasında durur.
+// choiceRow lays out the mark and the label side by side: with a
+// description, the mark stays centered on the first line.
 func (t *Tokens) choiceRow(c *ui.Context, e ui.Element, label, desc string, disabled bool, mark func()) {
 	cl := t.Colors
 	e.Gap(10).AlignItems(ui.Start).Cursor(ui.CursorPointer).FocusRing(false)
@@ -139,9 +142,9 @@ func (t *Tokens) choiceRow(c *ui.Context, e ui.Element, label, desc string, disa
 	})
 }
 
-// Choice, kart biçiminde seçim düğmesidir: kuyuda durur, seçilince
-// kabarık malzemeye geçer (gölgesi ve kenarıyla öne çıkar). Seçenekler
-// ızgarada yan yana, ui.RadioGroup içinde.
+// Choice is a radio button shaped as a card: it sits in a well and switches
+// to the raised skin when selected (standing out with its shadow and
+// border). Options sit side by side in a grid, inside ui.RadioGroup.
 func Choice[T comparable](c *ui.Context, selected *T, value T, title, desc string, o CheckOptions) ui.Element {
 	t := From(c)
 	cl := t.Colors
@@ -185,8 +188,8 @@ func Choice[T comparable](c *ui.Context, selected *T, value T, title, desc strin
 	return e
 }
 
-// knob, topuzun yüzeyidir: Mizan'da beyaz disk, bevel'de yukarıdan aşağı
-// koyulaşan metal.
+// knob is a knob's surface: a white disc in Mizan, metal that darkens from
+// top to bottom in bevel.
 func (t *Tokens) knob(e ui.Element) {
 	if t.Skin == SkinBevel {
 		e.LinearGradient(ui.LinearGradient{Angle: 180, Oklab: true, From: t.Colors.KnobTop, To: t.Colors.KnobBot})
@@ -195,18 +198,19 @@ func (t *Tokens) knob(e ui.Element) {
 	e.Background(t.Colors.Thumb)
 }
 
-// SwitchOptions, Switch'in seçenekleridir.
+// SwitchOptions are the options of Switch.
 type SwitchOptions struct {
 	Label       string
 	Description string
 	Disabled    bool
 }
 
-// Switch, 38×22 anahtardır: iz koyu kuyu, açıkken vurgu gradyanıyla dolar
-// (bevel'de iz aynı kalır, boşalan tarafta 6px LED yanar); topuz yayla
-// kayar, basılı tutunca kısa bir kapsüle uzar.
+// Switch is a 38×22 switch: the track is a dark well that fills with the
+// accent gradient when on (in bevel the track stays the same and a 6px LED
+// lights up on the side the knob leaves); the knob slides on a spring and
+// stretches into a short capsule while held.
 //
-//	mizan.Switch(c.Key("sync"), &app.sync, mizan.SwitchOptions{Label: "Eşitleme"})
+//	mizan.Switch(c.Key("sync"), &app.sync, mizan.SwitchOptions{Label: "Sync"})
 func Switch(c *ui.Context, on *bool, o SwitchOptions) ui.Element {
 	t := From(c)
 	cl := t.Colors
@@ -226,7 +230,7 @@ func Switch(c *ui.Context, on *bool, o SwitchOptions) ui.Element {
 		x := track.Spring("x", 16*b2f(*on), ui.SpringOptions{Duration: 300 * time.Millisecond, Bounce: 0.25})
 		w := track.Animate("w", 18+4*b2f(pressed), 200*time.Millisecond)
 		if *on {
-			// uzayan topuz satır başına doğru büyür
+			// the stretching knob grows toward the start of the row
 			x -= w - 18
 		}
 		track.Children(func() {
@@ -248,22 +252,23 @@ func Switch(c *ui.Context, on *bool, o SwitchOptions) ui.Element {
 	return e
 }
 
-// SegmentedOptions, Segmented'ın seçenekleridir.
+// SegmentedOptions are the options of Segmented.
 type SegmentedOptions struct {
-	// Label, grubun erişilebilirlik adıdır.
+	// Label is the group's accessible name.
 	Label string
 	Size  Size
-	// Fill, rayı satır boyunca yayar; seçenekler eşit paylaşır.
+	// Fill spreads the track across the row; the options share it equally.
 	Fill     bool
 	Disabled bool
 }
 
-// Segmented, birkaç görünüm arasında seçimdir: ray gömük ve yanındaki
-// alanla aynı boyda (control-h); seçili seçenek rayın içinde kabarık bir
-// hap. Seçim yokken seçenekler oyuk ayraçlarla ayrı düğmeler gibi okunur;
-// hapın iki yanındaki ayraç söner.
+// Segmented is a choice between a few views: the track is inset and as
+// tall as the field beside it (control-h); the selected option is a raised
+// pill inside the track. Unselected options read as separate buttons,
+// divided by grooved separators; the separators on both sides of the pill
+// fade out.
 //
-//	mizan.Segmented(c.Key("view"), &app.view, []string{"Liste", "Izgara"}, mizan.SegmentedOptions{Label: "Görünüm"})
+//	mizan.Segmented(c.Key("view"), &app.view, []string{"List", "Grid"}, mizan.SegmentedOptions{Label: "View"})
 func Segmented(c *ui.Context, selected *int, labels []string, o SegmentedOptions) ui.Element {
 	t := sizedFrom(c, o.Size)
 	m := t.Metrics
@@ -277,7 +282,7 @@ func Segmented(c *ui.Context, selected *int, labels []string, o SegmentedOptions
 	if o.Fill {
 		tr.FillWidth()
 	} else {
-		// ray içeriği kadar: sütunun genişliğine yayılmaz
+		// the track is as wide as its contents: it doesn't spread across the column
 		tr.AlignSelf(ui.Start)
 	}
 	if o.Disabled {
@@ -323,20 +328,21 @@ func Segmented(c *ui.Context, selected *int, labels []string, o SegmentedOptions
 	return tr
 }
 
-// SliderOptions, Slider'ın seçenekleridir.
+// SliderOptions are the options of Slider.
 type SliderOptions struct {
 	Label string
-	// Step, değerin adımıdır (yoksa aralığın yüzde biri).
+	// Step is the value's step (one hundredth of the range if unset).
 	Step float64
-	// Format verilirse değer sağda, sabit genişlikte, tabular yazılır.
+	// Format, if set, writes the value on the right, at a fixed width, in tabular figures.
 	Format   func(v float64) string
 	Disabled bool
 }
 
-// Slider, kaydırıcıdır: 6px gömük iz, dolu kısmı vurgu gradyanı; 22px
-// topuz basılıyken %12 büyür. Format ile sağında değeri durur.
+// Slider is a slider: a 6px inset track whose filled part is the accent
+// gradient; the 22px knob grows 12% while pressed. With Format, its value
+// stands on its right.
 //
-//	mizan.Slider(c.Key("vol"), &app.volume, 0, 100, mizan.SliderOptions{Label: "Ses"})
+//	mizan.Slider(c.Key("vol"), &app.volume, 0, 100, mizan.SliderOptions{Label: "Volume"})
 func Slider(c *ui.Context, value *float64, lo, hi float64, o SliderOptions) ui.Element {
 	t := From(c)
 	cl := t.Colors
@@ -385,8 +391,9 @@ func Slider(c *ui.Context, value *float64, lo, hi float64, o SliderOptions) ui.E
 	}
 	ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(12).Children(func() {
 		slider()
-		// sütun en geniş olası metne göre: değer basamak değiştirince iz
-		// daralıp topuz imleçten kaymasın
+		// the column fits the widest possible text, so that the track doesn't
+		// narrow and the knob slip from under the pointer when the value changes
+		// its number of digits
 		w := max(56, 8*float32(max(len(o.Format(lo)), len(o.Format(hi)))))
 		ui.Text(c, o.Format(*value)).TextColor(cl.Text).FontSize(FsMd).FontWeight(650).FontFeatures("tnum").
 			TextAlign(ui.End).Width(w).Shrink(0)

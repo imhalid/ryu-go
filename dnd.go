@@ -7,18 +7,19 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// Sürükle-bırakın dili iki parçadır: sürüklenen şey kabarık malzemedir
-// (tutulabilir), bırakılan yer gömük kuyudur. Kuyu, üstüne kendi aldığı
-// bir şey gelince Mizan'ın dosya bölgesindeki gibi düz vurgu kenarı ve
-// %8 vurguya çalan zemin alır; sürüklenenin yeri %40 soluk kalır.
+// Drag and drop speaks in two parts: what is dragged is the raised skin (it
+// can be held), where it is dropped is an inset well. When something it
+// accepts comes over it, the well takes a solid accent border and a
+// background tinted 8% toward the accent, as in Mizan's file zone; the
+// dragged item's place stays faded to 40%.
 
 var (
 	iconUpload = Svg(16, 20, "M8 10.5V2.5M5 5.5l3-3 3 3M2.5 10v2A1.5 1.5 0 004 13.5h8a1.5 1.5 0 001.5-1.5v-2")
 	iconFile   = Svg(16, 14, "M9 1.5H4.5a1.5 1.5 0 0 0-1.5 1.5v10a1.5 1.5 0 0 0 1.5 1.5h7a1.5 1.5 0 0 0 1.5-1.5V5.5zM9 1.5v4h4")
 )
 
-// dropWell, bırakma yerini boyar: normalde kuyu, üstüne bir şey gelince
-// vurgu kenarı ve vurguya çalan zemin.
+// dropWell paints a drop target: normally a well; when something comes over
+// it, an accent border and a background tinted toward the accent.
 func (t *Tokens) dropWell(e ui.Element, over bool) {
 	c := t.Colors
 	if over {
@@ -29,7 +30,7 @@ func (t *Tokens) dropWell(e ui.Element, over bool) {
 	e.Transition(ui.ElementTransition{Duration: 150 * time.Millisecond, Colors: true})
 }
 
-// grip, tutamak: iki sütun üç satır nokta.
+// grip is the grip: dots in two columns of three rows.
 func grip(c *ui.Context, color ui.Color) {
 	ui.Row(c).Gap(3).Shrink(0).Children(func() {
 		for range 2 {
@@ -42,7 +43,7 @@ func grip(c *ui.Context, color ui.Color) {
 	})
 }
 
-// tile, sürüklenen kabarık karodur: düğmenin malzemesi, kontrol köşesi.
+// tile is the raised tile being dragged: the button's skin, the control's corner radius.
 func (t *Tokens) tile(e ui.Element, hovered bool) {
 	cl := t.Colors
 	e.Radius(RadiusControl).Cursor(ui.CursorGrab)
@@ -50,18 +51,19 @@ func (t *Tokens) tile(e ui.Element, hovered bool) {
 		raisedState{hovered: hovered})
 }
 
-// SortableOptions, Sortable'ın seçenekleridir.
+// SortableOptions are the options of Sortable.
 type SortableOptions struct {
-	// Label, satırın metnidir: erişilebilirlik adı ve klavyeyle bulma.
+	// Label is a row's text: its accessible name, and for finding it by keyboard.
 	Label func(i int) string
-	// Key, satırın kimliğidir; yoksa sırası. Satırların durumu (yerel
-	// değerler, odak) taşınırken korunsun diye verin.
+	// Key is a row's identity; its index if unset. Provide it so that rows'
+	// state (local values, focus) is kept as they move.
 	Key func(i int) any
 }
 
-// Sortable, satırları sürüklenerek sıralanan listedir: her satır tutamaklı
-// kabarık bir karo, bırakılacak yeri vurgu renginde çizgi gösterir; liste
-// *items'ı kendisi yeniden dizer. s çerçeveler boyunca aynı kalmalıdır.
+// Sortable is a list whose rows are reordered by dragging: each row is a
+// raised tile with a grip, and a line in the accent color shows where it
+// will drop; the list reorders *items itself. s must stay the same across
+// frames.
 //
 //	mizan.Sortable(c, &app.list, &app.tasks, mizan.SortableOptions{}, func(t Task) {
 //		ui.Text(c, t.Title)
@@ -81,7 +83,7 @@ func Sortable[T any](c *ui.Context, s *ui.ListState, items *[]T, o SortableOptio
 	}).Gap(6).Padding(2)
 }
 
-// move, rows satırlarını to'nun önüne taşır (sıraları korunur).
+// move moves the rows at the indices rows to before index to (keeping their order).
 func move[T any](items []T, rows []int, to int) []T {
 	moved := make([]T, 0, len(rows))
 	rest := make([]T, 0, len(items))
@@ -99,9 +101,9 @@ func move[T any](items []T, rows []int, to int) []T {
 	return slices.Insert(rest, at, moved...)
 }
 
-// DragCard, başka bir yere (DropArea) sürüklenen kabarık karodur; value
-// bırakılan yere gider. Sürüklenirken yeri soluk kalır, kopyası işaretçiyi
-// izler.
+// DragCard is a raised tile dragged to another place (a DropArea); value
+// goes to where it is dropped. While dragged, its place stays faded and a
+// copy follows the pointer.
 //
 //	mizan.DragCard(c.Key(task.ID), task, func() { ui.Text(c, task.Title) })
 func DragCard(c *ui.Context, value any, body func()) ui.Element {
@@ -115,23 +117,24 @@ func DragCard(c *ui.Context, value any, body func()) ui.Element {
 	return e
 }
 
-// DropAreaOptions, DropArea'nın seçenekleridir.
+// DropAreaOptions are the options of DropArea.
 type DropAreaOptions struct {
 	Title string
-	// Count, başlığın yanındaki nötr sayıdır (boşsa gösterilmez).
+	// Count is the neutral count next to the title (not shown if empty).
 	Count string
-	// Accept, sürüklenen değeri alıp almayacağını söyler (yoksa T'nin
-	// her değeri): aynı sütundan gelen kartı almamak gibi.
+	// Accept says whether to take the dragged value (every value of T if
+	// unset): to refuse a card from the same column, for example.
 	Accept func(v any) bool
-	// Fill, sütunu kabının boyuna uzatır: yan yana sütunlar eşit boyda
-	// durur, boş sütunun da bırakılacak yeri olur.
+	// Fill stretches the column to its container's height: columns side by
+	// side stay the same height, and an empty column still has room to drop on.
 	Fill bool
 }
 
-// DropArea, T türünde değer alan gömük sütundur (pano sütunu, klasör):
-// üstüne aldığı bir değer gelince vurgulanır, bırakılan değeri döndürür.
+// DropArea is an inset column that takes values of type T (a board column,
+// a folder): it highlights when a value it accepts comes over it, and
+// returns the dropped value.
 //
-//	if task, ok := mizan.DropArea[*Task](c.Key("done"), mizan.DropAreaOptions{Title: "Bitti"}, func() {
+//	if task, ok := mizan.DropArea[*Task](c.Key("done"), mizan.DropAreaOptions{Title: "Done"}, func() {
 //		...
 //	}); ok {
 //		task.Done = true
@@ -168,23 +171,23 @@ func DropArea[T any](c *ui.Context, o DropAreaOptions, body func()) (T, bool) {
 	return dropped, ok
 }
 
-// DropZoneOptions, DropZone'un seçenekleridir.
+// DropZoneOptions are the options of DropZone.
 type DropZoneOptions struct {
-	// Title, kalın satır ("Dosyaları buraya bırakın"); Hint altındaki
-	// soluk açıklama ("PNG, PDF · en çok 10 MB").
+	// Title is the bold line ("Drop files here"); Hint the muted description
+	// below it ("PNG, PDF · up to 10 MB").
 	Title string
 	Hint  string
-	// Browse verilirse bölge tıklanabilir olur ve tıklanınca çağrılır
-	// (örneğin mygo.Dialog.Open ile dosya seçici).
+	// Browse, if set, makes the zone clickable and is called when it is
+	// clicked (for example, a file picker with mygo.Dialog.Open).
 	Browse   func()
 	Disabled bool
 }
 
-// DropZone, başka uygulamalardan (Finder, Explorer) dosya alan kesikli
-// kenarlı kuyudur: üstüne dosya gelince kenar düzleşip vurgu rengini alır.
-// Bırakılan dosyaların yollarını döndürür, yoksa nil.
+// DropZone is a well with a dashed border that takes files from other apps
+// (Finder, Explorer): when files come over it, the border turns solid and
+// takes the accent color. It returns the dropped files' paths, or nil.
 //
-//	if paths := mizan.DropZone(c.Key("upload"), mizan.DropZoneOptions{Title: "Dosyaları bırakın"}); paths != nil {
+//	if paths := mizan.DropZone(c.Key("upload"), mizan.DropZoneOptions{Title: "Drop files"}); paths != nil {
 //		app.add(paths)
 //	}
 func DropZone(c *ui.Context, o DropZoneOptions) []string {
@@ -192,7 +195,7 @@ func DropZone(c *ui.Context, o DropZoneOptions) []string {
 	cl := t.Colors
 	var e ui.Element
 	if o.Browse != nil {
-		e = ui.ButtonBase(c).Label(or(o.Title, "Dosya seç")).Cursor(ui.CursorPointer).Disabled(o.Disabled).FocusRing(false)
+		e = ui.ButtonBase(c).Label(or(o.Title, "Choose files")).Cursor(ui.CursorPointer).Disabled(o.Disabled).FocusRing(false)
 	} else {
 		e = ui.Column(c)
 	}
@@ -232,8 +235,9 @@ func DropZone(c *ui.Context, o DropZoneOptions) []string {
 	return files
 }
 
-// FileItem, eklenmiş bir dosyanın satırıdır: kuyu zemin, ad kırpılır,
-// boyut tabular, sağda kaldır düğmesi. Kaldır'a basıldığında true döner.
+// FileItem is the row of an attached file: a well background, the name
+// truncated, the size tabular, a remove button on the right. It returns
+// true when Remove is pressed.
 func FileItem(c *ui.Context, name, size string) bool {
 	t := From(c)
 	cl := t.Colors
@@ -245,7 +249,7 @@ func FileItem(c *ui.Context, name, size string) bool {
 		if size != "" {
 			ui.Text(c, size).TextColor(cl.Muted).FontFeatures("tnum").NoWrap()
 		}
-		removed = inputButton(c.Key("remove"), t, iconClear, "Kaldır").Margin(0).Clicked()
+		removed = inputButton(c.Key("remove"), t, iconClear, "Remove").Margin(0).Clicked()
 	})
 	return removed
 }
