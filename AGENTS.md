@@ -28,10 +28,11 @@ Kullanıcı için küçük geri bildirimler ve animasyonlar çok önemli. Bir et
 - **İşaretler çizilir.** Onay işareti belirmez, kalemle çizilir gibi kısa koldan uzun kola akar (`checkMark`, `Path.Trim` 0→1, 260 ms); kaldırılırken geldiği yoldan, daha hızlı ve dolguyla birlikte solarak geri çekilir. Açılan listelerde (Select, Combobox, Menu) seçili öğenin işareti liste açıldıktan ~90 ms sonra çizilir: seçim yapınca liste kapandığından değişimin kendisi pek görünmez.
 - **Radio noktası açılır.** Seçilince dolgu önce gelir, nokta ~40 ms sonra merkezden sekmeden açılır (`dotMark`, 240 ms); bırakılınca 90 ms'de küçülüp söner. Yaylı "pop" kullanılmaz.
 - **Bitiş parıltısı.** Progress %100'e varınca dolgu oturduktan sonra (~380 ms) üstünden bir kez yumuşak bir beyaz bant geçer (`finish`, 1.1 s); baştan dolu çubukta oynamaz. Meter'de yok: dolu ölçer "bitti" demek değildir.
+- **Toast gelince border beam döner.** Web Mizan'ın BorderBeam'i (`src/components/border-beam/`) birebir: kenarda 1px halkada conic gradient bir hüzme (iki ucu sönen uzun bant, %66'da parlak baş; koyu temada baş tonun beyaza %65 açılmışı), altında aynı hüzmenin geniş ve soluk kopyası ışıma olarak camın *altında* çizilir, yalnız kenardan taşan kısmı görünür. Gelişte ton noktasından başlayıp bir tur döner ve söner (2.4 s `EaseInOut`). `StrokePathConicGradient` ile; kenar boyunca kesilmiş (`Trim`) katmanlı çizgi "amatör" bulundu, hale ve camdan geçen bant da "basit". Mutlak konumlu alt öğe içeriğin üstüne boyanır: ışıma gibi alta gerekenler ebeveynin kendi `Draw`'ında çizilir.
 - **Onay ışıkları ince.** Bir işlem tamamlanınca kenarda koşan ışık (`rise`): 1px çekirdek, dar parıltı, ~1.5 s, `EaseInOut`, tek eğri (animasyonun eğrisini yolda ikinci kez eğme).
 - **Blur yok.** Dialog ve Sheet'te bulanık hale kullanılmaz; yerine solup gelen `Scrim`. Cam (`glass`) yalnız popover, menü, tooltip ve toast'ta.
 - **Az hareket isteği.** MyGo `AnimateTo` ve `Keyframes` `ReduceMotion`'da hedefe hemen gider; elle zaman sayan çizimler (`p.Now()`) de bunu gözetmeli.
-- **Reddedilenler:** NumberInput'ta NumberFlow tarzı yuvarlanan rakamlar istenmedi (kaldırıldı). Benzer "sayaç dönmesi" önerileri getirme.
+- **Reddedilenler:** NumberInput'ta NumberFlow tarzı yuvarlanan rakamlar istenmedi (kaldırıldı); benzer "sayaç dönmesi" önerileri getirme. Spinner'a kuyruklu, haleli parlama denendi, beğenilmedi; spinner düz kalır.
 
 ### Ayarlı yaylar (yeniden kullan)
 

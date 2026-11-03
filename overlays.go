@@ -466,7 +466,8 @@ const (
 
 // Toaster draws the window's toasts in its bottom right corner: frosted
 // glass with the pop shadow, a tint of their tone in the top left corner, a dot of
-// the tone, the title and description, an action and a close button. The
+// the tone, the title and description, an action and a close button. As
+// one arrives, Mizan's border beam turns once round it in its tone. The
 // newest is in front, at the bottom, with the older ones tucked behind it
 // until the pointer comes onto them (see stack). Call it once in the view,
 // wherever.
@@ -500,14 +501,34 @@ func Toaster(c *ui.Context) ui.Element {
 				}
 				p := parts[i]
 				r := p.Root.Row().AlignItems(ui.Start).Gap(10).Padding(12, 10, 12, 14)
+				// arriving, a beam of its tone runs once round its border
+				if seen := ui.Local(r, "beam-seen", func() bool { return false }); !*seen {
+					*seen = true
+					r.Jump("beam", 0)
+				}
+				beam := r.AnimateTo("beam", 1, ui.Animation{Duration: 2400 * time.Millisecond, Delay: 150 * time.Millisecond, Ease: ui.EaseInOut})
 				// frosted glass: the surface at 86% over what is behind, blurred,
 				// with a tint of the tone spreading from the top left corner
 				glow := Mix(ui.Color{}, tone, 0.12)
+				ring, halo, beaming := t.beam(beam, tone)
 				r.Radius(RadiusPop).Material(glass.Blur{Radius: 20}).Draw(func(p *ui.Painter, b ui.Rect) {
+					if beaming {
+						// the beam's glow under the glass: only what spills past
+						// its edge shows, as behind Mizan's opaque cards
+						for _, w := range []float32{18, 11, 5} {
+							p.StrokePathConicGradient(roundBorder(b, RadiusPop), w, halo)
+						}
+					}
 					p.Fill(b, cl.Surface.Alpha(0.86), RadiusPop)
 					p.FillRadialGradient(b, ui.RadialGradient{Center: ui.Point{X: 0.001, Y: 0.001}, Radius: b.W * 0.7, Oklab: true,
 						Stops: []ui.GradientStop{{Color: glow, At: 0}, {Color: glow.Alpha(0), At: 1}}}, RadiusPop)
 				})
+				if beaming {
+					r.DrawOver(func(p *ui.Painter, b ui.Rect) {
+						b = ui.Rect{X: b.X + 0.5, Y: b.Y + 0.5, W: b.W - 1, H: b.H - 1}
+						p.StrokePathConicGradient(roundBorder(b, RadiusPop-0.5), 1, ring)
+					})
+				}
 				t.Shadows.ShadowPop.Apply(r)
 				// it arrives by hand, in stack; it leaves sinking a little as it
 				// fades, from wherever the stack had it
@@ -524,6 +545,55 @@ func Toaster(c *ui.Context) ui.Element {
 			stack(box, roots, open)
 		})
 	})
+}
+
+// beam is Mizan's border beam, run once as a toast arrives (f from 0 to
+// 1): the gradients of a 1px ring along the border with a light of its
+// tone in it, a long band fading at both ends to a bright head (in the
+// dark theme, the tone lifted toward white), turning once round from the
+// toast's dot; and of its glow, the same band wider and fainter. It fades
+// in as it starts and out as it ends; ok is false while it does not run.
+func (t *Tokens) beam(f float32, tone ui.Color) (ring, glow ui.ConicGradient, ok bool) {
+	if f <= 0 || f >= 1 {
+		return ring, glow, false
+	}
+	head := tone
+	if t.Dark {
+		head = Mix(tone, ui.RGB(255, 255, 255), 0.65)
+	}
+	vis := min(1, f*5) * min(1, (1-f)*4)
+	// the head starts at the start edge, by the dot: the band's head is
+	// 66% round from the angle the gradient starts at
+	from := 270 - 0.66*360 + 360*f
+	at := func(c ui.Color, a, pos float32) ui.GradientStop {
+		return ui.GradientStop{Color: c.Alpha(a * vis), At: pos}
+	}
+	ring = ui.ConicGradient{Angle: from, Oklab: true, Stops: []ui.GradientStop{
+		at(tone, 0, 0), at(tone, 0, 0.54), at(tone, 0.12, 0.57), at(tone, 0.4, 0.612),
+		at(head, 0.75, 0.645), at(head, 0.95, 0.66), at(head, 0.75, 0.675),
+		at(tone, 0.4, 0.708), at(tone, 0.12, 0.75), at(tone, 0, 0.78), at(tone, 0, 1),
+	}}
+	// three strokes of it, widening, add up to a soft glow of a third
+	const g = 0.1
+	glow = ui.ConicGradient{Angle: from, Oklab: true, Stops: []ui.GradientStop{
+		at(tone, 0, 0), at(tone, 0, 0.44), at(tone, 0.3*g, 0.55), at(head, 0.9*g, 0.66),
+		at(tone, 0.3*g, 0.77), at(tone, 0, 0.88), at(tone, 0, 1),
+	}}
+	return ring, glow, true
+}
+
+// roundBorder is r's rounded border, clockwise from the middle of its
+// start edge.
+func roundBorder(r ui.Rect, radius float32) *ui.Path {
+	rad := min(radius, r.W/2, r.H/2)
+	x0, y0, x1, y1 := r.X, r.Y, r.X+r.W, r.Y+r.H
+	var p ui.Path
+	p.MoveTo(x0, y0+r.H/2).LineTo(x0, y0+rad).QuadTo(x0, y0, x0+rad, y0).
+		LineTo(x1-rad, y0).QuadTo(x1, y0, x1, y0+rad).
+		LineTo(x1, y1-rad).QuadTo(x1, y1, x1-rad, y1).
+		LineTo(x0+rad, y1).QuadTo(x0, y1, x0, y1-rad).
+		LineTo(x0, y0+r.H/2)
+	return &p
 }
 
 // toastBody builds a toast's content: the tone's dot, the title and
