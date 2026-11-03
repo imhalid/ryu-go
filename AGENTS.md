@@ -1,105 +1,130 @@
-# mizan-go: ajan kuralları
+# mizan-go: rules for agents
 
-Bu depoda çalışan her ajan (ve insan) için kurallar. Mizan'ın görsel dilini MyGo'nun yerel arayüzüne (`ui` paketi) taşır; davranış (odak, klavye, erişilebilirlik) MyGo'nun görünümsüz `…Base` bileşenlerinden gelir, Mizan görünümü verir. Bir kural bozulacaksa nedeni koda yorum olarak yazılır ve bu dosya güncellenir.
+Rules for every agent (and person) working in this repository. It carries Mizan's visual language to MyGo's native UI (package `ui`): behavior (focus, keyboard, accessibility) comes from MyGo's unstyled `…Base` components, and Mizan gives the look. When a rule has to be broken, the reason goes in a code comment and this file is updated.
 
-## 1. Yapı ve yazım
+## 1. Structure and writing
 
-- Her bileşen ailesi kök dizinde bir dosya: `controls.go`, `forms.go`, `overlays.go`, `dnd.go`, `feedback.go`, `disclosure.go`, `toggle.go`… Renk, gölge ve boyut değerleri `tokens.go`'da, OKLCH ile.
-- Tek deri var: Mizan. Bevel kaldırıldı, geri getirme.
-- **Eş merkezli köşeler.** İçteki yüzeyin yarıçapı dıştakinden türetilir: `Concentric(dış, boşluk) = max(dış − boşluk, 0)`. İki yarıçap ayrı ayrı ölçeklenmez, içte ve dışta aynı yarıçap da kullanılmaz: köşelerdeki boşluk kenarlardakinden kalın görünür. Uygulandığı yerler: Segmented rayı ve hapı (3px), ToggleGroup ve toggle'ları (3px), NumberInput ve stepper'ı (4px), menü/Select/Popover paneli ve öğeleri (`PadPop`), TagInput ve chip'leri (4px); Kanban sütunu kartından dışa doğru (kart + 10px). Büyük iç boşluklu kaplarda (Card) kural uygulanmaz.
-- Köşe yarıçapı sabit yazılmaz: `t.R(RadiusX)` (kapsamın `Corners`'ı: Sm 0.5, Md 1, Lg 1.5). Hap (`RadiusPill`) ve daireler ölçeklenmez; onay kutusu gibi kare kalması gerekenlerde üst sınır konur (`min(t.R(6), 7)`).
-- Yüzey dili iki tür: kabarık denetim (`t.raised`, ışık yukarıdan) ve gömülü kuyu (`t.well`). Bileşen kendi gradyanını yazmaz, bu ikisini kullanır.
-- Kod yorumları İngilizce, kararı anlatır, yoğunluğu çevredeki kodla aynı. Dışa açık her şeyin belge yorumu bir kullanım örneği içerir.
-- Paket erken beta: API serbestçe değişir, ama değişince README ve gallery aynı turda güncellenir.
-- Her yeni bileşen gallery'de (`gallery/`) görünür ve `gallery/*_test.go`'da etkileşim testi alır.
-- Kapı: `gofmt -l .` boş, `go vet ./...`, `go test ./...`, ve CGO'suz `linux`, `darwin`, `windows`, `js/wasm` derlemesi (CI ile aynı).
+- Each family of components is one file at the root: `controls.go`, `forms.go`, `overlays.go`, `dnd.go`, `feedback.go`, `disclosure.go`, `toggle.go`, `table.go`… Colors, shadows and sizes live in `tokens.go`, written in OKLCH.
+- There is one skin: Mizan. Bevel was removed; don't bring it back.
+- **Concentric corners.** A nested surface takes its radius from the one around it: `Concentric(outer, padding) = max(outer − padding, 0)`. The two radii are never scaled apart, and the same radius is never used inside and out: the gap at the corners would look thicker than along the sides. Where it applies: Segmented's track and pill (3px), ToggleGroup and its toggles (3px), NumberInput and its stepper (4px), the panel of a menu, Select or Popover and its items (`PadPop`), TagInput and its chips (4px); a board column goes out from its cards (card + 10px). It does not apply to containers with a large padding (Card).
+- Radii are never written as constants: `t.R(RadiusX)` (the scope's `Corners`: Sm 0.5, Md 1, Lg 1.5). Pills (`RadiusPill`) and circles don't scale; what must stay square, as a checkbox, gets a cap (`min(t.R(6), 7)`).
+- The surface has two languages: the raised control (`t.raised`, lit from above) and the inset well (`t.well`). A component doesn't write its own gradient; it uses these two.
+- Code comments are in English, tell the decision, and match the density of the code around them. Everything exported has a doc comment with a usage example.
+- The package is an early beta: the API changes freely, but when it does, the README and the gallery are updated in the same turn.
+- Every new component shows in the gallery (`gallery/`) and gets an interaction test in `gallery/*_test.go`.
+- The gate: `gofmt -l .` empty, `go vet ./...`, `go test ./...`, and a build without cgo for `linux`, `darwin`, `windows` and `js/wasm` (the same as CI).
 
-## 2. Hareket ve mikro etkileşim
+## 2. Motion and micro-interactions
 
-Kullanıcı için küçük geri bildirimler ve animasyonlar çok önemli. Bir etkileşim "çalışıyor" diye bitmez; hissi de doğru olmalı.
+Small feedback and animation matter a great deal to the user. An interaction isn't done when it works; it has to feel right.
 
-### İlkeler
+### Principles
 
-- **Her durum değişikliği hareketle gelir.** Açılan, kapanan, yer değiştiren, eklenen ya da silinen hiçbir şey bir karede belirip kaybolmaz. Kapanış da canlandırılır (`presence` kalıbı, aşağıda).
-- **Gelirken yay, giderken eğri.** Giriş yayla (`ui.SpringOptions`), biraz sekmeyle; çıkış daha kısa bir eğriyle (`EaseOut`, 150–220 ms) ve sekmesiz. Çıkış girişten hızlıdır.
-- **Sekme ölçülü.** Konum değiştiren şeylerde `Bounce` 0.04–0.16; değer gösteren şeylerde (Progress dolumu, yer açan kartlar) 0: değerinin ötesine geçen çubuk, olduğundan fazla okunur.
-- **Ters yöne kaçma yok.** Bir öğe hedefine giderken önce geri gidip sonra ilerlemez. Konum ve genişlik birlikte değişiyorsa aynı yayla sürülür (Switch düğmesi: `x` ve `w` aynı yayda).
-- **Ani sıçrama yok.** Bir değer iki farklı yoldan yazılıyorsa (yerleşim değişimi + transform) toplamı kare kare sürekli olmalı. Yeni yerleşime geçtiğin karede transform'u aynı miktarda geri al (`Jump`), sonra sıfıra yürüt (FLIP).
-- **Fiziksel his.** Tutulan şey kalkar (biraz büyür, gölgesi `ShadowPop` olur), hıza göre hafifçe eğilir (`DragVelocity`, ±2–2.5°), bırakılınca yerine süzülür. Çevresindekiler ona yer açar; mavi çizgi gibi işaretlerle yetinilmez.
-- **Basınca tepki.** Basılan düğme 1px iner ya da %96–98'e küçülür; Segmented'in hapı basılınca her yandan 2px içe sıkışır ve bırakınca yayla açılır (`springSqueeze`). Basınca renk değişmez (dolgu, koyulaşma yok): tepki yalnız harekettir; tutulan düğme (stepper) önce bir adım atar, 400 ms sonra hızlanarak tekrarlar.
-- **Ortamın canlı ama sakin olması.** Bir hedef "seni alırım" diyorsa düz renk yerine yavaşça yaşayan bir şey olabilir: kayan bulut gölgesi gibi `noise` ile dolaşan yumuşak lekeler (`cloud`). Çok hafif, çok yavaş (dönem birkaç saniye), dikkat dağıtmaz.
-- **İşaretler çizilir.** Onay işareti belirmez, kalemle çizilir gibi kısa koldan uzun kola akar (`checkMark`, `Path.Trim` 0→1, 260 ms); kaldırılırken geldiği yoldan, daha hızlı ve dolguyla birlikte solarak geri çekilir. Açılan listelerde (Select, Combobox, Menu) seçili öğenin işareti liste açıldıktan ~90 ms sonra çizilir: seçim yapınca liste kapandığından değişimin kendisi pek görünmez.
-- **Radio noktası açılır.** Seçilince dolgu önce gelir, nokta ~40 ms sonra merkezden sekmeden açılır (`dotMark`, 240 ms); bırakılınca 90 ms'de küçülüp söner. Yaylı "pop" kullanılmaz.
-- **Bitiş parıltısı.** Progress %100'e varınca dolgu oturduktan sonra (~380 ms) üstünden bir kez yumuşak bir beyaz bant geçer (`finish`, 1.1 s); baştan dolu çubukta oynamaz. Meter'de yok: dolu ölçer "bitti" demek değildir.
-- **Toast gelince border beam döner.** Web Mizan'ın BorderBeam'i (`src/components/border-beam/`) birebir: kenarda 1px halkada conic gradient bir hüzme (iki ucu sönen uzun bant, %66'da parlak baş; koyu temada baş tonun beyaza %65 açılmışı), altında aynı hüzmenin geniş ve soluk kopyası ışıma olarak camın *altında* çizilir, yalnız kenardan taşan kısmı görünür. Gelişte iki ışık olarak döner: biri ton noktasının hizasından (sol kenarın ortası) üst kenar boyunca sağa, öbürü karşısından alt kenar boyunca sola; her biri yalnız yarım tur, yavaşça (3 s `EaseInOut`), birbirinin başladığı yerde söner. `StrokePathConicGradient` ile; kenar boyunca kesilmiş (`Trim`) katmanlı çizgi "amatör" bulundu, hale ve camdan geçen bant da "basit". Mutlak konumlu alt öğe içeriğin üstüne boyanır: ışıma gibi alta gerekenler ebeveynin kendi `Draw`'ında çizilir.
-- **Toast acele etmez.** Gelişte alttan yükselip %96'dan büyür (`toastIn` 700 ms, bounce 0.14); yığın 560 ms'lik yayla yer açar; gidişte 340 ms'de iner, küçülür, söner. Kaydırınca işaretçiyi izler; üçte birini geçerse ya da savrulursa sağa devam edip söner, sonra kapanır (çıkış kopyası kaydırmayı bilmez, o yüzden elle); kısa kalırsa yayla döner, sola lastik gibi direnir. `ToastLoading` spinner'la gelir; aynı ID ile sonuç gelince spinner söner, nokta açılır, metin çapraz geçişle değişir, beam yeniden döner.
-- **Onay ışıkları ince.** Bir işlem tamamlanınca kenarda koşan ışık (`rise`): 1px çekirdek, dar parıltı, ~1.5 s, `EaseInOut`, tek eğri (animasyonun eğrisini yolda ikinci kez eğme).
-- **Blur yok.** Dialog ve Sheet'te bulanık hale kullanılmaz; yerine solup gelen `Scrim`. Cam (`glass`) yalnız popover, menü, tooltip ve toast'ta.
-- **Az hareket isteği.** MyGo `AnimateTo` ve `Keyframes` `ReduceMotion`'da hedefe hemen gider; elle zaman sayan çizimler (`p.Now()`) de bunu gözetmeli.
-- **Reddedilenler:** Toast'ta kalan süreyi gösteren geri sayım çizgisi "klasik" bulundu, kaldırıldı; geri sayım gösterme.
-- **Reddedilenler (eski):** NumberInput'ta NumberFlow tarzı yuvarlanan rakamlar istenmedi (kaldırıldı); benzer "sayaç dönmesi" önerileri getirme. Spinner'a kuyruklu, haleli parlama denendi, beğenilmedi; spinner düz kalır.
+- **Every change of state comes with motion.** Nothing that opens, closes, moves, is added or is removed appears or vanishes in one frame. Closing is animated too (the `presence` pattern, below).
+- **Springs in, curves out.** Arrivals on a spring (`ui.SpringOptions`) with a little bounce; departures on a shorter curve (`EaseOut`, 150–220 ms) with none. Leaving is quicker than arriving.
+- **Bounce in measure.** `Bounce` 0.04–0.16 for things that move; 0 for things that show a value (a Progress filling, cards making room): a bar past its value reads as more than there is.
+- **No wind-up.** An element never goes back before it goes toward its target. When position and width change together, they ride one spring (the Switch knob: `x` and `w` on the same spring).
+- **No jumps.** When a value is written two ways (a layout change and a transform), their sum must stay continuous frame to frame. In the frame that takes the new layout, take the transform back by the same amount (`Jump`), then let it run to zero (FLIP).
+- **A physical feel.** What is held lifts (grows a little, its shadow becomes `ShadowPop`), leans with its speed (`DragVelocity`, ±2–2.5°), and glides into place when let go. What is around it makes room; a blue line is not enough.
+- **Feedback on press.** A pressed button goes down 1px or shrinks to 96–98%; Segmented's pill squeezes in by 2px a side and springs open on release (`springSqueeze`). A press changes no color (no fill, no darkening): the feedback is motion alone. A held stepper button steps once, then repeats after 400 ms, faster and faster.
+- **Alive but calm.** A target saying "I'll take this" can be something slowly alive rather than a flat color: soft blots drifting on `noise`, like the shadows of clouds (`cloud`). Very faint, very slow (a period of seconds), never distracting.
+- **Marks are drawn.** A check doesn't appear; it flows from the short arm to the long one as a pen would (`checkMark`, `Path.Trim` 0→1, 260 ms), and draws itself back the way it came, quicker, fading with the fill. In lists that open (Select, Combobox, Menu) the chosen item's check draws ~90 ms after the list opens: choosing closes the list, so the change itself is seldom seen.
+- **The radio dot opens.** Chosen, the fill comes first and the dot opens from its middle ~40 ms later, without a bounce (`dotMark`, 240 ms); left, it shrinks away in 90 ms. No springy "pop".
+- **A finishing sheen.** When a Progress reaches 100%, once the fill settles (~380 ms) a soft white band crosses it once (`finish`, 1.1 s); a bar full from the start doesn't play it. Not on Meter: a full meter doesn't mean "done".
+- **A toast lands with the border beam.** The web Mizan's BorderBeam (`src/components/border-beam/`) as it is: a conic band in a 1px ring along the border (a long band fading at both ends, a bright head at 66%; in the dark theme the head is the tone lifted 65% toward white), and under it the same band, wider and fainter, drawn *under* the glass as its glow, so only what spills past the edge shows. On arrival it runs as two lights: one from the tone's dot (the middle of the start edge) along the top to the right, the other from across it along the bottom to the left; each goes only half way round, slowly (3 s `EaseInOut`), and fades where the other started. Drawn with `StrokePathConicGradient`; a layered line trimmed along the border (`Trim`) was found "amateur", and a halo and a band crossing the glass "simple". An absolute child paints over the content: what has to sit under, as a glow, is drawn in the parent's own `Draw`.
+- **A toast takes its time.** It arrives rising from below, growing from 96% (`toastIn` 700 ms, bounce 0.14); the stack makes room on a 560 ms spring; it leaves over 340 ms, sinking, shrinking and fading. Swiped, it follows the pointer; past a third of its width, or flung, it goes on to the right as it fades, then closes (MyGo's exit copy doesn't know the swipe, so this is by hand); short of that it springs back, and pulled left it gives like a rubber band. A `ToastLoading` toast shows a spinner; when the result comes with the same ID, the spinner fades, the dot opens, the words cross-fade, and the beam runs again.
+- **Lights of completion are thin.** The light running along an edge when something completes (`rise`): a 1px core, a narrow glow, ~1.5 s, `EaseInOut`, one curve (don't bend the animation's curve a second time along the path).
+- **No blur.** Dialogs and Sheets have no blurred halo; a `Scrim` fades in instead. Glass (`glass`) only in popovers, menus, tooltips and toasts.
+- **Less motion.** MyGo's `AnimateTo` and `Keyframes` go straight to their targets under `ReduceMotion`; drawings that count time by hand (`p.Now()`) must honor it too.
+- **Rejected:** a countdown line showing a toast's time left was found "classic" and removed; don't show countdowns. NumberFlow-style rolling digits in NumberInput were not wanted (removed); don't suggest "spinning counter" ideas. A tailed, haloed glow on the Spinner was tried and not liked; the spinner stays plain.
 
-### Tablo (`table.go`)
+### Table (`table.go`)
 
-- MyGo'nun `ui.Table`'ı kullanılmaz: görünümü sabit, sütun taşımada basınca renk değiştirir, komşular atlar. Kendi tablomuz: başlık, sütun taşıma ve boyutlandırma, sabit satır yüksekliğiyle kendi sanallaştırmamız (yalnız görünen satırlar, üst ve alt boşlukla).
-- Sıralama değişince **önceden görünen** satırlar FLIP ile yeni yerlerine kayar; görünmeyen yerden gelenler yerinde belirir (uzaktan uçarak gelmez). Yeni satır belirir, silinen satır yerinde söner (hayalet), sayfa değişimi yana kayar.
-- Sütun taşıma kart sürüklemenin aynısı: başlık kopyası kalkar, sütunun hücreleri soluk onunla gider, komşular yayla yer açar, yeni sıra bir sonraki karede uygulanır ve her sütun gösterdiği yerden süzülür.
-- Sıralı (ilk anahtar) sütunun başlığının üst kenarında ince bir aksan çizgisi ve aşağı sönen ışıma durur; koyu temada çizgi beyaza açılır. Sıralama başka sütuna geçince ışık Tabs'ın alt çizgisi gibi yayla kayar.
-- Son sütunun sağ kenarında boyutlandırma tutamacı yok (tablonun ucu).
-- Seçim çubuğu araç çubuğunun yerine yayla gelir; ikisi kesişmez, el değiştirir (biri büyük ölçüde sönmeden öteki belirmez).
+- MyGo's `ui.Table` is not used: its look is fixed, moving a column changes color on press, and its neighbors jump. Ours: the header, moving and resizing columns, and our own virtualization at a fixed row height (only the rows in view, with room above and below).
+- When the sort changes, rows **that showed** slide to their new places by FLIP; rows coming from out of view fade in at their place (they don't fly in from afar). A new row fades in, a removed row fades where it was (a ghost), and a page turns sideways.
+- Moving a column is moving a card: a copy of the header lifts, the column's cells go along with it, faded, the neighbors make room on a spring, the new order applies in the next frame, and every column glides from where it showed.
+- The column sorted first has a thin accent line along the top of its header and a glow fading down under it; in the dark theme the line goes toward white. When the sort moves to another column, the light slides there on a spring, as Tabs' underline does.
+- No resize edge at the end of the last column (the table's edge).
+- The selection bar springs in over the toolbar; the two never cross but hand over (one is mostly gone before the other is much there).
 
-### Ayarlı yaylar (yeniden kullan)
+### Tuned springs (reuse them)
 
-| Ad | Nerede | Değer |
+| Name | Where | Value |
 | --- | --- | --- |
-| `springPanel` | Dialog girişi | 300 ms, bounce 0.12 |
-| `springSheet` | Sheet girişi | 380 ms, bounce 0.06 |
+| `springPanel` | Dialog arriving | 300 ms, bounce 0.12 |
+| `springSheet` | Sheet arriving | 380 ms, bounce 0.06 |
 | `springPop` | Popover, Menu | 220 ms, bounce 0.1 |
-| `springPill` | Segmented hapı, Tabs alt çizgisi | 280 ms, bounce 0.14 |
-| `springSqueeze` | Basılan hapın sıkışıp açılması | 220 ms, bounce 0.25 |
-| `springShift` | Yer açan kartlar | 320 ms, bounce 0.06 |
-| `springLand` | Bırakılan kartın inişi | 380 ms, bounce 0.16 |
-| `springLift` | Kartın kalkışı | 260 ms, bounce 0.2 |
-| `stackSpring` | Toast yığını | 560 ms, bounce 0.08 |
-| `toastIn` | Toast gelişi | 700 ms, bounce 0.14 |
-| `springBar` | Progress dolumu | 500 ms, bounce 0 |
-| `springSelBar` | Tablo seçim çubuğu | 320 ms, bounce 0.1 |
-| `springOpen` | Tablo satır ayrıntısı | 320 ms, bounce 0.04 |
+| `springPill` | Segmented's pill, Tabs' underline | 280 ms, bounce 0.14 |
+| `springSqueeze` | A pressed pill giving and springing back | 220 ms, bounce 0.25 |
+| `springShift` | Cards making room | 320 ms, bounce 0.06 |
+| `springLand` | A dropped card landing | 380 ms, bounce 0.16 |
+| `springLift` | A card lifting | 260 ms, bounce 0.2 |
+| `stackSpring` | The toast stack | 560 ms, bounce 0.08 |
+| `toastIn` | A toast arriving | 700 ms, bounce 0.14 |
+| `springBar` | A Progress filling | 500 ms, bounce 0 |
+| `springSelBar` | The table's selection bar | 320 ms, bounce 0.1 |
+| `springOpen` | A table row's details | 320 ms, bounce 0.04 |
 
-Yeni bir hareket önce bunlardan birini dener; yenisi gerekirse adlandırılıp buraya eklenir.
+A new motion first tries one of these; when it needs a new one, name it and add it here.
 
-## 3. MyGo tuzakları (öğrenilmiş)
+## 3. MyGo pitfalls (learned)
 
-- **`Transition.Enter` yalnız ebeveyni önceki karede var olan öğede çalışır.** Dialog paneli backdrop ile aynı karede doğar, bu yüzden girişi hiç oynamaz; kapanınca backdrop'la birlikte anında gider. Çözüm `overlays.go` › `presence`: durum yerleşimde yer kaplamayan bir "host" öğede tutulur, ilerleme `Jump(0)` + `AnimateTo(1)` ile elle sürülür, katman çıkışı bitene dek çizilmeye devam eder ve kapanırken işaretçiyi alttaki sayfaya geçirir (`PassThrough`, `IgnoreInput`).
-- **`AnimateTo` ilk çağrıda hedefte başlar.** Bir şeyi 0'dan canlandırmak için ilk karede `Jump(key, 0)` (bir `ui.Local` bayrağıyla tek kez).
-- **Aynı öğeye iki `Translate` yazılırsa sonuncusu kazanır.** İki kaynaktan gelen hareket (liste kaydırması + iniş) ayrı öğelere konur: dıştaki yuva, içteki kart (`dnd.go` › `dragSource`).
-- **`LayoutBounds` bir önceki karenin yerleşimidir.** Sıra değiştiren bir işlem, onu yeni sırayla çizen karenin *sonraki* karesinde ölçülür. Durumu değiştiren şey (ör. bırakma) tüm listelerin yeni sırayı aynı karede çizeceği bir anda uygulanır: bir sonraki karenin başında, hiçbir zaman bırakıldığı karede değil (`settleDrop`).
-- **Önceki karenin `ui.Element`'i kullanılamaz** ("element from pass N used in pass M"). Kareler arası ölçü gerekiyorsa sayıyı sakla (`dropList.heights`), öğeyi değil.
-- **Kendi sürükleme katmanımız var.** `Element.Drag` kopyası ve `ui.List` Reorder'ın mavi çizgisi özelleştirilemiyor; bunun yerine `Dragged`/`PointerPosition` ile işaretçi izlenir, kopya `ui.Overlay`'de çizilir. İşaretçi konumu deltaları toplayarak değil `LayoutBounds + PointerPosition` ile okunur.
-- **`ScrollWith` mutlak konumlu alt öğeleri kaydırmaz.** Başlıktaki sabit hücre ters kaydırma (Translate) istemez; gövdedeki ister.
-- **`ButtonBase.Selected(true)` MyGo temasının vurgu dolgusunu çizer.** Seçili sayfa gibi durumları kendi yüzeyimizle çiz; seçiliği etikete yaz.
-- **Mutlak konumlu alt öğe akıştaki kardeşlerinin üstüne boyanır.** Altta kalması gereken (ışıma, cam) ebeveynin kendi `Draw`'ında çizilir.
-- **`Jump` ile sürülen bir değer hız biriktirir.** İşaretçiyle `Jump` edilen bir kanal sonra başka bir değere `Jump` edilip `AnimateTo` ile bırakılırsa, iki sıçrama arasındaki fark hız sayılır ve yay öğeyi fırlatır. Yeni bir başlangıç gerekiyorsa yeni bir kanal anahtarı kullan (tablo: `colKey`, her sütun taşımada artan sayı).
-- **Bırakma ile uygulanması arasındaki kare de donuk durmalı.** Yeni düzen bir sonraki karede uygulanacaksa, aradaki karede değerler hedefe kaymaya başlamamalı; olduğu yerde tutulur.
-- **Kırpılmış kutunun kenarı çocukların altında kalır.** Yuvarlak köşede başlık dolgusu kenarı örter; kenar `DrawOver` ile içeriğin üstüne çizilir.
-- **Sadece boyayan animasyon** `Draw` içinde `p.Now()` ve `p.AnimationFrame()` ile yapılır (görünümü yeniden kurmaz): bulut parlaması, spinner.
+- **`Transition.Enter` only plays for an element whose parent the last frame showed.** A Dialog's panel is born in the same frame as its backdrop, so its entrance never plays, and closing, it vanishes with the backdrop at once. The fix is `overlays.go` › `presence`: the state lives on a "host" element that takes no room, the progress is driven by hand with `Jump(0)` + `AnimateTo(1)`, the layer keeps being built until its exit ends, and while it closes it lets the pointer through to the page (`PassThrough`, `IgnoreInput`).
+- **`AnimateTo` starts at its target on the first call.** To animate something from 0, `Jump(key, 0)` in the first frame (once, with a `ui.Local` flag).
+- **Two `Translate`s on one element: the last one wins.** Motion from two sources (a list's shift and a landing) goes on two elements: the place outside, the card inside (`dnd.go` › `dragSource`).
+- **`LayoutBounds` is the last frame's layout.** An operation that reorders is measured in the frame *after* the one that builds the new order. A change of state (as a drop) applies when every list will build the new order in the same frame: at the start of the next frame, never in the frame it was let go in (`settleDrop`).
+- **The last frame's `ui.Element` can't be used** ("element from pass N used in pass M"). To carry a measure across frames, keep the number (`dropList.heights`), not the element.
+- **We have our own drag layer.** `Element.Drag`'s copy and `ui.List` Reorder's blue line can't be styled; instead the pointer is followed with `Dragged`/`PointerPosition` and the copy drawn in `ui.Overlay`. The pointer's position is read as `LayoutBounds + PointerPosition`, not by adding up deltas.
+- **`ScrollWith` doesn't move absolute children.** A pinned cell in the header needs no counter-translate; one in the body does.
+- **`ButtonBase.Selected(true)` paints MyGo's theme accent fill.** Draw states such as the current page with our own surface, and put the selection in the label.
+- **An absolute child paints over its siblings in the flow.** What has to stay under (a glow, glass) is drawn in the parent's own `Draw`.
+- **A value driven by `Jump` builds up a speed.** A channel `Jump`ed with the pointer, then `Jump`ed to another value and let go with `AnimateTo`, counts the difference between the two jumps as a speed, and the spring flings the element. When a fresh start is needed, use a new channel key (the table: `colKey`, a counter that grows with every column move).
+- **The frame between a drop and its applying must hold still too.** If the new layout applies in the next frame, values must not start sliding to their targets in the frame between; they hold where they are.
+- **A clipped box's border sits under its children.** In a rounded corner the header's fill covers the border; the border is drawn over the content with `DrawOver`.
+- **Paint-only animation** is done in `Draw` with `p.Now()` and `p.AnimationFrame()` (it doesn't rebuild the view): the cloud glow, the spinner.
 
-## 4. Hareketi doğrulamak
+## 4. Verifying motion
 
-Testlerin geçmesi hissin doğru olduğunu kanıtlamaz.
+Passing tests don't prove the feel is right.
 
-- **Kare kare ölç.** Geçici bir `gallery/zz_*_tmp_test.go` ile `ui.Tester`'da hareketi oynat, her karede `tt.Find(...)` konumunu logla ya da `tt.Image()`'i PNG kaydet; iş bitince geçici dosyayı sil. Sürekliliğe bak: bırakma anında konum sıçramamalı.
-- **Açık ve koyu** temada ekran görüntüsü al.
-- **Tester gerçek uygulama değildir.** Kareleri farklı sırada/geçişte işleyebilir; bazı hatalar yalnız gerçek pencerede çıkar (bırakma zamanlaması böyle bulundu). Kullanıcı ekran kaydı gönderirse `ffmpeg` ile kare çıkar (`fps=30,crop=…,tile=6x5`) ve olayı karede bul.
-- Gerçek pencerede deneyemediğin bir şeyi "düzeldi" diye bildirme; ne doğruladığını, neyi doğrulayamadığını söyle.
+- **Measure frame by frame.** Play the motion in `ui.Tester` with a temporary `gallery/zz_*_tmp_test.go`, log positions with `tt.Find(...)` each frame or save `tt.Image()` as PNG; delete the temporary file when done. Look for continuity: nothing may jump at the moment of a drop.
+- Take screenshots in **light and dark**.
+- **The tester is not the real app.** It may handle frames in another order or pass; some bugs only show in the real window (the drop timing was found this way). When the user sends a screen recording, extract frames with `ffmpeg` (`fps=30,crop=…,tile=6x5`) and find the moment in the frames.
+- Don't report something as fixed that you couldn't try in the real window; say what you verified and what you couldn't.
 
-## 5. Öneri getir
+## 5. Bring suggestions
 
-Kullanıcı her şeyi kendisi düşünmek zorunda kalmasın. Bir bileşene dokunurken ya da iş bitince, ona yakışacak bir mikro etkileşim fırsatı görürsen bir iki cümleyle öner ("şunu da ekleyebiliriz: …"). Öneri somut olsun (ne, nerede, nasıl bir his), bir seferde en çok iki-üç tane, ve yapmadan önce onay al.
+The user shouldn't have to think of everything. While touching a component, or when a job is done, if you see a micro-interaction that would suit it, suggest it in a sentence or two ("we could also add: …"). Make it concrete (what, where, how it feels), two or three at most at a time, and get a yes before doing it.
 
-Bekleyen fikirler (yapıldıkça sil):
+Pending ideas (delete as they're done):
 
-- Panoya kopyala düğmesi: ikon onay işaretine dönüşsün, 1.5 s sonra geri dönsün.
-- Tabs: içerik, sekme değişiminin yönünden kayarak gelsin.
-- Form gönderiminde geçersiz alan hafifçe yatay sallansın, odak ona gitsin.
-- Sortable ve board: kenara yaklaşınca liste kendiliğinden kaysın.
+- Copy to clipboard button: the icon turns into a check, and back after 1.5 s.
+- Tabs: the content slides in from the side the tab changed toward.
+- On submitting a form, an invalid field shakes gently sideways, and the focus goes to it.
+- Sortable and the board: the list scrolls by itself as a card nears its edge.
+
+## 6. To do
+
+Delete items as they're done; add a gap or an idea here as it comes up.
+
+### Components
+
+- **Data:** charts (LineChart, BarChart, Sparkline; MyGo's `chart` package), and from the web Mizan Gauge, RingChart, BulletChart; Stat (a number, its change, a small chart); DescriptionList; Tree.
+- **App skeleton:** Header (the top bar of an app: title, navigation, actions), Sidebar / NavList, Breadcrumb, CommandPalette (⌘K), ContextMenu, SplitView.
+- **Special form controls:** OTPField, Rating, ColorPicker, DateRangePicker, TimePicker, Stepper (a wizard), HoldButton.
+- **Other:** Timeline, Carousel, AvatarGroup, Callout / Alert, HoverCard.
+
+### Known gaps
+
+- Board cards can't be moved with the keyboard (Sortable has Alt+Up/Down, the board doesn't).
+- Table columns can't be moved with the keyboard.
+- While dragging, a list or a table doesn't scroll by itself near its edge.
+- The spinner is plain; the tailed, haloed glow was rejected, and no other direction was tried.
+
+### Not tried in the real window
+
+Verified frame by frame in the tester, not yet confirmed by the user in the real window:
+
+- Table (moving columns, the pinned column, opening rows, page turns, the sorted header's light).
+- The toast's two-light beam, swiping away, loading → result.
+- `Corners` S/M/L and concentric corners.
