@@ -98,10 +98,14 @@ The user shouldn't have to think of everything. While touching a component, or w
 
 Pending ideas (delete as they're done):
 
-- Copy to clipboard button: the icon turns into a check, and back after 1.5 s.
-- Tabs: the content slides in from the side the tab changed toward.
-- On submitting a form, an invalid field shakes gently sideways, and the focus goes to it.
-- Sortable and the board: the list scrolls by itself as a card nears its edge.
+- Copy to clipboard button: the icon turns into a drawn check (`checkMark`), and back after 1.5 s.
+- Tabs: the content slides in from the side the tab changed toward; the underline stretches toward its target as it goes, and settles to its width.
+- Dialog: it grows out of the button that opened it, and shrinks back into it as it closes.
+- Tooltip: going from one element to the next, the tooltip doesn't close and reopen; it slides to its new place.
+- On submitting a form, an invalid field shakes gently sideways, and the focus goes to it; motion only, no color.
+- Sortable, the board and the table: the list scrolls by itself as a card nears its edge, slowly, faster the nearer it gets.
+- Slider: let go, the knob settles onto its step on a spring; while dragged, a small label of its value rises over it.
+- Accordion: as a section opens, the ones under it slide down on a spring rather than jump.
 
 ## 6. To do
 
@@ -109,10 +113,17 @@ Delete items as they're done; add a gap or an idea here as it comes up.
 
 ### Components
 
-- **Data:** charts (LineChart, BarChart, Sparkline; MyGo's `chart` package), and from the web Mizan Gauge, RingChart, BulletChart; Stat (a number, its change, a small chart); DescriptionList; Tree.
-- **App skeleton:** Header (the top bar of an app: title, navigation, actions), Sidebar / NavList, Breadcrumb, CommandPalette (⌘K), ContextMenu, SplitView.
-- **Special form controls:** OTPField, Rating, ColorPicker, DateRangePicker, TimePicker, Stepper (a wizard), HoldButton.
-- **Other:** Timeline, Carousel, AvatarGroup, Callout / Alert, HoverCard.
+- **Data:** charts (LineChart, BarChart, Sparkline; MyGo's `chart` package), and from the web Mizan Gauge, RingChart, BulletChart; Stat (a number, its change, a small chart): as the value changes, the sparkline draws itself (as `checkMark` does) and the change badge goes to its new tone, with no rolling digits; DescriptionList; Tree.
+- **App skeleton:**
+  - Header, the top bar of an app (title, navigation, actions): as the page scrolls it shrinks and turns to glass, and a thin groove appears under it.
+  - Sidebar / NavList: the chosen item's pill slides on a spring; collapsed, it goes down to icons.
+  - Breadcrumb, ContextMenu.
+  - CommandPalette (⌘K): a glass panel that opens growing; as one types, the results slide to their places as the table's rows do, and the chosen row's pill follows the arrows on a spring.
+  - SplitView: the handle's panes follow the pointer; let go near an edge, the pane springs shut; a double click gives back its size.
+  - **Dock**, a Blender-style workspace: areas that split and join from their corners, shared edges, tabs that dock, and panes that tear off into windows of their own with no data lost. Its plan and step-by-step to-do list are in [DOCK.md](DOCK.md); read it before working on it, and tick items off there.
+  - A dashboard page in the gallery built of these, with the table and charts: the first look at the library as a whole.
+- **Special form controls:** OTPField, Rating, ColorPicker, DateRangePicker, TimePicker, Stepper (a wizard); HoldButton, a dangerous action held to confirm: while held, a light in the BorderBeam's language fills round its edge, let go it draws back, and done, the button confirms.
+- **Other:** Timeline, Carousel, AvatarGroup, Callout / Alert, HoverCard; a family of empty states ("No results", "No access", "Offline") with line drawings that draw themselves as they show.
 
 ### Known gaps
 
