@@ -32,8 +32,9 @@ type ProgressOptions struct {
 // Progress is a progress bar filled to value between 0 and 1: an inset
 // well, as Slider's track, filling with the accent gradient on a spring as
 // value grows. A negative value is work of unknown length: a segment of
-// the fill sweeps across the well, again and again. Assistive technology
-// sees a progress bar.
+// the fill sweeps across the well, again and again. As value reaches 1, a
+// light passes once over the full bar. Assistive technology sees a
+// progress bar.
 //
 //	mizan.Progress(c, app.uploaded, mizan.ProgressOptions{Label: "Uploading", ShowValue: true})
 func Progress(c *ui.Context, value float64, o ProgressOptions) ui.Element {
@@ -47,7 +48,7 @@ func Progress(c *ui.Context, value float64, o ProgressOptions) ui.Element {
 	if o.ShowValue && value >= 0 {
 		text = strconv.Itoa(int(value*100+0.5)) + "%"
 	}
-	return t.bar(c, o.Label, text, float32(value), fill, func(e ui.Element) {
+	return t.bar(c, o.Label, text, float32(value), fill, true, func(e ui.Element) {
 		e.Role(ui.RoleProgress)
 		if value >= 0 {
 			e.Range(0, 1, value)
@@ -93,15 +94,16 @@ func Meter(c *ui.Context, value, lo, hi float64, o MeterOptions) ui.Element {
 		text = o.Format(value)
 	}
 	fill := ui.LinearGradient{Angle: 180, Oklab: true, From: tone, To: lighten(tone, -0.06)}
-	return t.bar(c, o.Label, text, frac, fill, func(e ui.Element) {
+	return t.bar(c, o.Label, text, frac, fill, false, func(e ui.Element) {
 		e.Role(ui.RoleMeter).Range(lo, hi, value)
 	})
 }
 
 // bar builds Progress and Meter: the label and the value over the well,
 // and the well filled to frac (negative: sweeping), which describe names
-// to assistive technology. It returns the well.
-func (t *Tokens) bar(c *ui.Context, label, value string, frac float32, fill ui.LinearGradient, describe func(ui.Element)) ui.Element {
+// to assistive technology. With sheen, a light passes once over the bar
+// as it fills to the end. It returns the well.
+func (t *Tokens) bar(c *ui.Context, label, value string, frac float32, fill ui.LinearGradient, sheen bool, describe func(ui.Element)) ui.Element {
 	cl := t.Colors
 	h := map[Size]float32{Sm: 4, Md: 6, Lg: 8}[t.Size]
 	if h == 0 {
@@ -138,9 +140,33 @@ func (t *Tokens) bar(c *ui.Context, label, value string, frac float32, fill ui.L
 				// a sliver still shows as a pill, not a hairline
 				f.MinWidth(h)
 			}
+			if sheen {
+				t.finish(c, well, frac >= 1)
+			}
 		})
 	})
 	return well
+}
+
+// finish passes a light once over a bar that just filled to the end, as
+// the fill settles: a soft band of white crossing it from start to end.
+// A bar full from the start, or full again before the light is gone,
+// gets no new one.
+func (t *Tokens) finish(c *ui.Context, well ui.Element, full bool) {
+	done := ui.Local(well, "done", func() bool { return full })
+	if full && !*done {
+		well.Jump("sheen", 0)
+	}
+	*done = full
+	p := well.AnimateTo("sheen", 1, ui.Animation{Duration: 1100 * time.Millisecond, Delay: 380 * time.Millisecond, Ease: ui.EaseInOut})
+	if p >= 1 {
+		return
+	}
+	light := t.Colors.OnAccent.Alpha(0.55)
+	ui.Box(c).Absolute().Top(0).Bottom(0).WidthPercent(30).LeftPercent(-30 + 130*p).PassThrough().
+		LinearGradient(ui.LinearGradient{Angle: 90, Oklab: true, Stops: []ui.GradientStop{
+			{Color: light.Alpha(0), At: 0}, {Color: light, At: 0.5}, {Color: light.Alpha(0), At: 1},
+		}})
 }
 
 // SpinnerOptions are the options of Spinner.

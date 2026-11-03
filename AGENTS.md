@@ -27,6 +27,7 @@ Kullanıcı için küçük geri bildirimler ve animasyonlar çok önemli. Bir et
 - **Ortamın canlı ama sakin olması.** Bir hedef "seni alırım" diyorsa düz renk yerine yavaşça yaşayan bir şey olabilir: kayan bulut gölgesi gibi `noise` ile dolaşan yumuşak lekeler (`cloud`). Çok hafif, çok yavaş (dönem birkaç saniye), dikkat dağıtmaz.
 - **İşaretler çizilir.** Onay işareti belirmez, kalemle çizilir gibi kısa koldan uzun kola akar (`checkMark`, `Path.Trim` 0→1, 260 ms); kaldırılırken geldiği yoldan, daha hızlı ve dolguyla birlikte solarak geri çekilir. Açılan listelerde (Select, Combobox, Menu) seçili öğenin işareti liste açıldıktan ~90 ms sonra çizilir: seçim yapınca liste kapandığından değişimin kendisi pek görünmez.
 - **Radio noktası açılır.** Seçilince dolgu önce gelir, nokta ~40 ms sonra merkezden sekmeden açılır (`dotMark`, 240 ms); bırakılınca 90 ms'de küçülüp söner. Yaylı "pop" kullanılmaz.
+- **Bitiş parıltısı.** Progress %100'e varınca dolgu oturduktan sonra (~380 ms) üstünden bir kez yumuşak bir beyaz bant geçer (`finish`, 1.1 s); baştan dolu çubukta oynamaz. Meter'de yok: dolu ölçer "bitti" demek değildir.
 - **Onay ışıkları ince.** Bir işlem tamamlanınca kenarda koşan ışık (`rise`): 1px çekirdek, dar parıltı, ~1.5 s, `EaseInOut`, tek eğri (animasyonun eğrisini yolda ikinci kez eğme).
 - **Blur yok.** Dialog ve Sheet'te bulanık hale kullanılmaz; yerine solup gelen `Scrim`. Cam (`glass`) yalnız popover, menü, tooltip ve toast'ta.
 - **Az hareket isteği.** MyGo `AnimateTo` ve `Keyframes` `ReduceMotion`'da hedefe hemen gider; elle zaman sayan çizimler (`p.Now()`) de bunu gözetmeli.
@@ -78,5 +79,4 @@ Bekleyen fikirler (yapıldıkça sil):
 - Tabs: içerik, sekme değişiminin yönünden kayarak gelsin.
 - Toast: sağa kaydırarak kapatma (eşik altında lastik gibi geri dönsün).
 - Form gönderiminde geçersiz alan hafifçe yatay sallansın, odak ona gitsin.
-- Progress %100'e varınca çubuğun üstünden bir parıltı geçsin.
 - Sortable ve board: kenara yaklaşınca liste kendiliğinden kaysın.
