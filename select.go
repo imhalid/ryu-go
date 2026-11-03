@@ -91,36 +91,7 @@ func Select[T comparable](c *ui.Context, value *T, options []Option[T], o Select
 		popover(t, panel)
 		panel.MaxHeight(300).Gap(0)
 		for _, op := range options {
-			item := sel.Item(op.Value).AlignItems(ui.Center).Gap(6).Padding(6, 14, 6, 8).
-				Radius(RadiusItem).FontSize(FsMd).Disabled(op.Disabled).Cursor(ui.CursorPointer)
-			hl := item.Highlighted() && !op.Disabled
-			muted, check := cl.Muted, cl.Accent
-			if hl {
-				item.LinearGradient(ui.LinearGradient{Angle: 180, Oklab: true, From: cl.ColorAccent500, To: cl.ColorAccent600}).
-					TextColor(cl.OnAccent)
-				muted, check = cl.OnAccentMuted, cl.OnAccentMuted
-			} else {
-				item.TextColor(cl.Text)
-			}
-			if op.Disabled {
-				item.Opacity(0.35).Cursor(ui.CursorDefault)
-			}
-			item.Children(func() {
-				icon := ui.Icon(c, iconCheck).TextColor(check)
-				if op.Value != *value {
-					icon.Invisible()
-				}
-				if op.Dot != (ui.Color{}) {
-					d := dot(c, op.Dot)
-					if hl {
-						d.Shadow(0, 0, 0, 1.5, cl.OnAccentMuted)
-					}
-				}
-				ui.Text(c, op.Label).NoWrap()
-				if op.Description != "" {
-					ui.Text(c, op.Description).TextColor(muted).FontSize(FsSm).NoWrap()
-				}
-			})
+			optionItem(c, t, sel.Item(op.Value).Disabled(op.Disabled), op, op.Value == *value)
 		}
 	})
 	return tr

@@ -26,7 +26,8 @@ type State struct {
 	ViewMode           int
 	Volume, Zoom       float64
 
-	// Page is 0: controls; 1: chat, drag and drop, and indicators; 2: layers.
+	// Page is 0: controls; 1: chat, drag and drop, and indicators; 2: layers;
+	// 3: more form controls.
 	Page  int
 	Msgs  []mz.ChatMessage
 	Draft string
@@ -39,6 +40,10 @@ type State struct {
 	Dialog, Sheet, Pop, Menu bool
 	Sort                     string
 	Last                     string
+	Tab                      int
+
+	// Forms is the state of the forms page.
+	Forms formsPage
 }
 
 // card is a task on the board; col is the column it is in.
@@ -91,7 +96,7 @@ func (s *State) page(c *ui.Context, t *mz.Tokens) {
 			ui.Row(c).Gap(mz.GapControl).Children(func() {
 				s.accents(c, t)
 				ui.Box(c).Size(8, 0)
-				for i, name := range []string{"Controls", "Chat and drag", "Layers"} {
+				for i, name := range []string{"Controls", "Chat and drag", "Layers", "Forms"} {
 					o := mz.ButtonOptions{Size: mz.Sm}
 					if s.Page == i {
 						o.Color = t.Colors.Accent
@@ -123,6 +128,10 @@ func (s *State) page(c *ui.Context, t *mz.Tokens) {
 				}
 			})
 		})
+		if s.Page == 3 {
+			s.Forms.view(c, t)
+			return
+		}
 		if s.Page == 2 {
 			s.layers(c, t)
 			return
