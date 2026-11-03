@@ -9,14 +9,16 @@ import (
 
 // State is the state of the showcase.
 type State struct {
-	Mode  mz.Mode
-	Skin  mz.Skin
-	Query string
-	Email string
-	Pass  string
-	Range int
-	Team  string
-	Count int
+	Mode mz.Mode
+	Skin mz.Skin
+	// Accent is the brand color picked in the header, zero for Mizan's blue.
+	Accent ui.Color
+	Query  string
+	Email  string
+	Pass   string
+	Range  int
+	Team   string
+	Count  int
 
 	Mail, Push, Digest bool
 	Plan, Tier         string
@@ -69,7 +71,7 @@ var search = mz.Svg(16, 15, "M7 12.5a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM14.5
 
 // View builds the showcase.
 func (s *State) View(c *ui.Context) {
-	t := mz.Root(c, mz.Options{Mode: s.Mode, Skin: s.Skin})
+	t := mz.Root(c, mz.Options{Mode: s.Mode, Skin: s.Skin, Accent: s.Accent})
 	ui.Scroll(c).Fill().Children(func() { s.page(c, t) })
 }
 
@@ -81,6 +83,8 @@ func (s *State) page(c *ui.Context, t *mz.Tokens) {
 				mz.Text(c, "Native components for calm, data-dense interfaces.", mz.TLede).TextColor(t.Colors.Muted)
 			})
 			ui.Row(c).Gap(mz.GapControl).Children(func() {
+				s.accents(c, t)
+				ui.Box(c).Size(8, 0)
 				for i, name := range []string{"Controls", "Chat and drag"} {
 					o := mz.ButtonOptions{Size: mz.Sm}
 					if s.Page == i {
@@ -212,4 +216,36 @@ func itoa(n int) string {
 		b = append([]byte{byte('0' + n%10)}, b...)
 	}
 	return string(b)
+}
+
+// accents are the brand colors the header offers, Mizan's blue first.
+var accents = []struct {
+	Name  string
+	Color ui.Color
+}{
+	{"Blue", ui.Color{}},
+	{"Violet", ui.Oklch(0.56, 0.2, 295)},
+	{"Green", ui.Oklch(0.6, 0.15, 155)},
+	{"Orange", ui.Oklch(0.68, 0.18, 50)},
+	{"Rose", ui.Oklch(0.6, 0.2, 10)},
+}
+
+// accents builds the brand color swatches: a ring marks the one chosen.
+func (s *State) accents(c *ui.Context, t *mz.Tokens) {
+	ui.RadioGroup(c, func() {
+		ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
+			for _, a := range accents {
+				sw := ui.RadioBase(c.Key(a.Name), &s.Accent, a.Color).Label(a.Name).Size(22, 22).Radius(11).Center().
+					Cursor(ui.CursorPointer).FocusRing(false)
+				// the swatch shows the accent the color gives, not the color itself
+				shown := mz.Swatch(t, a.Color)
+				sw.Children(func() { ui.Box(c).Size(16, 16).Radius(8).Background(shown) })
+				if s.Accent == a.Color {
+					sw.Border(1.5, shown)
+				} else if sw.Hovered() {
+					sw.Border(1.5, t.Colors.Hairline)
+				}
+			}
+		})
+	}).Label("Accent")
 }

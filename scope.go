@@ -42,6 +42,11 @@ type Options struct {
 	Mode Mode
 	Skin Skin
 	Size Size
+	// Accent is the brand color: the accent ramp, the selection fills and
+	// the rings take its hue and chroma, at Mizan's lightness steps (so
+	// contrast holds in both themes). Zero keeps Mizan's blue. Keep it to a
+	// few colors: every one is cached for the life of the program.
+	Accent ui.Color
 }
 
 // Tokens are the resolved values of a scope: colors, shadows and the size
@@ -50,6 +55,8 @@ type Tokens struct {
 	Dark bool
 	Skin Skin
 	Size Size
+	// accent is the brand color the scope was made with, zero for Mizan's.
+	accent ui.Color
 
 	Colors  Colors
 	Shadows Shadows
@@ -71,35 +78,48 @@ const (
 	FontMono = "SF Mono, JetBrains Mono, Menlo, Consolas, monospace"
 )
 
-// cache[skin][dark][size step]; registry finds the scope from the theme's
-// pointer. Views are built on the main thread, so no lock is needed.
+// scopeKey tells apart the cached scopes.
+type scopeKey struct {
+	skin   Skin
+	dark   bool
+	size   Size
+	accent ui.Color
+}
+
+// cache holds the scopes made so far; registry finds the scope from the
+// theme's pointer. Views are built on the main thread, so no lock is needed.
 var (
-	cache    [skinCount][2][3]*Tokens
+	cache    = map[scopeKey]*Tokens{}
 	registry = map[*ui.Theme]*Tokens{}
 )
 
-func tokensFor(skin Skin, dark bool, size Size) *Tokens {
+func tokensFor(skin Skin, dark bool, size Size, accent ui.Color) *Tokens {
+	key := scopeKey{skin, dark, size, accent}
+	if t := cache[key]; t != nil {
+		return t
+	}
 	si, di, zi := int(skin-1), 0, int(size-1)
 	if dark {
 		di = 1
-	}
-	if t := cache[si][di][zi]; t != nil {
-		return t
 	}
 	t := &Tokens{
 		Dark:    dark,
 		Skin:    skin,
 		Size:    size,
+		accent:  accent,
 		Colors:  skinColors[si][di],
 		Shadows: skinShadows[si][di],
 		Metrics: sizeMetrics[zi],
+	}
+	if accent != (ui.Color{}) {
+		t.withAccent(accent)
 	}
 	t.ControlHover = 0.98
 	if dark {
 		t.ControlHover = 1.12
 	}
 	t.theme = t.uiTheme()
-	cache[si][di][zi] = t
+	cache[key] = t
 	registry[t.theme] = t
 	return t
 }
@@ -140,7 +160,7 @@ func From(c *ui.Context) *Tokens {
 	if t := registry[c.Theme()]; t != nil {
 		return t
 	}
-	return tokensFor(SkinMizan, c.Theme().Dark, Md)
+	return tokensFor(SkinMizan, c.Theme().Dark, Md, ui.Color{})
 }
 
 // Painting returns the scope's tokens while painting (Element.Draw).
@@ -148,7 +168,7 @@ func Painting(p *ui.Painter) *Tokens {
 	if t := registry[p.Theme()]; t != nil {
 		return t
 	}
-	return tokensFor(SkinMizan, p.Theme().Dark, Md)
+	return tokensFor(SkinMizan, p.Theme().Dark, Md, ui.Color{})
 }
 
 // Root gives Mizan to the whole window; it is called at the start of the
@@ -170,7 +190,7 @@ func Root(c *ui.Context, o Options) *Tokens {
 	case Dark:
 		dark = true
 	}
-	t := tokensFor(or(o.Skin, SkinMizan), dark, or(o.Size, Md))
+	t := tokensFor(or(o.Skin, SkinMizan), dark, or(o.Size, Md), o.Accent)
 	c.SetTheme(t.theme)
 	return t
 }
@@ -196,7 +216,7 @@ func scoped(c *ui.Context, o Options) *Tokens {
 	case Dark:
 		dark = true
 	}
-	return tokensFor(or(o.Skin, p.Skin), dark, or(o.Size, p.Size))
+	return tokensFor(or(o.Skin, p.Skin), dark, or(o.Size, p.Size), or(o.Accent, p.accent))
 }
 
 func or[T comparable](v, d T) T {

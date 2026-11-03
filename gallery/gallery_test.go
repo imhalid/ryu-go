@@ -239,3 +239,34 @@ func TestChoices(t *testing.T) {
 		t.Fatalf("volume %v, want 100", s.Volume)
 	}
 }
+
+// TestAccentSnapshots draws the first page with brand accents.
+func TestAccentSnapshots(t *testing.T) {
+	dir := os.Getenv("MIZAN_SNAPSHOTS")
+	if dir == "" {
+		t.Skip("MIZAN_SNAPSHOTS not set")
+	}
+	for _, v := range []struct {
+		name string
+		mode mz.Mode
+		skin mz.Skin
+		pick string
+	}{
+		{"accent-orange-light", mz.Light, mz.SkinMizan, "Orange"},
+		{"accent-violet-dark", mz.Dark, mz.SkinBevel, "Violet"},
+	} {
+		s := New()
+		s.Mode, s.Skin = v.mode, v.skin
+		tt := ui.NewTester(s.View, 1180, 1500)
+		if err := tt.Click(v.pick); err != nil {
+			t.Fatal(err)
+		}
+		tt.Advance(500 * time.Millisecond)
+		f, err := os.Create(filepath.Join(dir, v.name+".png"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		png.Encode(f, tt.Image())
+		f.Close()
+	}
+}
