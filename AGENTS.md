@@ -34,6 +34,15 @@ Kullanıcı için küçük geri bildirimler ve animasyonlar çok önemli. Bir et
 - **Az hareket isteği.** MyGo `AnimateTo` ve `Keyframes` `ReduceMotion`'da hedefe hemen gider; elle zaman sayan çizimler (`p.Now()`) de bunu gözetmeli.
 - **Reddedilenler:** NumberInput'ta NumberFlow tarzı yuvarlanan rakamlar istenmedi (kaldırıldı); benzer "sayaç dönmesi" önerileri getirme. Spinner'a kuyruklu, haleli parlama denendi, beğenilmedi; spinner düz kalır.
 
+### Tablo (`table.go`)
+
+- MyGo'nun `ui.Table`'ı kullanılmaz: görünümü sabit, sütun taşımada basınca renk değiştirir, komşular atlar. Kendi tablomuz: başlık, sütun taşıma ve boyutlandırma, sabit satır yüksekliğiyle kendi sanallaştırmamız (yalnız görünen satırlar, üst ve alt boşlukla).
+- Sıralama değişince **önceden görünen** satırlar FLIP ile yeni yerlerine kayar; görünmeyen yerden gelenler yerinde belirir (uzaktan uçarak gelmez). Yeni satır belirir, silinen satır yerinde söner (hayalet), sayfa değişimi yana kayar.
+- Sütun taşıma kart sürüklemenin aynısı: başlık kopyası kalkar, sütunun hücreleri soluk onunla gider, komşular yayla yer açar, yeni sıra bir sonraki karede uygulanır ve her sütun gösterdiği yerden süzülür.
+- Sıralı (ilk anahtar) sütunun başlığının üst kenarında ince bir aksan çizgisi ve aşağı sönen ışıma durur; koyu temada çizgi beyaza açılır. Sıralama başka sütuna geçince ışık Tabs'ın alt çizgisi gibi yayla kayar.
+- Son sütunun sağ kenarında boyutlandırma tutamacı yok (tablonun ucu).
+- Seçim çubuğu araç çubuğunun yerine yayla gelir; ikisi kesişmez, el değiştirir (biri büyük ölçüde sönmeden öteki belirmez).
+
 ### Ayarlı yaylar (yeniden kullan)
 
 | Ad | Nerede | Değer |
@@ -48,6 +57,8 @@ Kullanıcı için küçük geri bildirimler ve animasyonlar çok önemli. Bir et
 | `springLift` | Kartın kalkışı | 260 ms, bounce 0.2 |
 | `stackSpring` | Toast yığını | 380 ms, bounce 0.04 |
 | `springBar` | Progress dolumu | 500 ms, bounce 0 |
+| `springSelBar` | Tablo seçim çubuğu | 320 ms, bounce 0.1 |
+| `springOpen` | Tablo satır ayrıntısı | 320 ms, bounce 0.04 |
 
 Yeni bir hareket önce bunlardan birini dener; yenisi gerekirse adlandırılıp buraya eklenir.
 
@@ -59,6 +70,12 @@ Yeni bir hareket önce bunlardan birini dener; yenisi gerekirse adlandırılıp 
 - **`LayoutBounds` bir önceki karenin yerleşimidir.** Sıra değiştiren bir işlem, onu yeni sırayla çizen karenin *sonraki* karesinde ölçülür. Durumu değiştiren şey (ör. bırakma) tüm listelerin yeni sırayı aynı karede çizeceği bir anda uygulanır: bir sonraki karenin başında, hiçbir zaman bırakıldığı karede değil (`settleDrop`).
 - **Önceki karenin `ui.Element`'i kullanılamaz** ("element from pass N used in pass M"). Kareler arası ölçü gerekiyorsa sayıyı sakla (`dropList.heights`), öğeyi değil.
 - **Kendi sürükleme katmanımız var.** `Element.Drag` kopyası ve `ui.List` Reorder'ın mavi çizgisi özelleştirilemiyor; bunun yerine `Dragged`/`PointerPosition` ile işaretçi izlenir, kopya `ui.Overlay`'de çizilir. İşaretçi konumu deltaları toplayarak değil `LayoutBounds + PointerPosition` ile okunur.
+- **`ScrollWith` mutlak konumlu alt öğeleri kaydırmaz.** Başlıktaki sabit hücre ters kaydırma (Translate) istemez; gövdedeki ister.
+- **`ButtonBase.Selected(true)` MyGo temasının vurgu dolgusunu çizer.** Seçili sayfa gibi durumları kendi yüzeyimizle çiz; seçiliği etikete yaz.
+- **Mutlak konumlu alt öğe akıştaki kardeşlerinin üstüne boyanır.** Altta kalması gereken (ışıma, cam) ebeveynin kendi `Draw`'ında çizilir.
+- **`Jump` ile sürülen bir değer hız biriktirir.** İşaretçiyle `Jump` edilen bir kanal sonra başka bir değere `Jump` edilip `AnimateTo` ile bırakılırsa, iki sıçrama arasındaki fark hız sayılır ve yay öğeyi fırlatır. Yeni bir başlangıç gerekiyorsa yeni bir kanal anahtarı kullan (tablo: `colKey`, her sütun taşımada artan sayı).
+- **Bırakma ile uygulanması arasındaki kare de donuk durmalı.** Yeni düzen bir sonraki karede uygulanacaksa, aradaki karede değerler hedefe kaymaya başlamamalı; olduğu yerde tutulur.
+- **Kırpılmış kutunun kenarı çocukların altında kalır.** Yuvarlak köşede başlık dolgusu kenarı örter; kenar `DrawOver` ile içeriğin üstüne çizilir.
 - **Sadece boyayan animasyon** `Draw` içinde `p.Now()` ve `p.AnimationFrame()` ile yapılır (görünümü yeniden kurmaz): bulut parlaması, spinner.
 
 ## 4. Hareketi doğrulamak
