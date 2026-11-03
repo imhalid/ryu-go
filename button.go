@@ -90,7 +90,7 @@ func Button(c *ui.Context, label string, o ButtonOptions) ui.Element {
 	e.Children(func() {
 		switch {
 		case o.Loading:
-			ui.Spinner(c).Size(m.BtnFs+2, m.BtnFs+2)
+			Spinner(c, SpinnerOptions{Size: m.BtnFs, Color: text})
 		case o.Icon != nil:
 			ui.Icon(c, o.Icon)
 		}

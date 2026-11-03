@@ -71,11 +71,14 @@ The tokens are Go values in [tokens.go](tokens.go), written in OKLCH.
 | Controls | `Button`, `Input`, `Select`, `Field`, `Card` |
 | Selection | `Checkbox`, `Radio`, `Choice`, `Switch`, `Segmented`, `Slider` |
 | Forms | `Textarea`, `NumberInput`, `Combobox`, `DatePicker`, `TagInput` |
-| Navigation | `Tabs`, `TabPanel` |
+| Navigation | `Tabs`, `TabPanel`, `Link` |
+| Disclosure | `Collapsible`, `Accordion` |
+| Toolbars | `Toggle`, `ToggleGroup`, `Separator` |
 | Layers | `Dialog`, `Sheet`, `Popover`, `Menu`, `MenuButton`, `Tooltip`, `Toaster` |
 | Chat | `Message`, `Typing`, `DaySeparator`, `Composer` |
 | Drag and drop | `Sortable`, `DragCard`, `DropArea`, `DropZone`, `FileItem` |
 | Indicators | `Badge`, `Tag`, `StatusDot`, `Kbd`, `Avatar`, `EmptyState` |
+| Feedback | `Progress`, `Meter`, `Spinner`, `Skeleton`, `SkeletonText` |
 
 ![Chat and drag and drop, dark theme](docs/chat-drag-dark.png)
 

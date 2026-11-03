@@ -27,7 +27,7 @@ type State struct {
 	Volume, Zoom       float64
 
 	// Page is 0: controls; 1: chat, drag and drop, and indicators; 2: layers;
-	// 3: more form controls.
+	// 3: more form controls; 4: feedback, disclosure and toggles.
 	Page  int
 	Msgs  []mz.ChatMessage
 	Draft string
@@ -44,6 +44,8 @@ type State struct {
 
 	// Forms is the state of the forms page.
 	Forms formsPage
+	// Feedback is the state of the feedback page.
+	Feedback feedbackPage
 }
 
 // card is a task on the board; col is the column it is in.
@@ -73,7 +75,8 @@ func New() *State {
 			{Title: "Notification permissions", Tag: "iOS", col: 1},
 			{Title: "Dark theme", Tag: "Design", col: 2},
 		},
-		Files: []file{{"Q3-report.pdf", "2.4 MB"}, {"patient-list-october-2026-final-version.xlsx", "860 KB"}},
+		Files:    []file{{"Q3-report.pdf", "2.4 MB"}, {"patient-list-october-2026-final-version.xlsx", "860 KB"}},
+		Feedback: newFeedback(),
 	}
 }
 
@@ -96,7 +99,7 @@ func (s *State) page(c *ui.Context, t *mz.Tokens) {
 			ui.Row(c).Gap(mz.GapControl).Children(func() {
 				s.accents(c, t)
 				ui.Box(c).Size(8, 0)
-				for i, name := range []string{"Controls", "Chat and drag", "Layers", "Forms"} {
+				for i, name := range []string{"Controls", "Chat and drag", "Layers", "Forms", "Feedback"} {
 					o := mz.ButtonOptions{Size: mz.Sm}
 					if s.Page == i {
 						o.Color = t.Colors.Accent
@@ -128,6 +131,10 @@ func (s *State) page(c *ui.Context, t *mz.Tokens) {
 				}
 			})
 		})
+		if s.Page == 4 {
+			s.Feedback.view(c, t)
+			return
+		}
 		if s.Page == 3 {
 			s.Forms.view(c, t)
 			return
