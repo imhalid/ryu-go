@@ -149,7 +149,7 @@ func (s *State) layers(c *ui.Context, t *mz.Tokens) {
 					mz.Text(c, "Last action: "+last, mz.TCaption).TextColor(cl.Muted)
 				})
 			})
-			mz.Card(c, mz.CardOptions{Title: "Tooltip", Subtitle: "On hover or keyboard focus; from one to the next, it slides.", Pad: true}, func() {
+			mz.Card(c, mz.CardOptions{Title: "Tooltip", Subtitle: "Raised like a button; it follows the pointer, and slides from one to the next.", Pad: true}, func() {
 				ui.Column(c).Gap(16).Children(func() {
 					// a toolbar: run the pointer along it and one tooltip
 					// slides from tool to tool

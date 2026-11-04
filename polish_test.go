@@ -160,3 +160,28 @@ func TestTooltipLingers(t *testing.T) {
 		t.Fatal("the tooltip stayed")
 	}
 }
+
+// The pointer come onto a lingering tooltip, it goes at once.
+func TestTooltipGetsOutOfTheWay(t *testing.T) {
+	tt := ui.NewTester(func(c *ui.Context) {
+		Root(c, Options{})
+		ui.Row(c).Padding(80, 40).Children(func() {
+			b := Button(c.Key("b"), "Share", ButtonOptions{})
+			Tooltip(c.Key("tip"), b, "Share the report")
+		})
+	}, 400, 200)
+	tt.Advance(100 * time.Millisecond)
+	b, _ := tt.Find("Share")
+	tt.Move(b.X+b.W/2, b.Y+b.H/2)
+	tt.Advance(time.Second)
+	tip, ok := tt.Find("Share the report")
+	if !ok {
+		t.Fatal("no tooltip")
+	}
+	tt.Move(tip.X+tip.W/2, tip.Y+tip.H/2)
+	tt.Advance(16 * time.Millisecond)
+	tt.Advance(200 * time.Millisecond)
+	if tt.HasText("Share the report") {
+		t.Fatal("the tooltip stayed under the pointer")
+	}
+}

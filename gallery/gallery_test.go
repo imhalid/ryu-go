@@ -664,3 +664,27 @@ func TestTooltipExamples(t *testing.T) {
 		t.Fatal("no tooltip on the avatar")
 	}
 }
+
+// Moved from Retention's hint up onto the toolbar, across its tooltip,
+// the pointer closes it and opens Bold's: the tooltip under the pointer
+// doesn't take it, nor come back once gone.
+func TestTooltipHandsOverAcrossItself(t *testing.T) {
+	_, tt := page3(mz.Light)
+	x, y := center(t, tt, "About retention")
+	bx, by := center(t, tt, "Bold")
+	tt.Move(x, y)
+	tt.Advance(2 * time.Second)
+	const long = "The share of users who came back within 30 days of signing up, by the month they signed up in."
+	if !tt.HasText(long) {
+		t.Fatal("no tooltip on the hint")
+	}
+	for i := 1; i <= 20; i++ {
+		f := float32(i) / 20
+		tt.Move(x+(bx-x)*f, y+(by-y)*f)
+		tt.Advance(16 * time.Millisecond)
+	}
+	tt.Advance(500 * time.Millisecond)
+	if tt.HasText(long) || !tt.HasText("Bold  ⌘B") {
+		t.Fatalf("over Bold, the hint's tooltip shows %v, Bold's %v", tt.HasText(long), tt.HasText("Bold  ⌘B"))
+	}
+}
