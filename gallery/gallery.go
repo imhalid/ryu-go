@@ -31,7 +31,8 @@ type State struct {
 	Volume, Zoom       float64
 
 	// Page is 0: controls; 1: chat, drag and drop, and indicators; 2: layers;
-	// 3: more form controls; 4: feedback, disclosure and toggles; 5: tables.
+	// 3: more form controls; 4: feedback, disclosure and toggles; 5: tables;
+	// 6: the workspace.
 	Page  int
 	Msgs  []mz.ChatMessage
 	Draft string
@@ -53,6 +54,8 @@ type State struct {
 	Feedback feedbackPage
 	// Tables is the state of the table page.
 	Tables tablePage
+	// Work is the state of the workspace page.
+	Work workspacePage
 }
 
 // card is a task on the board; col is the column it is in.
@@ -110,7 +113,7 @@ func (s *State) page(c *ui.Context, t *mz.Tokens) {
 			// size step, the corners and the theme
 			ui.Column(c).Gap(10).AlignItems(ui.End).Children(func() {
 				ui.Row(c).Gap(mz.GapControl).Children(func() {
-					for i, name := range []string{"Controls", "Chat and drag", "Layers", "Forms", "Feedback", "Table"} {
+					for i, name := range []string{"Controls", "Chat and drag", "Layers", "Forms", "Feedback", "Table", "Workspace"} {
 						o := mz.ButtonOptions{Size: mz.Sm}
 						if s.Page == i {
 							o.Color = t.Colors.Accent
@@ -139,6 +142,10 @@ func (s *State) page(c *ui.Context, t *mz.Tokens) {
 				})
 			})
 		})
+		if s.Page == 6 {
+			s.Work.view(c, t)
+			return
+		}
 		if s.Page == 5 {
 			s.Tables.view(c, t)
 			return

@@ -38,23 +38,44 @@ This is a hard requirement.
 
 The one unknown: whether MyGo keeps reporting the pointer while a drag leaves the window. Its API doesn't say. Prove it first.
 
-- [ ] Drag an element past the window's edge; log the pointer's position (window position + local pointer) while outside.
-- [ ] On release outside, open a native window (`mygo.NewWindow` with `Content`) at the release point, showing a pane built from the shared model.
-- [ ] Close that window: cancel the close, move the pane back into the main window, then let it close.
-- [ ] Drag between two windows of the app (MyGo's in-process typed drag) and drop.
-- [ ] If the pointer is lost outside the window: fall back to an "Open in new window" action in the area's header; the data guarantees stay the same.
+- [x] Drag an element past the window's edge; log the pointer's position (window position + local pointer) while outside.
+- [x] On release outside, open a native window (`mygo.NewWindow` with `Content`) at the release point, showing a pane built from the shared model.
+- [x] Close that window: move the pane back into the main window as it closes.
+- [x] Drag between two windows of the app and drop (by our own geometry, not MyGo's typed drag).
+- [x] ~~If the pointer is lost outside the window: fall back to an "Open in new window" action~~: not needed, the pointer is not lost.
 
 Done when: a pane goes out to its own window and back without losing its scroll or selection, in the real window (not only the tester).
 
+**Result (2026-11-04, macOS, `cmd/dockspike`): it works.** Tried by the user in the real window, who saw no problem; from the log:
+
+- **The pointer is followed outside the window.** While the bar is pressed, `Dragged` and `PointerPosition` keep reporting past the window's edges, with negative or larger-than-the-window local coordinates. The pointer on the screen is `Window.ContentBounds()` + the element's `LayoutBounds` + `PointerPosition`.
+- **Coordinates:** window and content bounds are in screen points with the origin at the top left; the content starts 32 points under the window's top (the title bar). macOS may nudge a new window's position a little.
+- **Opening:** `mygo.NewWindow` is called from a goroutine (it waits for the main thread), never from inside a frame; the pane's model says which window it is in before the window exists, and its view shows it once it does.
+- **Between windows:** the drop finds the window under the pointer by its content bounds; the pane moves there and an emptied torn-off window closes itself.
+- **Closing:** `OnClose` moves the window's panes back to the main window; nothing was lost (counts and scrolls in the log matched before and after every move).
+- **Redrawing:** a change of the model redraws every window with `Window.Invalidate()`.
+- **Not yet tried:** Windows and Linux; multiple displays; dropping onto a window behind another.
+
+The spike stays in `cmd/dockspike` as a reference until step 5 replaces it.
+
 ### 1. Areas: splits and shared edges
 
-- [ ] The layout tree and its JSON form, with tests for round trips.
-- [ ] Areas filling the window edge to edge; splits laid out from fractions.
-- [ ] Edges between areas: dragging one resizes all the areas along the shared line; minimum sizes; a double click shares the room equally.
-- [ ] Edge hover and drag show motion only (the edge grows a little), no color fill.
-- [ ] Gallery: a "Workspace" page with a fixed layout (files on the left, editors in the middle, a console below).
+- [x] The layout tree and its JSON form, with tests for round trips.
+- [x] Areas filling the window edge to edge; splits laid out from fractions.
+- [x] Edges between areas: dragging one resizes all the areas along the shared line; minimum sizes; a double click shares the room equally.
+- [x] Edge hover and drag show motion only (the edge grows a little), no color fill.
+- [x] Gallery: a "Workspace" page with a fixed layout (files on the left, editors in the middle, a console below).
 
 Done when: edges move smoothly with no jump on release, and the layout survives a save and a restore.
+
+**Result (2026-11-04):** `dock_layout.go` holds the model (`Layout`, `DockWindow`, `Node`, `Pane`; `ParseLayout` mends sizes, IDs and the active pane rather than fail), `dock.go` the view, and the gallery's Workspace page shows it with Save layout, Restore and Reset. Tested in `dock_test.go` (round trip, mending) and `gallery/workspace_test.go` (a drag, the least size, a double click, lined-up edges moving as one).
+
+- **Lined-up edges** are found at the end of the frame the edge is pressed in, from that frame's edges: the last frame's are not laid out yet in a frame that didn't rebuild.
+- **Sizes** show through springs (a double click glides), but under the pointer they follow it at once (`Jump`), and the spring takes over from where the pointer left them: no jump on release.
+- **Crossings** (after the user tried it): where edges meet, a 12px square takes the pointer and drags both ways at once, the vertical edge across, the edges across it along, each with the edges lined up with it. A small cross grows in it under the pointer. Crossings are placed from the last frame's edges; when those moved, the dock asks for one more frame, or a crossing would stay where the layout was.
+- **One edge alone:** with Option (Alt) held as it is pressed, an edge (or a crossing) moves only itself, not the edges lined up with it. Lined-up edges stay linked by default, as in Blender. Not testable in the tester: its pointer events carry no modifiers.
+- **What will move shows first:** under the pointer, the grips show on every edge that would move (on all of a line, or only the one with Option held), before it is pressed.
+- Tried by the user in the real window (edges, lined-up edges, crossings, Option): no problem seen.
 
 ### 2. Split and join from corners
 
