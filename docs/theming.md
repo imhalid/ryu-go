@@ -7,8 +7,8 @@ here: the card below is in a `Scope` made of them.
 <!-- preview theming 460 -->
 
 ```go
-mizan.Root(c, mizan.Options{Accent: ui.Oklch(0.56, 0.2, 295), Corners: mizan.CornersLg})
-mizan.Scope(c, mizan.Options{Size: mizan.Sm}).Children(func() { ... })
+ryugo.Root(c, ryugo.Options{Accent: ui.Oklch(0.56, 0.2, 295), Corners: ryugo.CornersLg})
+ryugo.Scope(c, ryugo.Options{Size: ryugo.Sm}).Children(func() { ... })
 ```
 
 ## Mode
@@ -24,14 +24,14 @@ the same height, so a row of them lines up whatever the step.
 ## Corners
 
 `CornersSm`, `CornersMd` or `CornersLg`: the radii of cards, fields, menus
-and tables at half, at, or one and a half times Mizan's. Pills and circles
+and tables at half, at, or one and a half times Ryugo's. Pills and circles
 keep their shape, and a surface nested inside another keeps its corners
 concentric with it (`Concentric`: the outer radius less the padding).
 
 ## Accent
 
 A brand color. The accent ramp, selection fills and rings take its hue and
-chroma at Mizan's lightness steps, so contrast holds in both themes. `Swatch`
+chroma at Ryugo's lightness steps, so contrast holds in both themes. `Swatch`
 gives the accent a color turns into, for a picker of brand colors.
 
 ## Tokens
@@ -40,10 +40,10 @@ gives the accent a color turns into, for a picker of brand colors.
 the accent, the series colors `C1`…`C8`, and the tones `Down`, `Warn` and
 `Up`), `Shadows`, `Metrics` and `R`, which scales a radius by the scope's
 corners. They are Go values in
-[tokens.go](https://github.com/imhalid/mizan-go/blob/main/tokens.go),
-written in OKLCH. `Text` writes in Mizan's type scale:
+[tokens.go](https://github.com/imhalid/ryu-go/blob/main/tokens.go),
+written in OKLCH. `Text` writes in Ryugo's type scale:
 
 ```go
-mizan.Text(c, "Weekly active users", mizan.TTitle)
-mizan.Text(c, "Updated 5 minutes ago", mizan.TCaption).TextColor(t.Colors.Muted)
+ryugo.Text(c, "Weekly active users", ryugo.TTitle)
+ryugo.Text(c, "Updated 5 minutes ago", ryugo.TCaption).TextColor(t.Colors.Muted)
 ```

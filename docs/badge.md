@@ -7,9 +7,9 @@ neutral pill beside a page's title.
 <!-- preview badge 130 -->
 
 ```go
-mizan.Badge(c, "+4.2%", mizan.ToneDown)
-mizan.Badge(c, "Pending", mizan.ToneWarn)
-mizan.Tag(c, "v2.4")
+ryugo.Badge(c, "+4.2%", ryugo.ToneDown)
+ryugo.Badge(c, "Pending", ryugo.ToneWarn)
+ryugo.Tag(c, "v2.4")
 ```
 
 The tones are `ToneDefault` (the text color), `ToneNeutral` (a gray

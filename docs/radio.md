@@ -8,8 +8,8 @@ choice in a `ui.RadioGroup`, which the arrows move within.
 
 ```go
 ui.RadioGroup(c, func() {
-	mizan.Radio(c.Key("day"), &app.plan, "day", "Daily", mizan.CheckOptions{})
-	mizan.Radio(c.Key("week"), &app.plan, "week", "Weekly", mizan.CheckOptions{})
+	ryugo.Radio(c.Key("day"), &app.plan, "day", "Daily", ryugo.CheckOptions{})
+	ryugo.Radio(c.Key("week"), &app.plan, "week", "Weekly", ryugo.CheckOptions{})
 }).Label("Digest frequency")
 ```
 

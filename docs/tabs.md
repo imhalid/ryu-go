@@ -8,8 +8,8 @@ fill follows the pointer from tab to tab. Build the chosen tab's panel in
 <!-- preview tabs 160 -->
 
 ```go
-mizan.Tabs(c.Key("tabs"), &app.tab, []mizan.Tab{{Label: "Overview"}, {Label: "Activity", Badge: "12"}}, mizan.TabsOptions{Label: "Report"})
-mizan.TabPanel(c, app.tab, func() {
+ryugo.Tabs(c.Key("tabs"), &app.tab, []ryugo.Tab{{Label: "Overview"}, {Label: "Activity", Badge: "12"}}, ryugo.TabsOptions{Label: "Report"})
+ryugo.TabPanel(c, app.tab, func() {
 	...
 })
 ```

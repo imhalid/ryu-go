@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import (
 	"github.com/egoist/mygo/plugins/glass"
@@ -32,10 +32,10 @@ type SelectOptions struct {
 // the highlighted option fills with the accent gradient, and a check mark
 // stands next to the selected one.
 //
-//	mizan.Select(c.Key("range"), &app.rangeDays, []mizan.Option[int]{
+//	ryugo.Select(c.Key("range"), &app.rangeDays, []ryugo.Option[int]{
 //		{Value: 7, Label: "Last 7 days"},
 //		{Value: 30, Label: "Last 30 days"},
-//	}, mizan.SelectOptions{})
+//	}, ryugo.SelectOptions{})
 func Select[T comparable](c *ui.Context, value *T, options []Option[T], o SelectOptions) ui.Element {
 	t := sizedFrom(c, o.Size)
 	m := t.Metrics

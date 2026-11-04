@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/egoist/mygo/ui"
-	mz "github.com/imhalid/mizan-go"
+	mz "github.com/imhalid/ryu-go"
 )
 
 // feedbackPage is the state of the feedback page: progress, disclosure,
@@ -128,7 +128,7 @@ func (f *feedbackPage) loading(c *ui.Context, t *mz.Tokens) {
 		ui.Column(c).Gap(16).Children(func() {
 			ui.Row(c).Gap(4).Wrap().AlignItems(ui.Center).Children(func() {
 				ui.Text(c, "The export is ready.").TextColor(cl.Text2).FontSize(mz.FsMd)
-				mz.Link(c, "Read the changelog", "https://github.com/imhalid/mizan-go").FontSize(mz.FsMd)
+				mz.Link(c, "Read the changelog", "https://github.com/imhalid/ryu-go").FontSize(mz.FsMd)
 			})
 			mz.Separator(c, mz.SeparatorOptions{Label: "or"})
 			ui.Row(c).Gap(12).AlignItems(ui.Start).Children(func() {

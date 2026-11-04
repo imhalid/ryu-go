@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/egoist/mygo/ui"
-	mz "github.com/imhalid/mizan-go"
+	mz "github.com/imhalid/ryu-go"
 )
 
 func init() {
@@ -26,7 +26,7 @@ func init() {
 	demo("link", func(c *ui.Context, t *mz.Tokens) {
 		ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, "The export is ready.").TextColor(t.Colors.Text2).FontSize(mz.FsMd)
-			mz.Link(c, "Read the changelog", "https://github.com/imhalid/mizan-go").FontSize(mz.FsMd)
+			mz.Link(c, "Read the changelog", "https://github.com/imhalid/ryu-go").FontSize(mz.FsMd)
 		})
 		label := "Show details"
 		if details {

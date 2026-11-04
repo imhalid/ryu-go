@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import (
 	"strconv"
@@ -36,7 +36,7 @@ type ProgressOptions struct {
 // light passes once over the full bar. Assistive technology sees a
 // progress bar.
 //
-//	mizan.Progress(c, app.uploaded, mizan.ProgressOptions{Label: "Uploading", ShowValue: true})
+//	ryugo.Progress(c, app.uploaded, ryugo.ProgressOptions{Label: "Uploading", ShowValue: true})
 func Progress(c *ui.Context, value float64, o ProgressOptions) ui.Element {
 	t := sizedFrom(c, o.Size)
 	fill := t.accentFill()
@@ -74,7 +74,7 @@ type MeterOptions struct {
 // Warn to Up as value passes Warning and Critical. Assistive technology
 // sees a level indicator.
 //
-//	mizan.Meter(c, app.used, 0, app.quota, mizan.MeterOptions{Label: "Storage", Warning: 0.8 * app.quota, Critical: 0.95 * app.quota})
+//	ryugo.Meter(c, app.used, 0, app.quota, ryugo.MeterOptions{Label: "Storage", Warning: 0.8 * app.quota, Critical: 0.95 * app.quota})
 func Meter(c *ui.Context, value, lo, hi float64, o MeterOptions) ui.Element {
 	t := sizedFrom(c, o.Size)
 	cl := t.Colors
@@ -183,7 +183,7 @@ type SpinnerOptions struct {
 // an arc of a quarter turn in the accent color that turns once every 0.8
 // seconds. Assistive technology sees a progress indicator.
 //
-//	mizan.Spinner(c, mizan.SpinnerOptions{})
+//	ryugo.Spinner(c, ryugo.SpinnerOptions{})
 func Spinner(c *ui.Context, o SpinnerOptions) ui.Element {
 	t := From(c)
 	cl := t.Colors
@@ -208,7 +208,7 @@ func Spinner(c *ui.Context, o SpinnerOptions) ui.Element {
 // field, with a sheen sweeping across it every 1.8 seconds. Round it
 // otherwise with Radius; the sheen keeps to its corners.
 //
-//	mizan.Skeleton(c, 40, 40).Radius(mizan.RadiusPill) // an avatar's
+//	ryugo.Skeleton(c, 40, 40).Radius(ryugo.RadiusPill) // an avatar's
 func Skeleton(c *ui.Context, w, h float32) ui.Element {
 	t := From(c)
 	cl := t.Colors

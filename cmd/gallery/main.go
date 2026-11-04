@@ -1,4 +1,4 @@
-// Gallery opens the showcase of Mizan's components in a window. The
+// Gallery opens the showcase of Ryugo's components in a window. The
 // workspace's layout is saved in the user's config directory on every
 // change, and opens again as it was, its windows torn off too.
 //
@@ -12,10 +12,10 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
-	mz "github.com/imhalid/mizan-go"
-	"github.com/imhalid/mizan-go/dockwin"
-	"github.com/imhalid/mizan-go/gallery"
-	"github.com/imhalid/mizan-go/palettewin"
+	mz "github.com/imhalid/ryu-go"
+	"github.com/imhalid/ryu-go/dockwin"
+	"github.com/imhalid/ryu-go/gallery"
+	"github.com/imhalid/ryu-go/palettewin"
 )
 
 func main() {
@@ -48,7 +48,7 @@ func main() {
 	}
 	mygo.App.WhenReady(func() {
 		w := mygo.NewWindow(mygo.WindowOptions{
-			Title:   "Mizan",
+			Title:   "Ryugo",
 			Width:   1180,
 			Height:  860,
 			Content: ui.View(view),
@@ -72,5 +72,5 @@ func layoutFile() string {
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(dir, "mizan-gallery", "layout.json")
+	return filepath.Join(dir, "ryugo-gallery", "layout.json")
 }

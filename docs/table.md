@@ -11,15 +11,15 @@ menu, a row's chevron, and archiving a few rows.
 <!-- preview table 520 -->
 
 ```go
-cols := []mizan.Column[Order]{
-	{Title: "Customer", Kind: mizan.KindPerson, Value: func(o Order) any { return o.Customer }, Sortable: true},
-	{Title: "Status", Kind: mizan.KindStatus, Value: func(o Order) any { return o.Status }, Sortable: true},
-	{Title: "Total", Kind: mizan.KindNumber, Value: func(o Order) any { return o.Total }, Sortable: true, Decimals: 2, Unit: "USD"},
+cols := []ryugo.Column[Order]{
+	{Title: "Customer", Kind: ryugo.KindPerson, Value: func(o Order) any { return o.Customer }, Sortable: true},
+	{Title: "Status", Kind: ryugo.KindStatus, Value: func(o Order) any { return o.Status }, Sortable: true},
+	{Title: "Total", Kind: ryugo.KindNumber, Value: func(o Order) any { return o.Total }, Sortable: true, Decimals: 2, Unit: "USD"},
 }
-mizan.Table(c.Key("orders"), &app.table, cols, app.orders, mizan.TableOptions[Order]{
+ryugo.Table(c.Key("orders"), &app.table, cols, app.orders, ryugo.TableOptions[Order]{
 	Key:        func(o Order) any { return o.ID },
 	Selectable: true, Search: true, ViewMenu: true,
-	Actions:    []mizan.TableAction{{Label: "Archive", Danger: true, Do: app.archive}},
+	Actions:    []ryugo.TableAction{{Label: "Archive", Danger: true, Do: app.archive}},
 })
 ```
 

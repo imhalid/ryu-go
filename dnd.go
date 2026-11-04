@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import (
 	"math"
@@ -325,7 +325,7 @@ type sortValue struct {
 // *items itself. s identifies the list and must stay the same across
 // frames.
 //
-//	mizan.Sortable(c, &app.list, &app.tasks, mizan.SortableOptions{}, func(t Task) {
+//	ryugo.Sortable(c, &app.list, &app.tasks, ryugo.SortableOptions{}, func(t Task) {
 //		ui.Text(c, t.Title)
 //	})
 func Sortable[T any](c *ui.Context, s *ui.ListState, items *[]T, o SortableOptions, row func(T)) ui.Element {
@@ -448,7 +448,7 @@ func move[T any](items []T, rows []int, to int) []T {
 // value, comparable, is what it carries to where it is dropped. Picked up,
 // it lifts and follows the pointer, leaving its place empty.
 //
-//	mizan.DragCard(c.Key(task.ID), task, func() { ui.Text(c, task.Title) })
+//	ryugo.DragCard(c.Key(task.ID), task, func() { ui.Text(c, task.Title) })
 func DragCard(c *ui.Context, value any, body func()) ui.Element {
 	t := From(c)
 	e := ui.Column(c).FillWidth().MinWidth(0)
@@ -481,8 +481,8 @@ type DropAreaOptions struct {
 // go on it, and index, where it goes among the column's other cards: move
 // it there, as it is applied before any column builds the next frame.
 //
-//	mizan.DropArea(c.Key("done"), mizan.DropAreaOptions{Title: "Done"}, func() {
-//		for _, task := range app.done { mizan.DragCard(c.Key(task.ID), task, ...) }
+//	ryugo.DropArea(c.Key("done"), ryugo.DropAreaOptions{Title: "Done"}, func() {
+//		for _, task := range app.done { ryugo.DragCard(c.Key(task.ID), task, ...) }
 //	}, func(task *Task, index int) {
 //		app.moveTo(task, "done", index)
 //	})
@@ -632,7 +632,7 @@ type DropZoneOptions struct {
 // (Finder, Explorer): when files come over it, the border turns solid and
 // takes the accent color. It returns the dropped files' paths, or nil.
 //
-//	if paths := mizan.DropZone(c.Key("upload"), mizan.DropZoneOptions{Title: "Drop files"}); paths != nil {
+//	if paths := ryugo.DropZone(c.Key("upload"), ryugo.DropZoneOptions{Title: "Drop files"}); paths != nil {
 //		app.add(paths)
 //	}
 func DropZone(c *ui.Context, o DropZoneOptions) []string {

@@ -5,7 +5,7 @@ import (
 	"math"
 
 	"github.com/egoist/mygo/ui"
-	mz "github.com/imhalid/mizan-go"
+	mz "github.com/imhalid/ryu-go"
 )
 
 // studioPage is the state of the studio page: a picture of layers on a

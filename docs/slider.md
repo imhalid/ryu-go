@@ -8,7 +8,7 @@ step on a spring.
 <!-- preview slider 150 -->
 
 ```go
-mizan.Slider(c.Key("vol"), &app.volume, 0, 100, mizan.SliderOptions{Label: "Volume", Step: 1,
+ryugo.Slider(c.Key("vol"), &app.volume, 0, 100, ryugo.SliderOptions{Label: "Volume", Step: 1,
 	Format: func(v float64) string { return fmt.Sprintf("%.0f%%", v) }})
 ```
 

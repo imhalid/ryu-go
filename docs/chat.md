@@ -9,8 +9,8 @@ bubble was. Send one to see it all: Leo answers.
 <!-- preview chat 480 -->
 
 ```go
-mizan.Chat(c.Key("chat"), app.msgs, mizan.ChatOptions{Typing: app.typing}).Fill()
-if mizan.Composer(c.Key("composer"), &app.draft, mizan.ComposerOptions{Placeholder: "Type a message"}) {
+ryugo.Chat(c.Key("chat"), app.msgs, ryugo.ChatOptions{Typing: app.typing}).Fill()
+if ryugo.Composer(c.Key("composer"), &app.draft, ryugo.ComposerOptions{Placeholder: "Type a message"}) {
 	app.send(app.draft)
 	app.draft = ""
 }

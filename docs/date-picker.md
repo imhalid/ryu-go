@@ -7,7 +7,7 @@ color, and the days of the months around are muted.
 <!-- preview date-picker 420 -->
 
 ```go
-mizan.DatePicker(c.Key("due"), &app.due, mizan.DatePickerOptions{Label: "Due date", Min: app.start})
+ryugo.DatePicker(c.Key("due"), &app.due, ryugo.DatePickerOptions{Label: "Due date", Min: app.start})
 ```
 
 A click, or the arrows and Enter, choose a day and close it; Page Up and

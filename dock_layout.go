@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import (
 	"encoding/json"
@@ -95,7 +95,7 @@ func (d *DockDir) UnmarshalText(b []byte) error {
 	case "column":
 		*d = DockColumn
 	default:
-		return fmt.Errorf("mizan: unknown dock direction %q", b)
+		return fmt.Errorf("ryugo: unknown dock direction %q", b)
 	}
 	return nil
 }
@@ -176,7 +176,7 @@ func ParseLayout(b []byte) (*Layout, error) {
 		return nil, err
 	}
 	if len(l.Windows) == 0 {
-		return nil, fmt.Errorf("mizan: a layout needs a window")
+		return nil, fmt.Errorf("ryugo: a layout needs a window")
 	}
 	l.fix()
 	return &l, nil

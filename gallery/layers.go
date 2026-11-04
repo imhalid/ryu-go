@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	mz "github.com/imhalid/mizan-go"
+	mz "github.com/imhalid/ryu-go"
 )
 
 var (
@@ -139,7 +139,7 @@ func (s *State) layers(c *ui.Context, t *mz.Tokens) {
 						tb := mz.Button(c.Key("share"), "Share link", mz.ButtonOptions{Icon: share, IconOnly: true}).Description("Share the report")
 						mz.Tooltip(c.Key("shareTip"), tb, "Share the report")
 						// from one tooltip to the next, it slides
-						cb := mz.CopyButton(c.Key("copy"), "https://mizan.example/q3-report", mz.CopyOptions{Label: "Copy link"}).Description("Copy the link")
+						cb := mz.CopyButton(c.Key("copy"), "https://ryugo.example/q3-report", mz.CopyOptions{Label: "Copy link"}).Description("Copy the link")
 						mz.Tooltip(c.Key("copyTip"), cb, "Copy the link")
 					})
 					last := s.Last

@@ -17,7 +17,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
-	mz "github.com/imhalid/mizan-go"
+	mz "github.com/imhalid/ryu-go"
 )
 
 // demos are the demos by name, the page of docs/ they preview: "button"
@@ -46,7 +46,7 @@ func main() {
 	}
 	mygo.App.WhenReady(func() {
 		mygo.NewWindow(mygo.WindowOptions{
-			Title:   "Mizan",
+			Title:   "Ryugo",
 			Width:   720,
 			Height:  480,
 			Content: ui.View(content),
@@ -57,7 +57,7 @@ func main() {
 	}
 }
 
-// preview shows a demo in the middle of the window, in Mizan's theme, as a
+// preview shows a demo in the middle of the window, in Ryugo's theme, as a
 // page of the docs frames it. A demo taking the width stretches itself
 // (AlignSelf(Stretch)).
 func preview(c *ui.Context, view func(c *ui.Context, t *mz.Tokens)) {
@@ -106,7 +106,7 @@ func status(c *ui.Context, t *mz.Tokens, text string) ui.Element {
 	return mz.Text(c, text, mz.TCaption).TextColor(t.Colors.Muted)
 }
 
-// Icons of the demos, 16 wide on a 15 box as Mizan's own.
+// Icons of the demos, 16 wide on a 15 box as Ryugo's own.
 var (
 	iconSearch = mz.Svg(16, 15, "M7 12.5a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM14.5 14.5l-3.6-3.6")
 	iconMore   = mz.Svg(16, 15, "M3.5 8h.01M8 8h.01M12.5 8h.01")

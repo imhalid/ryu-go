@@ -10,8 +10,8 @@ leaves, and goes at once when the pointer comes onto it.
 <!-- preview tooltip 170 -->
 
 ```go
-b := mizan.Button(c.Key("share"), "Share", mizan.ButtonOptions{Icon: shareIcon, IconOnly: true}).Description("Share the report")
-mizan.Tooltip(c.Key("shareTip"), b, "Share the report")
+b := ryugo.Button(c.Key("share"), "Share", ryugo.ButtonOptions{Icon: shareIcon, IconOnly: true}).Description("Share the report")
+ryugo.Tooltip(c.Key("shareTip"), b, "Share the report")
 ```
 
 Give the anchor a `Description` too: assistive technology does not read

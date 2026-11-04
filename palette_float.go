@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import (
 	"time"
@@ -17,7 +17,7 @@ import (
 // shows in the others at once, and no window redraws another that redraws
 // it back.
 
-// PaletteHost shows a board's palettes in windows of their own. mizan/
+// PaletteHost shows a board's palettes in windows of their own. ryu-go/
 // palettewin is one of MyGo's windows.
 type PaletteHost interface {
 	// Free reports whether the palettes can float in windows of their own:

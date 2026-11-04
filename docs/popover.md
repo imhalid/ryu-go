@@ -7,12 +7,12 @@ the same frame.
 <!-- preview popover 220 -->
 
 ```go
-b := mizan.Button(c.Key("filter"), "Filter", mizan.ButtonOptions{})
+b := ryugo.Button(c.Key("filter"), "Filter", ryugo.ButtonOptions{})
 if b.Clicked() {
 	app.filtering = !app.filtering
 }
-mizan.Popover(c.Key("filters"), b, &app.filtering, func() {
-	mizan.Text(c, "Filters", mizan.TLabel)
-	mizan.Checkbox(c.Key("mine"), &app.mine, "Only mine", mizan.CheckOptions{})
+ryugo.Popover(c.Key("filters"), b, &app.filtering, func() {
+	ryugo.Text(c, "Filters", ryugo.TLabel)
+	ryugo.Checkbox(c.Key("mine"), &app.mine, "Only mine", ryugo.CheckOptions{})
 })
 ```

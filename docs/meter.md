@@ -7,7 +7,7 @@ in a tone that turns from Down (fine) to Warn to Up as the value passes
 <!-- preview meter 190 -->
 
 ```go
-mizan.Meter(c, app.used, 0, 64, mizan.MeterOptions{Label: "Storage", Warning: 48, Critical: 60,
+ryugo.Meter(c, app.used, 0, 64, ryugo.MeterOptions{Label: "Storage", Warning: 48, Critical: 60,
 	Format: func(v float64) string { return fmt.Sprintf("%.0f of 64 GB", v) }})
 ```
 

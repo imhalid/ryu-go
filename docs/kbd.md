@@ -6,5 +6,5 @@ shortcut sit side by side.
 <!-- preview kbd 180 -->
 
 ```go
-mizan.Kbd(c, "⌘", "K")
+ryugo.Kbd(c, "⌘", "K")
 ```

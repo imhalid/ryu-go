@@ -57,7 +57,7 @@ function Home() {
             </span>
             <span className="ui-preview-title">Theming</span>
           </div>
-          <iframe className="ui-preview-frame" src="/docs-demo?demo=theming" title="A preview of Mizan's theming" style={{ height: 460 }} />
+          <iframe className="ui-preview-frame" src="/docs-demo?demo=theming" title="A preview of Ryugo's theming" style={{ height: 460 }} />
         </figure>
       </section>
 

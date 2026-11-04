@@ -1,4 +1,4 @@
-# Mizan website
+# Ryugo website
 
 The home page and, at `/docs`, the guides of [`../docs`](../docs), with a
 live preview of every component, built with TanStack Start and shadcn/ui

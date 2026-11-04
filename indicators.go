@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import (
 	"time"
@@ -40,7 +40,7 @@ func (t *Tokens) tone(n Tone) ui.Color {
 // Badge is a pill on a background of 10% of its text color: whatever the
 // tone, the background matches the text. Numbers are tabular.
 //
-//	mizan.Badge(c, "+4.2%", mizan.ToneDown)
+//	ryugo.Badge(c, "+4.2%", ryugo.ToneDown)
 func Badge(c *ui.Context, text string, tone Tone) ui.Element {
 	t := From(c)
 	color := t.tone(tone)
@@ -74,7 +74,7 @@ const (
 // StatusDot is a status dot and its text: when live, the dot spreads
 // outward and fades every 1.8 seconds (it stops when motion is reduced).
 //
-//	mizan.StatusDot(c, mizan.DotLive, "Live")
+//	ryugo.StatusDot(c, ryugo.DotLive, "Live")
 func StatusDot(c *ui.Context, state DotState, text string) ui.Element {
 	t := From(c)
 	color := t.Colors.Muted
@@ -99,7 +99,7 @@ func StatusDot(c *ui.Context, state DotState, text string) ui.Element {
 // Kbd shows keyboard keys: the same raised skin as a button, scaled to the
 // text. In a combined shortcut, the keys sit side by side.
 //
-//	mizan.Kbd(c, "⌘", "K")
+//	ryugo.Kbd(c, "⌘", "K")
 func Kbd(c *ui.Context, keys ...string) ui.Element {
 	t := From(c)
 	cl := t.Colors
@@ -136,7 +136,7 @@ type AvatarOptions struct {
 // color over the card, the letters 62% of the color over the text (legible
 // in both themes).
 //
-//	mizan.Avatar(c, "Jane Smith", mizan.AvatarOptions{Online: true})
+//	ryugo.Avatar(c, "Jane Smith", ryugo.AvatarOptions{Online: true})
 func Avatar(c *ui.Context, name string, o AvatarOptions) ui.Element {
 	t := From(c)
 	cl := t.Colors

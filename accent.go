@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import (
 	"math"
@@ -7,19 +7,19 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// Mizan's accent is a ramp of one hue (256, blue): steps 400 to 700 and
+// Ryugo's accent is a ramp of one hue (256, blue): steps 400 to 700 and
 // the colors made of them (the selected-row fill, the field and focus
 // rings). A brand accent replaces that hue and scales the
-// chroma; the lightness of every step stays Mizan's, so white text on a
+// chroma; the lightness of every step stays Ryugo's, so white text on a
 // solid button and the rings keep their contrast in both themes.
 
 const (
-	// baseHue and baseChroma are those of Mizan's own accent (step 600).
+	// baseHue and baseChroma are those of Ryugo's own accent (step 600).
 	baseHue    = 256
 	baseChroma = 0.19
 )
 
-// accentShift turns colors of Mizan's accent family into those of another
+// accentShift turns colors of Ryugo's accent family into those of another
 // accent: it rotates their hue by the difference between the two hues and
 // scales their chroma by the ratio of the two chromas.
 type accentShift struct{ dh, k float64 }

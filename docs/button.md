@@ -7,7 +7,7 @@ the frame it happened.
 <!-- preview button 190 -->
 
 ```go
-if mizan.Button(c.Key("export"), "Export", mizan.ButtonOptions{Color: t.Colors.Accent, Variant: mizan.Solid}).Clicked() {
+if ryugo.Button(c.Key("export"), "Export", ryugo.ButtonOptions{Color: t.Colors.Accent, Variant: ryugo.Solid}).Clicked() {
 	app.export()
 }
 ```

@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import (
 	"time"
@@ -108,7 +108,7 @@ func (d *dockView) content(n *Node, a ui.Element, in float32, corners bool) {
 	})
 }
 
-// headerButton is a button in an area's header: Mizan's raised pill, as
+// headerButton is a button in an area's header: Ryugo's raised pill, as
 // Button's, small (a circle with an icon alone).
 func (d *dockView) headerButton(b ui.Element) ui.Element {
 	t := d.t

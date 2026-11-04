@@ -8,8 +8,8 @@ times, each smaller: press Check form.
 <!-- preview field 270 -->
 
 ```go
-mizan.Field(c, mizan.FieldOptions{Label: "Email", Error: app.emailErr, Required: true, Shake: app.checks}, func() {
-	mizan.Input(c.Key("email"), &app.email, mizan.InputOptions{Label: "Email", Invalid: app.emailErr != ""})
+ryugo.Field(c, ryugo.FieldOptions{Label: "Email", Error: app.emailErr, Required: true, Shake: app.checks}, func() {
+	ryugo.Input(c.Key("email"), &app.email, ryugo.InputOptions{Label: "Email", Invalid: app.emailErr != ""})
 })
 ```
 

@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import (
 	"slices"
@@ -32,7 +32,7 @@ type DockOptions struct {
 	// Host connects the Dock to the windows of the app: given one, a tab
 	// dragged out of the window tears off into a window of its own, or
 	// docks into another window of the layout it is let go over, and the
-	// layout's windows open and close with it. mizan/dockwin makes one of
+	// layout's windows open and close with it. ryu-go/dockwin makes one of
 	// MyGo's windows.
 	Host DockHost
 }
@@ -154,8 +154,8 @@ type dockState struct {
 // size: Fill it, or Grow it in its parent. Experimental: what it is for
 // isn't settled, and its API may change or go.
 //
-//	mizan.Dock(c.Key("work"), app.layout, mizan.DockOptions{
-//		Kinds:    map[string]func(*ui.Context, *mizan.Pane){"files": app.files, "editor": app.editor},
+//	ryugo.Dock(c.Key("work"), app.layout, ryugo.DockOptions{
+//		Kinds:    map[string]func(*ui.Context, *ryugo.Pane){"files": app.files, "editor": app.editor},
 //		OnChange: app.saveLayout,
 //	}).Fill()
 func Dock(c *ui.Context, l *Layout, o DockOptions) ui.Element {

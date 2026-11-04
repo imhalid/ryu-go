@@ -28,7 +28,7 @@ jobs:
           GOOS=windows go build ./...
           GOOS=js GOARCH=wasm go build ./...
       - name: Snapshots
-        run: mkdir -p snapshots && MIZAN_SNAPSHOTS=$PWD/snapshots go test -count=1 -run 'Snapshot|SelectOpen' ./gallery/
+        run: mkdir -p snapshots && RYUGO_SNAPSHOTS=$PWD/snapshots go test -count=1 -run 'Snapshot|SelectOpen' ./gallery/
       - uses: actions/upload-artifact@v4
         with:
           name: snapshots

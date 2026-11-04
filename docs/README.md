@@ -1,21 +1,21 @@
-# Mizan
+# Ryugo
 
-Mizan is a design system with weight: controls lit from above, wells
-pressed into the surface, cards that lift, lean and land, checks that draw
-themselves. This is its native edition: components for [MyGo](https://mygo.egoist.dev/docs/ui)'s native UI
-(package `ui`), drawn by MyGo itself on macOS, Linux, Windows and in the
-browser, in pure Go without cgo. Every preview on this site is the real
-component, compiled to WebAssembly: click, type and drag in it.
+Ryugo is a design system with weight: controls lit from above, wells pressed
+into the surface, cards that lift, lean and land, checks that draw
+themselves. Its components are for [MyGo](https://mygo.egoist.dev/docs/ui)'s
+native UI (package `ui`), drawn by MyGo itself on macOS, Linux, Windows and
+in the browser, in pure Go without cgo. Every preview on this site is the
+real component, compiled to WebAssembly: click, type and drag in it.
 
-It ports Mizan's visual language, not its web code: the same OKLCH tokens,
-the same two surfaces (a raised control that takes the light from above, an
-inset well you type into), the same size steps and type scale. Behavior
-(focus, keyboard, accessibility) comes from MyGo's unstyled `…Base` widgets;
-Mizan gives them the look.
+Everything stands on two surfaces: a raised control that takes the light
+from above, and an inset well you type into, with tokens written in OKLCH,
+three size steps and one type scale. Behavior (focus, keyboard,
+accessibility) comes from MyGo's unstyled `…Base` widgets; Ryugo gives them
+the look.
 
 ## Install
 
-Coming soon: Mizan's package isn't published yet. Its first release will
+Coming soon: Ryugo's package isn't published yet. Its first release will
 say here how to add it to an app.
 
 ## Use
@@ -27,20 +27,20 @@ goes:
 ```go
 import (
 	"github.com/egoist/mygo/ui"
-	mizan "github.com/imhalid/mizan-go"
+	ryugo "github.com/imhalid/ryu-go"
 )
 
 func (a *app) view(c *ui.Context) {
-	t := mizan.Root(c, mizan.Options{})
-	mizan.Card(c, mizan.CardOptions{Title: "Report", Pad: true}, func() {
-		mizan.Field(c, mizan.FieldOptions{Label: "Search"}, func() {
-			mizan.Input(c.Key("q"), &a.query, mizan.InputOptions{Label: "Search", Clearable: true})
+	t := ryugo.Root(c, ryugo.Options{})
+	ryugo.Card(c, ryugo.CardOptions{Title: "Report", Pad: true}, func() {
+		ryugo.Field(c, ryugo.FieldOptions{Label: "Search"}, func() {
+			ryugo.Input(c.Key("q"), &a.query, ryugo.InputOptions{Label: "Search", Clearable: true})
 		})
-		if mizan.Button(c.Key("go"), "Apply", mizan.ButtonOptions{Color: t.Colors.Accent, Variant: mizan.Solid}).Clicked() {
+		if ryugo.Button(c.Key("go"), "Apply", ryugo.ButtonOptions{Color: t.Colors.Accent, Variant: ryugo.Solid}).Clicked() {
 			a.apply()
 		}
 	})
-	mizan.Toaster(c)
+	ryugo.Toaster(c)
 }
 ```
 

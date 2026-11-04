@@ -8,8 +8,8 @@ and faster.
 <!-- preview number-input 230 -->
 
 ```go
-mizan.Field(c, mizan.FieldOptions{Label: "Price", Error: app.priceErr}, func() {
-	mizan.NumberInput(c.Key("price"), &app.price, mizan.NumberInputOptions{Label: "Price", Min: 0, Max: 1000, Step: 0.5, Prefix: "$", Error: &app.priceErr})
+ryugo.Field(c, ryugo.FieldOptions{Label: "Price", Error: app.priceErr}, func() {
+	ryugo.NumberInput(c.Key("price"), &app.price, ryugo.NumberInputOptions{Label: "Price", Min: 0, Max: 1000, Step: 0.5, Prefix: "$", Error: &app.priceErr})
 })
 ```
 

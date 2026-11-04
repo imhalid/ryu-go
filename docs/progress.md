@@ -9,8 +9,8 @@ it does.
 <!-- preview progress 160 -->
 
 ```go
-mizan.Progress(c, app.uploaded, mizan.ProgressOptions{Label: "Uploading Q3-report.pdf", ShowValue: true})
-mizan.Progress(c, -1, mizan.ProgressOptions{Label: "Syncing contacts", Size: mizan.Sm})
+ryugo.Progress(c, app.uploaded, ryugo.ProgressOptions{Label: "Uploading Q3-report.pdf", ShowValue: true})
+ryugo.Progress(c, -1, ryugo.ProgressOptions{Label: "Syncing contacts", Size: ryugo.Sm})
 ```
 
 `Label` stands above the bar and names it to assistive technology,

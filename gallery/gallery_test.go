@@ -8,22 +8,22 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	mz "github.com/imhalid/mizan-go"
+	mz "github.com/imhalid/ryu-go"
 )
 
-// TestSnapshots draws the showcase's four variants into the MIZAN_SNAPSHOTS
+// TestSnapshots draws the showcase's four variants into the RYUGO_SNAPSHOTS
 // directory: light and dark. For visual comparison.
 func TestSnapshots(t *testing.T) {
-	dir := os.Getenv("MIZAN_SNAPSHOTS")
+	dir := os.Getenv("RYUGO_SNAPSHOTS")
 	if dir == "" {
-		t.Skip("MIZAN_SNAPSHOTS not set")
+		t.Skip("RYUGO_SNAPSHOTS not set")
 	}
 	for _, v := range []struct {
 		name string
 		mode mz.Mode
 	}{
-		{"light-mizan", mz.Light},
-		{"dark-mizan", mz.Dark},
+		{"light-ryugo", mz.Light},
+		{"dark-ryugo", mz.Dark},
 	} {
 		s := New()
 		s.Mode = v.mode
@@ -41,9 +41,9 @@ func TestSnapshots(t *testing.T) {
 
 // TestSelectOpen draws an open Select list.
 func TestSelectOpen(t *testing.T) {
-	dir := os.Getenv("MIZAN_SNAPSHOTS")
+	dir := os.Getenv("RYUGO_SNAPSHOTS")
 	if dir == "" {
-		t.Skip("MIZAN_SNAPSHOTS not set")
+		t.Skip("RYUGO_SNAPSHOTS not set")
 	}
 	for _, mode := range []mz.Mode{mz.Light, mz.Dark} {
 		s := New()
@@ -76,16 +76,16 @@ func page2(t *testing.T, mode mz.Mode) (*State, *ui.Tester) {
 // TestPage2Snapshots draws the second page (chat, drag and drop, indicators)
 // in four variants.
 func TestPage2Snapshots(t *testing.T) {
-	dir := os.Getenv("MIZAN_SNAPSHOTS")
+	dir := os.Getenv("RYUGO_SNAPSHOTS")
 	if dir == "" {
-		t.Skip("MIZAN_SNAPSHOTS not set")
+		t.Skip("RYUGO_SNAPSHOTS not set")
 	}
 	for _, v := range []struct {
 		name string
 		mode mz.Mode
 	}{
-		{"more-light-mizan", mz.Light},
-		{"more-dark-mizan", mz.Dark},
+		{"more-light-ryugo", mz.Light},
+		{"more-dark-ryugo", mz.Dark},
 	} {
 		_, tt := page2(t, v.mode)
 		tt.Advance(400 * time.Millisecond)
@@ -226,9 +226,9 @@ func TestComposerSend(t *testing.T) {
 
 // TestDragOverSnapshot draws a card held over the "Done" column.
 func TestDragOverSnapshot(t *testing.T) {
-	dir := os.Getenv("MIZAN_SNAPSHOTS")
+	dir := os.Getenv("RYUGO_SNAPSHOTS")
 	if dir == "" {
-		t.Skip("MIZAN_SNAPSHOTS not set")
+		t.Skip("RYUGO_SNAPSHOTS not set")
 	}
 	_, tt := page2(t, mz.Light)
 	ax, ay := center(t, tt, "Sign-in screen")
@@ -290,9 +290,9 @@ func TestChoices(t *testing.T) {
 
 // TestAccentSnapshots draws the first page with brand accents.
 func TestAccentSnapshots(t *testing.T) {
-	dir := os.Getenv("MIZAN_SNAPSHOTS")
+	dir := os.Getenv("RYUGO_SNAPSHOTS")
 	if dir == "" {
-		t.Skip("MIZAN_SNAPSHOTS not set")
+		t.Skip("RYUGO_SNAPSHOTS not set")
 	}
 	for _, v := range []struct {
 		name string
@@ -474,9 +474,9 @@ func TestTooltip(t *testing.T) {
 
 // TestLayerSnapshots draws the layers open.
 func TestLayerSnapshots(t *testing.T) {
-	dir := os.Getenv("MIZAN_SNAPSHOTS")
+	dir := os.Getenv("RYUGO_SNAPSHOTS")
 	if dir == "" {
-		t.Skip("MIZAN_SNAPSHOTS not set")
+		t.Skip("RYUGO_SNAPSHOTS not set")
 	}
 	save := func(tt *ui.Tester, name string) {
 		f, err := os.Create(filepath.Join(dir, name+".png"))
@@ -559,9 +559,9 @@ func TestDialogDrag(t *testing.T) {
 // TestPolishSnapshots draws a scrolled dialog's faded edges, a dialog
 // being dragged, and the glass of a menu over the page.
 func TestPolishSnapshots(t *testing.T) {
-	dir := os.Getenv("MIZAN_SNAPSHOTS")
+	dir := os.Getenv("RYUGO_SNAPSHOTS")
 	if dir == "" {
-		t.Skip("MIZAN_SNAPSHOTS not set")
+		t.Skip("RYUGO_SNAPSHOTS not set")
 	}
 	save := func(tt *ui.Tester, name string) {
 		f, _ := os.Create(filepath.Join(dir, name+".png"))

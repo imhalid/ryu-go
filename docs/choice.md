@@ -9,8 +9,8 @@ the raised skin, standing out with its shadow and border.
 ```go
 ui.RadioGroup(c, func() {
 	ui.Row(c).Gap(8).Children(func() {
-		mizan.Choice(c.Key("free"), &app.tier, "free", "Free", "3 projects", mizan.CheckOptions{})
-		mizan.Choice(c.Key("pro"), &app.tier, "pro", "Pro", "Unlimited projects", mizan.CheckOptions{})
+		ryugo.Choice(c.Key("free"), &app.tier, "free", "Free", "3 projects", ryugo.CheckOptions{})
+		ryugo.Choice(c.Key("pro"), &app.tier, "pro", "Pro", "Unlimited projects", ryugo.CheckOptions{})
 	})
 }).Label("Plan")
 ```

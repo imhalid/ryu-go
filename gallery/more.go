@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	mz "github.com/imhalid/mizan-go"
+	mz "github.com/imhalid/ryu-go"
 )
 
 var inbox = mz.Svg(16, 18, "M1.5 9.5h3.5l1 2h4l1-2h3.5M3.5 3.5h9l2 6v3a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-3z")

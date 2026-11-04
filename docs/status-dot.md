@@ -6,9 +6,9 @@ A dot of a state and its text. A live dot spreads outward and fades every
 <!-- preview status-dot 90 -->
 
 ```go
-mizan.StatusDot(c, mizan.DotLive, "Live")
-mizan.StatusDot(c, mizan.DotDelayed, "Delayed")
-mizan.StatusDot(c, mizan.DotOff, "Offline")
+ryugo.StatusDot(c, ryugo.DotLive, "Live")
+ryugo.StatusDot(c, ryugo.DotDelayed, "Delayed")
+ryugo.StatusDot(c, ryugo.DotOff, "Offline")
 ```
 
 A [table](table.md)'s `KindStatus` column shows one in each cell.

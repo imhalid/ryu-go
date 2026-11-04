@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import (
 	"slices"
@@ -96,11 +96,11 @@ func presence(c *ui.Context, open *bool, enter, exit ui.Animation, build func(ba
 // false, which the returned panel's Dismissed reports. It returns the
 // panel, or an empty element while closed.
 //
-//	mizan.Dialog(c.Key("delete"), &app.confirm, mizan.DialogOptions{
+//	ryugo.Dialog(c.Key("delete"), &app.confirm, ryugo.DialogOptions{
 //		Title: "Delete the report?",
 //		Footer: func() {
-//			mizan.Button(c.Key("cancel"), "Cancel", mizan.ButtonOptions{})
-//			mizan.Button(c.Key("ok"), "Delete", mizan.ButtonOptions{Danger: true})
+//			ryugo.Button(c.Key("cancel"), "Cancel", ryugo.ButtonOptions{})
+//			ryugo.Button(c.Key("ok"), "Delete", ryugo.ButtonOptions{Danger: true})
 //		},
 //	}, func() { ui.Text(c, "This cannot be undone.") })
 func Dialog(c *ui.Context, open *bool, o DialogOptions, body func()) ui.Element {
@@ -305,11 +305,11 @@ func ghostButton(c *ui.Context, t *Tokens, icon *ui.SVG, label string, d float32
 // Select's list uses. A press outside it or Escape closes it. Build anchor
 // before it, in the same frame.
 //
-//	b := mizan.Button(c.Key("filter"), "Filter", mizan.ButtonOptions{})
+//	b := ryugo.Button(c.Key("filter"), "Filter", ryugo.ButtonOptions{})
 //	if b.Clicked() {
 //		app.filtering = !app.filtering
 //	}
-//	mizan.Popover(c.Key("filters"), b, &app.filtering, func() { ... })
+//	ryugo.Popover(c.Key("filters"), b, &app.filtering, func() { ... })
 func Popover(c *ui.Context, anchor ui.Element, open *bool, body func()) ui.Element {
 	t := From(c)
 	return ui.PopoverBase(c, anchor, open, func(panel ui.Element) {
@@ -410,12 +410,12 @@ const menuMaxH = 440
 // arrows move between the items, Enter or a click chooses one, Escape or
 // a press outside closes it.
 //
-//	mizan.Menu(c.Key("more"), b, &app.menu, func(m *mizan.MenuList) {
-//		if m.Item("Rename", mizan.ItemOptions{Shortcut: "⌘R"}) {
+//	ryugo.Menu(c.Key("more"), b, &app.menu, func(m *ryugo.MenuList) {
+//		if m.Item("Rename", ryugo.ItemOptions{Shortcut: "⌘R"}) {
 //			app.rename()
 //		}
 //		m.Separator()
-//		if m.Item("Delete", mizan.ItemOptions{Danger: true}) {
+//		if m.Item("Delete", ryugo.ItemOptions{Danger: true}) {
 //			app.delete()
 //		}
 //	})
@@ -455,9 +455,9 @@ func MenuButton(c *ui.Context, label string, o ButtonOptions, build func(m *Menu
 func Tooltip(c *ui.Context, anchor ui.Element, text string) ui.Element {
 	t := From(c)
 	now := c.Now()
-	trail := ui.Local(c.Root(), "mizan-tip", func() *tipTrail { return &tipTrail{} })
+	trail := ui.Local(c.Root(), "ryugo-tip", func() *tipTrail { return &tipTrail{} })
 	tr := *trail
-	me := ui.Local(anchor, "mizan-tip", func() tipOwn { return tipOwn{} })
+	me := ui.Local(anchor, "ryugo-tip", func() tipOwn { return tipOwn{} })
 	if anchor.Pressed() && now.Sub(me.seen) < tipLinger {
 		// a press hides it, as MyGo's does: at once, without lingering
 		me.seen = now.Add(-tipLinger)
@@ -615,7 +615,7 @@ const (
 // Toast types: the tone of the toast's mark and of the tint in its corner.
 // Show a toast with MyGo's Context.AddToast, giving Type one of these.
 //
-//	c.AddToast(ui.Toast{Title: "Saved", Type: mizan.ToastSuccess})
+//	c.AddToast(ui.Toast{Title: "Saved", Type: ryugo.ToastSuccess})
 //
 // A ToastLoading toast shows a spinner in place of its mark; give it a
 // Timeout of -1 and, when the work is done, add a toast of the same ID and
@@ -632,7 +632,7 @@ const (
 // glass with the pop shadow, a tint of their tone in the top left corner, a
 // dot of the tone (a spinner while loading), the title and description, an
 // action and a close button. As one arrives it rises from below the
-// stack, growing to its size, and Mizan's border beam lights its border
+// stack, growing to its size, and Ryugo's border beam lights its border
 // in its tone, two lights running half way round from opposite sides. The newest is in front, at the bottom, with the older ones
 // tucked behind it until the pointer comes onto them (see stack). A toast
 // swiped to the end side goes, flung on with the swipe; let go short of
@@ -689,7 +689,7 @@ func (t *Tokens) toast(c *ui.Context, p ui.ToastParts, tt ui.Toast, shown bool) 
 	r.Radius(t.R(RadiusPop)).Material(glass.Blur{Radius: 20}).Draw(func(pt *ui.Painter, b ui.Rect) {
 		if beaming {
 			// the beam's glow under the glass: only what spills past its
-			// edge shows, as behind Mizan's opaque cards
+			// edge shows, as behind Ryugo's opaque cards
 			for _, w := range []float32{18, 11, 5} {
 				pt.StrokePathConicGradient(roundBorder(b, t.R(RadiusPop)), w, halo)
 			}
@@ -789,7 +789,7 @@ func (t *Tokens) swipe(c *ui.Context, r ui.Element, id string) (float32, bool) {
 	return x, false
 }
 
-// beam is Mizan's border beam, run once as a toast arrives (f from 0 to
+// beam is Ryugo's border beam, run once as a toast arrives (f from 0 to
 // 1), as two lights: one rises by the toast's dot, at the middle of its
 // start edge, and runs along the top to the end edge; the other rises
 // opposite it and runs along the bottom to the start edge. Each goes half

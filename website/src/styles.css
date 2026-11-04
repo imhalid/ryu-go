@@ -40,7 +40,7 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Neutral, with one accent: Mizan's blue (tokens.go, Accent). */
+/* Neutral, with one accent: Ryugo's blue (tokens.go, Accent). */
 :root {
   --brand: oklch(0.62 0.2 256);
   --brand-ink: oklch(0.56 0.19 256);

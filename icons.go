@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 // at every size.
 const IconStroke = 1.6
 
-// Svg is Mizan's line icon: no fill, a stroke in the text color, round caps.
+// Svg is Ryugo's line icon: no fill, a stroke in the text color, round caps.
 // The viewBox is 0 0 box box; size is the on-screen width.
 func Svg(box, size float32, paths ...string) *ui.SVG {
 	src := fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %g %g" width="%g" height="%g" fill="none" stroke="currentColor" stroke-width="%g" stroke-linecap="round" stroke-linejoin="round">`,

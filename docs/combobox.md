@@ -9,8 +9,8 @@ choice as the field loses the focus.
 <!-- preview combobox 340 -->
 
 ```go
-mizan.Combobox(c.Key("owner"), &app.owner, people, mizan.ComboboxOptions{Label: "Assignee", Placeholder: "Assign to…"})
+ryugo.Combobox(c.Key("owner"), &app.owner, people, ryugo.ComboboxOptions{Label: "Assignee", Placeholder: "Assign to…"})
 ```
 
-Its options are a [Select](select.md)'s, `[]mizan.Option[T]`, with their
+Its options are a [Select](select.md)'s, `[]ryugo.Option[T]`, with their
 descriptions, dots and disabled ones. It returns the text input.

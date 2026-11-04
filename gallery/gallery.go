@@ -1,4 +1,4 @@
-// Package gallery is the showcase of Mizan's components: each component in
+// Package gallery is the showcase of Ryugo's components: each component in
 // every size, side by side in both themes and both materials.
 package gallery
 
@@ -6,13 +6,13 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	mz "github.com/imhalid/mizan-go"
+	mz "github.com/imhalid/ryu-go"
 )
 
 // State is the state of the showcase.
 type State struct {
 	Mode mz.Mode
-	// Accent is the brand color picked in the header, zero for Mizan's blue.
+	// Accent is the brand color picked in the header, zero for Ryugo's blue.
 	Accent ui.Color
 	// Density and Round are the size step and the corners picked in the
 	// header: 0 small, 1 medium, 2 large.
@@ -116,7 +116,7 @@ func (s *State) page(c *ui.Context, t *mz.Tokens) {
 	ui.Column(c).FillWidth().Padding(mz.Gutter-8, mz.Gutter).Gap(mz.GapSection).Children(func() {
 		ui.Row(c).AlignItems(ui.End).Justify(ui.SpaceBetween).Gap(16).Children(func() {
 			ui.Column(c).Gap(4).Children(func() {
-				mz.Text(c, "Mizan", mz.TDisplay)
+				mz.Text(c, "Ryugo", mz.TDisplay)
 				mz.Text(c, "Native components you can feel.", mz.TLede).TextColor(t.Colors.Muted)
 			})
 			// the pages, and under them how the page looks: the accent, the
@@ -285,7 +285,7 @@ func itoa(n int) string {
 	return string(b)
 }
 
-// accents are the brand colors the header offers, Mizan's blue first.
+// accents are the brand colors the header offers, Ryugo's blue first.
 var accents = []struct {
 	Name  string
 	Color ui.Color
