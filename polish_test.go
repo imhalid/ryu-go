@@ -115,3 +115,48 @@ func TestChatLatest(t *testing.T) {
 		t.Fatalf("the new message is at %v, out of view", r.Y)
 	}
 }
+
+// A tooltip lingers a moment after the pointer leaves, then goes; run
+// along a row of buttons, one always shows, never none in between.
+func TestTooltipLingers(t *testing.T) {
+	tt := ui.NewTester(func(c *ui.Context) {
+		Root(c, Options{})
+		ui.Row(c).Padding(80, 40).Gap(4).Children(func() {
+			for _, n := range []string{"One", "Two"} {
+				b := Button(c.Key(n), n, ButtonOptions{})
+				Tooltip(c.Key(n+" tip"), b, n+" tip")
+			}
+		})
+	}, 600, 300)
+	tt.Advance(100 * time.Millisecond)
+	one, _ := tt.Find("One")
+	two, _ := tt.Find("Two")
+	y := one.Y + one.H/2
+	tt.Move(one.X+one.W/2, y)
+	tt.Advance(time.Second)
+	if !tt.HasText("One tip") {
+		t.Fatal("no tooltip on One")
+	}
+	// across the gap to Two, a frame at a time
+	for x := one.X + one.W/2; x <= two.X+two.W/2; x += 2 {
+		tt.Move(x, y)
+		tt.Advance(16 * time.Millisecond)
+		if !tt.HasText("One tip") && !tt.HasText("Two tip") {
+			t.Fatalf("no tooltip at x %v", x)
+		}
+	}
+	tt.Advance(300 * time.Millisecond)
+	if !tt.HasText("Two tip") {
+		t.Fatal("no tooltip on Two")
+	}
+	// away: it stays a moment, then goes
+	tt.Move(two.X+two.W/2, 250)
+	tt.Advance(200 * time.Millisecond)
+	if !tt.HasText("Two tip") {
+		t.Fatal("the tooltip went at once")
+	}
+	tt.Advance(600 * time.Millisecond)
+	if tt.HasText("Two tip") {
+		t.Fatal("the tooltip stayed")
+	}
+}
