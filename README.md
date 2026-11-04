@@ -1,7 +1,8 @@
 # Mizan for MyGo
 
-Mizan is a design system for calm, data-dense interfaces. This is its
-native edition: components for [MyGo](https://github.com/egoist/mygo)'s
+Mizan is a design system with weight: controls lit from above, wells
+pressed into the surface, cards that lift, lean and land, checks that draw
+themselves. This is its native edition: components for [MyGo](https://github.com/egoist/mygo)'s
 native UI (package `ui`), drawn by MyGo itself on macOS, Linux, Windows and
 in the browser, in pure Go without cgo.
 
@@ -180,6 +181,10 @@ go test ./...         # interaction tests through ui.Tester
 go test -short ./...  # skips the tests that draw glass on the CPU
 MIZAN_SNAPSHOTS=/tmp/mizan go test -run 'Snapshot|SelectOpen' ./gallery/   # PNGs of every page
 ```
+
+The website, with a page and a live preview of every component, is in
+[website](website) (its pages in [docs](docs)): `bun install && bun run dev`
+there.
 
 Everything builds with `CGO_ENABLED=0` for Linux, macOS, Windows and
 `js/wasm`. CI runs all of it and keeps the snapshots as an artifact.
