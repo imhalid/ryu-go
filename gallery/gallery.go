@@ -117,7 +117,7 @@ func (s *State) page(c *ui.Context, t *mz.Tokens) {
 		ui.Row(c).AlignItems(ui.End).Justify(ui.SpaceBetween).Gap(16).Children(func() {
 			ui.Column(c).Gap(4).Children(func() {
 				mz.Text(c, "Mizan", mz.TDisplay)
-				mz.Text(c, "Native components for calm, data-dense interfaces.", mz.TLede).TextColor(t.Colors.Muted)
+				mz.Text(c, "Native components you can feel.", mz.TLede).TextColor(t.Colors.Muted)
 			})
 			// the pages, and under them how the page looks: the accent, the
 			// size step, the corners and the theme
