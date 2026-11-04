@@ -34,6 +34,8 @@ type DockWindow struct {
 	Width  int    `json:"width,omitempty"`
 	Height int    `json:"height,omitempty"`
 	Root   *Node  `json:"root"`
+	// Max is the area maximized over the window, if one is.
+	Max string `json:"max,omitempty"`
 }
 
 // DockDir is the direction a split lays its children out in.

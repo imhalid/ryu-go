@@ -58,17 +58,17 @@ func (w *workspacePage) view(c *ui.Context, t *mz.Tokens) {
 				}
 			})
 			ui.Box(c).FillWidth().Height(560).Children(func() {
-				mz.Dock(c.Key("dock"), w.Layout, mz.DockOptions{Kinds: map[string]func(*ui.Context, *mz.Pane){
-					"files":   lines(cl, []string{"cmd/", "docs/", "gallery/", "accent.go", "controls.go", "dock.go", "dock_layout.go", "forms.go", "table.go", "tokens.go"}),
-					"editor":  code(cl),
-					"console": lines(cl, []string{"$ go test ./...", "ok   github.com/imhalid/mizan-go   0.4s", "ok   github.com/imhalid/mizan-go/gallery   61.2s", "$ go vet ./...", "$"}),
-					"outline": lines(cl, []string{"Layout", "DockWindow", "Node", "Pane", "Dock", "dockView.node", "dockView.edge", "dockView.lined", "dockView.move"}),
-					"props": func(c *ui.Context, p *mz.Pane) {
+				mz.Dock(c.Key("dock"), w.Layout, mz.DockOptions{Kinds: []mz.DockKind{
+					{Kind: "files", Title: "Files", Build: lines(cl, []string{"cmd/", "docs/", "gallery/", "accent.go", "controls.go", "dock.go", "dock_layout.go", "forms.go", "table.go", "tokens.go"})},
+					{Kind: "editor", Title: "Editor", Build: code(cl)},
+					{Kind: "console", Title: "Console", Build: lines(cl, []string{"$ go test ./...", "ok   github.com/imhalid/mizan-go   0.4s", "ok   github.com/imhalid/mizan-go/gallery   61.2s", "$ go vet ./...", "$"})},
+					{Kind: "outline", Title: "Outline", Build: lines(cl, []string{"Layout", "DockWindow", "Node", "Pane", "Dock", "dockView.node", "dockView.edge", "dockView.lined", "dockView.move"})},
+					{Kind: "props", Title: "Properties", Build: func(c *ui.Context, p *mz.Pane) {
 						ui.Column(c).Padding(12).Gap(10).Children(func() {
 							mz.Slider(c.Key("vol"), &w.Volume, 0, 100, mz.SliderOptions{Label: "Opacity"})
 							mz.Switch(c.Key("snap"), new(bool), mz.SwitchOptions{Label: "Snap"})
 						})
-					},
+					}},
 				}}).Fill()
 			})
 		})

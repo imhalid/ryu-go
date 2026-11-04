@@ -17,14 +17,33 @@ import (
 type DockOptions struct {
 	// Window is the window of the layout shown: "main" when empty.
 	Window string
-	// Kinds build the panes, by Pane.Kind. A kind it doesn't know shows
-	// the pane's title alone, and stays in the layout.
-	Kinds map[string]func(c *ui.Context, p *Pane)
+	// Kinds are what an area can show, in the order of its header's menu;
+	// they build the panes, by Pane.Kind. A kind it doesn't know shows the
+	// pane's title alone, and stays in the layout.
+	Kinds []DockKind
 	// OnChange runs when the user changed the layout (an edge let go, sizes
 	// shared out): the moment to save it.
 	OnChange func()
 	// MinSize is the least an area shrinks to, in DIPs: 96 by default.
 	MinSize float32
+}
+
+// DockKind is a kind of pane: what an area shows (a table, a chart, a
+// console…), named in the header's menu.
+type DockKind struct {
+	Kind  string // Pane.Kind
+	Title string // in the menu, and the title of a pane made of this kind
+	Build func(c *ui.Context, p *Pane)
+}
+
+// kind returns the kind named k, nil when there is none.
+func (o *DockOptions) kind(k string) *DockKind {
+	for i := range o.Kinds {
+		if o.Kinds[i].Kind == k {
+			return &o.Kinds[i]
+		}
+	}
+	return nil
 }
 
 // dockGap is the width of an edge between two areas.
@@ -60,6 +79,11 @@ type dockState struct {
 	guide  dockGuide
 	fold   *dockFold
 	born   map[string]bool // areas a split made, to fade in
+
+	maxLast string // the area last maximized: it shrinks back after Max is cleared
+	focused string // the area holding the keyboard focus in this frame
+	hovered string // the area under the pointer in this frame
+	focusTo string // the area to give the focus to in this frame
 }
 
 // Dock shows window o.Window of l, its areas built by o.Kinds. Give it a
@@ -80,9 +104,22 @@ func Dock(c *ui.Context, l *Layout, o DockOptions) ui.Element {
 	last := slices.Clone(st.edges)
 	st.edges = st.edges[:0]
 	st.areas, st.room = map[string]ui.Rect{}, map[string]float32{}
-	d := &dockView{t: t, c: c, l: l, o: o, st: st, root: root}
+	st.focused, st.hovered = "", ""
+	d := &dockView{t: t, c: c, l: l, o: o, st: st, root: root, w: w}
 	if d.o.MinSize <= 0 {
 		d.o.MinSize = 96
+	}
+	// maximized, an area grows over the window; brought back, the same area
+	// shrinks to its place
+	if w.Max != "" && l.Find(w.Max) == nil {
+		w.Max = ""
+	}
+	if w.Max != "" {
+		st.maxLast = w.Max
+	}
+	d.max = root.AnimateTo("max", b2f(w.Max != ""), springOpen)
+	if st.maxLast != "" && d.max > 0.001 && l.Find(st.maxLast) != nil {
+		d.maxed = st.maxLast
 	}
 	if f := st.fold; f != nil && f.done {
 		// a join folded away: the layout changes as the frame starts, so that
@@ -97,8 +134,12 @@ func Dock(c *ui.Context, l *Layout, o DockOptions) ui.Element {
 		for _, x := range d.crossings() {
 			d.cross(x)
 		}
+		if d.maxed != "" {
+			d.maximized()
+		}
 		d.guide()
 	})
+	d.keys()
 	if k := st.corner; k != nil {
 		before := st.guide
 		if k.let {
@@ -142,7 +183,10 @@ type dockView struct {
 	o     DockOptions
 	st    *dockState
 	root  ui.Element
+	w     *DockWindow
 	hover []dockEdge // the edges under the pointer in this frame
+	max   float32    // how far the area maximized has grown over the window
+	maxed string     // the area shown maximized, growing or shrinking
 }
 
 // node builds n: an area, or a split of its children and the edges
@@ -234,47 +278,6 @@ func (d *dockView) held(n *Node) bool {
 	return false
 }
 
-// area builds area n: the card surface, the shown pane's title over its
-// content.
-func (d *dockView) area(n *Node) ui.Element {
-	c, t := d.c, d.t
-	cl := t.Colors
-	a := ui.Column(c.Key(n.ID)).MinWidth(0).MinHeight(0).Radius(t.R(RadiusControl)).Background(cl.Card).Clip().
-		DrawOver(func(p *ui.Painter, r ui.Rect) { p.Stroke(r, cl.Hairline, t.R(RadiusControl), 1) })
-	d.st.areas[n.ID] = a.LayoutBounds()
-	if f := d.st.fold; f != nil && f.gone == n.ID {
-		d.folding(a)
-	}
-	// an area a split made: its surface was there, the area's it came out
-	// of; what it shows fades in
-	if d.st.born[n.ID] {
-		delete(d.st.born, n.ID)
-		a.Jump("in", 0)
-	}
-	in := a.AnimateTo("in", 1, ui.Animation{Duration: 240 * time.Millisecond, Ease: ui.EaseOut})
-	a.Children(func() {
-		defer func() {
-			for k := range 4 {
-				d.corner(n, k)
-			}
-		}()
-		if len(n.Panes) == 0 {
-			return
-		}
-		p := n.Panes[min(n.Active, len(n.Panes)-1)]
-		ui.Row(c).Height(28).Padding(0, 12).AlignItems(ui.Center).Shrink(0).InsetShadow(0, -1, 0, 0, cl.Hairline.Alpha(in)).Opacity(in).Children(func() {
-			ui.Text(c, p.Title).FontSize(FsSm).FontWeight(500).TextColor(cl.Text2).SingleLine().Ellipsis("…")
-		})
-		body := ui.Column(c.Key(p.ID)).Grow(1).MinHeight(0).MinWidth(0).Opacity(in)
-		body.Children(func() {
-			if build := d.o.Kinds[p.Kind]; build != nil {
-				build(c, p)
-			}
-		})
-	})
-	return a
-}
-
 // edge builds the edge between children i and i+1 of split n: dragged,
 // it moves, and every edge lined up with it moves along (with Option held,
 // it goes alone); a double click shares the split's room out equally. A
@@ -330,7 +333,7 @@ func (d *dockView) handle(e ui.Element, by any, seeds []dockEdge) {
 	dx, dy, pressed := e.Dragged()
 	mine := st.drag != nil && st.drag.by == by
 	switch {
-	case pressed && st.drag == nil && st.corner == nil && st.fold == nil:
+	case pressed && st.drag == nil && st.corner == nil && st.fold == nil && d.maxed == "":
 		// the edges lined up are found once the frame built them all
 		alone := d.c.Modifiers()&ui.Alt != 0
 		st.drag = &dockDrag{by: by, seeds: seeds, edges: seeds, alone: alone, finding: true}

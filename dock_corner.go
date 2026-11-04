@@ -16,8 +16,8 @@ import (
 // as it folds away.
 
 // cornerSize is the side of the square in an area's corner that takes the
-// pointer.
-const cornerSize = 14
+// pointer: small, as the header's buttons sit near it.
+const cornerSize = 10
 
 // springGuide moves the split line onto a lined-up edge, and grows it.
 var springGuide = ui.Animation{Spring: ui.SpringOptions{Duration: 200 * time.Millisecond, Bounce: 0.1}}
@@ -97,7 +97,7 @@ func (d *dockView) corner(n *Node, k int) {
 		return ui.Point{X: b.X + px, Y: b.Y + py}
 	}
 	switch {
-	case pressed && st.corner == nil && st.drag == nil && st.fold == nil:
+	case pressed && st.corner == nil && st.drag == nil && st.fold == nil && d.maxed == "":
 		p := at()
 		st.corner = &dockCorner{by: key, area: n.ID, left: left, top: top, start: p, p: p}
 		mine = true

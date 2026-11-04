@@ -96,9 +96,17 @@ Done when: splitting and joining feel like Blender's, measured frame by frame an
 
 ### 3. Headers and maximize
 
-- [ ] An area's header with the kind menu (the app's kinds), and the pane's title.
-- [ ] Ctrl+Space maximizes the area over the window and back, with a growth from where it was.
-- [ ] Keyboard: moving the focus between areas.
+- [x] An area's header with the kind menu (the app's kinds), and the pane's title.
+- [x] Ctrl+Space maximizes the area over the window and back, with a growth from where it was.
+- [x] Keyboard: moving the focus between areas.
+
+**Result (2026-11-04, `dock_area.go`):** measured frame by frame in the tester, light and dark; tried by the user in the real window.
+
+- **Kinds** are now `[]DockKind{Kind, Title, Build}`: the order is the menu's. The header shows the kind's title and a chevron (a menu of the kinds, the current one checked), then the pane's title when it differs, and at the end a maximize button that shows under the pointer. The header's buttons are quiet: a fill under the pointer, a 4% shrink when pressed, corners concentric with the area's. A kind chosen replaces the pane with a new one of it; Undo brings the old one back.
+- **Maximize:** `DockWindow.Max` (saved with the layout). The area keeps its place in the tree as a bare surface while its content shows in a copy over the window that grows from that place (`springOpen`), lifting with a shadow while it moves; brought back, it shrinks to the same place, then the content goes back into the tree. Ctrl+Space acts on the area under the pointer, else the one focused. **On macOS, Ctrl+Space is the system's input-source switch** by default and may never reach the app; the header's button always works.
+- **Focus:** an area takes the keyboard focus as a whole (a press in it that no control takes gives it the focus); its kind's title goes from Text2 to Text. Ctrl+Alt+arrows move the focus to the nearest area that way.
+- The corners' squares are 10px now, so that the header's buttons near them stay pressable.
+
 
 ### 4. Tabs and docking
 
