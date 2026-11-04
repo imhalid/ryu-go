@@ -1,8 +1,10 @@
 package gallery
 
 import (
+	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	mz "github.com/imhalid/mizan-go"
@@ -25,20 +27,70 @@ func (s *State) more(c *ui.Context, t *mz.Tokens) {
 }
 
 func (s *State) chat(c *ui.Context, t *mz.Tokens) {
-	mz.Card(c, mz.CardOptions{Title: "Chat", Subtitle: "Your messages in the solid material, theirs on the second surface.", Pad: true}, func() {
-		ui.Column(c).Gap(2).Children(func() {
-			mz.DaySeparator(c, "Today")
-			for i, m := range s.Msgs {
-				mz.Message(c.Key(i), m, mz.GroupOf(s.Msgs, i))
+	mz.Card(c, mz.CardOptions{Title: "Chat", Subtitle: "Your messages in the solid material, theirs on the second surface. Send one: it grows in from its corner, its check draws itself, and a reply grows out of the typing bubble.", Pad: true}, func() {
+		ui.Column(c).Gap(8).Children(func() {
+			s.converse(c)
+			typing := ""
+			if s.typing(c) {
+				typing = "Leo Park"
 			}
-			mz.Typing(c, "Leo Park", mz.AvatarOptions{})
-			ui.Box(c).Size(0, 6)
+			ui.Box(c).FillWidth().Height(380).Children(func() {
+				mz.Chat(c.Key("chat"), s.Msgs, mz.ChatOptions{Typing: typing, Separator: func(i int) string {
+					if i == 0 {
+						return "Today"
+					}
+					return ""
+				}}).Fill()
+			})
 			if mz.Composer(c.Key("composer"), &s.Draft, mz.ComposerOptions{Placeholder: "Type a message", Attach: func() {}}) {
-				s.Msgs = append(s.Msgs, mz.ChatMessage{Mine: true, Text: strings.TrimSpace(s.Draft), Time: "09:46", Status: mz.Sending})
+				s.sent++
+				s.Msgs = append(s.Msgs, mz.ChatMessage{ID: fmt.Sprint("mine-", s.sent), Mine: true, Text: strings.TrimSpace(s.Draft), Time: "09:46", Status: mz.Sending})
 				s.Draft = ""
+				s.sentAt = c.Now()
 			}
 		})
 	})
+}
+
+// The other side of the gallery's chat: a message sent is sent at 0.5 s,
+// Leo types from 0.9 s, and replies at 2.4 s, as the message is read.
+const (
+	chatSent  = 500 * time.Millisecond
+	chatType  = 900 * time.Millisecond
+	chatReply = 2400 * time.Millisecond
+)
+
+// converse plays the other side of the chat as time goes on.
+func (s *State) converse(c *ui.Context) {
+	if s.sentAt.IsZero() {
+		return
+	}
+	since := c.Now().Sub(s.sentAt)
+	last := &s.Msgs[len(s.Msgs)-1]
+	switch {
+	case since >= chatReply:
+		for i := range s.Msgs {
+			if s.Msgs[i].Mine {
+				s.Msgs[i].Status = mz.Read
+			}
+		}
+		s.Msgs = append(s.Msgs, mz.ChatMessage{ID: fmt.Sprint("leo-", s.sent), Author: "Leo Park", Text: "Got it, thanks!", Time: "09:46"})
+		s.sentAt = time.Time{}
+		return
+	case since >= chatSent && last.Mine && last.Status == mz.Sending:
+		last.Status = mz.Sent
+	}
+	for _, d := range []time.Duration{chatSent, chatType, chatReply} {
+		if since < d {
+			c.After(d - since)
+			break
+		}
+	}
+}
+
+// typing reports whether Leo is typing.
+func (s *State) typing(c *ui.Context) bool {
+	return !s.sentAt.IsZero() && c.Now().Sub(s.sentAt) >= chatType
 }
 
 func (s *State) indicators(c *ui.Context, t *mz.Tokens) {

@@ -1,6 +1,10 @@
 package mizan
 
-import "github.com/egoist/mygo/ui"
+import (
+	"time"
+
+	"github.com/egoist/mygo/ui"
+)
 
 // Variant is the fill of a colored button.
 type Variant uint8
@@ -109,4 +113,60 @@ func sizedFrom(c *ui.Context, s Size) *Tokens {
 		return From(c)
 	}
 	return scoped(c, Options{Size: s})
+}
+
+var iconCopy = Svg(16, 14, "M5.5 5.5v-2A1.5 1.5 0 0 1 7 2h5.5A1.5 1.5 0 0 1 14 3.5V9a1.5 1.5 0 0 1-1.5 1.5h-2M3.5 5.5H9A1.5 1.5 0 0 1 10.5 7v5.5A1.5 1.5 0 0 1 9 14H3.5A1.5 1.5 0 0 1 2 12.5V7a1.5 1.5 0 0 1 1.5-1.5z")
+
+// CopyOptions are the options of CopyButton.
+type CopyOptions struct {
+	// Label is the button's accessible name: "Copy" by default.
+	Label    string
+	Size     Size
+	Disabled bool
+}
+
+// copiedFor is how long CopyButton shows its check.
+const copiedFor = 1500 * time.Millisecond
+
+// CopyButton is a round raised button that copies text to the clipboard:
+// its icon shrinks away as a check draws itself in its place, in the Down
+// color, and 1.5 s later the check draws back and the icon returns.
+//
+//	mizan.CopyButton(c.Key("copy"), app.link, mizan.CopyOptions{Label: "Copy link"})
+func CopyButton(c *ui.Context, text string, o CopyOptions) ui.Element {
+	t := sizedFrom(c, o.Size)
+	m := t.Metrics
+	cl := t.Colors
+	label := or(o.Label, "Copy")
+	e := ui.ButtonBase(c).Center().Size(m.BtnH, m.BtnH).Radius(RadiusPill).Cursor(ui.CursorPointer).Disabled(o.Disabled)
+	t.raised(e, t.controlGradient(cl.ControlTop, cl.ControlBottom), cl.ControlBorder, t.Shadows.ControlShadow,
+		raisedState{hovered: e.Hovered() && !o.Disabled, pressed: e.Pressed() && !o.Disabled, focus: e.FocusVisible(), disabled: o.Disabled})
+	at := ui.Local(e, "copied", func() time.Time { return time.Time{} })
+	if e.Clicked() && !o.Disabled {
+		c.WriteClipboard(text)
+		*at = c.Now()
+		c.Announce("Copied")
+	}
+	copied := !at.IsZero() && c.Now().Sub(*at) < copiedFor
+	if copied {
+		label = "Copied"
+		// a frame when it turns back (asked again each frame: an animation's
+		// frame in between answers the last ask)
+		c.After(copiedFor - c.Now().Sub(*at))
+	}
+	e.Label(label)
+	icon := e.AnimateTo("icon", b2f(!copied), ui.Animation{Duration: 160 * time.Millisecond, Ease: ui.EaseOut})
+	e.TextColor(cl.Text).Children(func() {
+		ui.Box(c).Size(16, 16).Children(func() {
+			if icon > 0.01 {
+				ui.Box(c).Absolute().Left(0).Top(0).Size(16, 16).Center().Opacity(icon).Scale(0.6+0.4*icon, 0.6+0.4*icon).Children(func() {
+					ui.Icon(c, iconCopy)
+				})
+			}
+			ui.Box(c).Absolute().Left(0).Top(0).Children(func() {
+				checkMark(c, 16, 2, copied, false, false, cl.Down)
+			})
+		})
+	})
+	return e
 }

@@ -3,6 +3,7 @@ package mizan
 import (
 	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
+	"time"
 )
 
 // Option is an option of a selection, in the same shape everywhere: a value and a label.
@@ -89,10 +90,13 @@ func Select[T comparable](c *ui.Context, value *T, options []Option[T], o Select
 
 	sel.Popup(func(panel ui.Element) {
 		popover(t, panel)
-		panel.MaxHeight(300).Gap(0)
-		for _, op := range options {
-			optionItem(c, t, sel.Item(op.Value).Disabled(op.Disabled), op, op.Value == *value)
-		}
+		panel.Gap(0)
+		// past its height the list scrolls inside its panel
+		t.scrollList(c, 300-2*PadPop, func() {
+			for _, op := range options {
+				optionItem(c, t, sel.Item(op.Value).Disabled(op.Disabled), op, op.Value == *value)
+			}
+		})
 	})
 	return tr
 }
@@ -114,6 +118,43 @@ func popover(t *Tokens, panel ui.Element) {
 		Animation: springPop,
 		Enter:     &ui.Motion{Scale: 0.95, Y: -4},
 		Exit:      &ui.Motion{Scale: 0.97, Y: -2},
+	})
+}
+
+// scrollList builds a pop-up's list, which scrolls inside its panel past
+// maxH: where there is more of it above or below, its edge fades into the
+// panel, so that more is seen to be there.
+func (t *Tokens) scrollList(c *ui.Context, maxH float32, build func()) {
+	box := ui.Box(c.Key("list")).MinHeight(0).Shrink(1)
+	sc := ui.Local(box, "scroll", func() *ui.ScrollState { return &ui.ScrollState{} })
+	box.Children(func() {
+		ui.Scroll(c).MaxHeight(maxH).TrackScroll(*sc).Children(build)
+		above, below := (*sc).Y, (*sc).MaxY-(*sc).Y
+		listFade(c, t, false, above)
+		listFade(c, t, true, below)
+	})
+}
+
+// listFade is the fade of a pop-up list's top (or bottom) edge, there as
+// far as the list goes on past it, up to 16 DIPs.
+func listFade(c *ui.Context, t *Tokens, bottom bool, past float32) {
+	e := ui.Box(c).Absolute().Left(0).Right(0).Height(18).PassThrough()
+	angle := float32(180)
+	if bottom {
+		e.Bottom(0)
+		angle = 0
+	} else {
+		e.Top(0)
+	}
+	shown := e.AnimateTo("shown", clamp01(past/16), ui.Animation{Duration: 120 * time.Millisecond})
+	if shown < 0.01 {
+		return
+	}
+	tint := t.Colors.Pop
+	e.Draw(func(p *ui.Painter, r ui.Rect) {
+		p.FillGradient(r, ui.LinearGradient{Angle: angle, Oklab: true, Stops: []ui.GradientStop{
+			{Color: tint.Alpha(0.95 * shown), At: 0}, {Color: tint.Alpha(0), At: 1},
+		}}, 0)
 	})
 }
 

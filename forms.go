@@ -421,7 +421,7 @@ func Combobox[T comparable](c *ui.Context, value *T, options []Option[T], o Comb
 	cb.Popup(func(panel ui.Element) {
 		popover(t, panel)
 		panel.Gap(0)
-		ui.Scroll(c).MaxHeight(300 - 2*PadPop).Children(func() {
+		t.scrollList(c, 300-2*PadPop, func() {
 			for _, i := range shown {
 				op := options[i]
 				item := cb.Item(strconv.Itoa(i)).Disabled(op.Disabled)

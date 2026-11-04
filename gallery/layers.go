@@ -12,7 +12,21 @@ var (
 	share = mz.Svg(16, 15, "M8 10V2.5M5 5.5l3-3 3 3M3 9.5v3A1.5 1.5 0 0 0 4.5 14h7a1.5 1.5 0 0 0 1.5-1.5v-3")
 	edit  = mz.Svg(16, 15, "M10.5 2.5l3 3-8 8h-3v-3z")
 	trash = mz.Svg(16, 15, "M2.5 4.5h11M6 4.5V3h4v1.5M4 4.5l.7 9h6.6l.7-9")
+	info  = mz.Svg(16, 14, "M8 14.5a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13z", "M8 7.5v3.5M8 5h.01")
 )
+
+// The formatting toolbar's tools: their icons and what their tooltips say.
+var formatTools = []struct {
+	name, tip string
+	icon      *ui.SVG
+}{
+	{"Bold", "Bold  ⌘B", mz.Svg(16, 15, "M4.5 2.5h4.25a2.75 2.75 0 0 1 0 5.5H4.5zM4.5 8h5a2.75 2.75 0 0 1 0 5.5h-5z")},
+	{"Italic", "Italic  ⌘I", mz.Svg(16, 15, "M10 2.5H6.5M9.5 13.5H6M9.25 2.5l-2.5 11")},
+	{"Underline", "Underline  ⌘U", mz.Svg(16, 15, "M4.5 2.5v5a3.5 3.5 0 0 0 7 0v-5M3.5 14h9")},
+	{"Strikethrough", "Strikethrough  ⇧⌘X", mz.Svg(16, 15, "M3 8h10M11 4.5c-.5-1.2-1.7-2-3.2-2-1.9 0-3.3 1-3.3 2.6M5 11.5c.5 1.2 1.7 2 3.2 2 1.9 0 3.3-1 3.3-2.6")},
+	{"Link", "Add a link  ⌘K", mz.Svg(16, 15, "M6.5 9.5l3-3M7 4.5l1-1a2.8 2.8 0 0 1 4 4l-1 1M9 11.5l-1 1a2.8 2.8 0 0 1-4-4l1-1")},
+	{"Bulleted list", "Bulleted list", mz.Svg(16, 15, "M6 4h7.5M6 8h7.5M6 12h7.5M2.5 4h.01M2.5 8h.01M2.5 12h.01")},
+}
 
 var comments = []string{
 	"The retention chart needs the October numbers.",
@@ -124,12 +138,54 @@ func (s *State) layers(c *ui.Context, t *mz.Tokens) {
 						})
 						tb := mz.Button(c.Key("share"), "Share link", mz.ButtonOptions{Icon: share, IconOnly: true}).Description("Share the report")
 						mz.Tooltip(c.Key("shareTip"), tb, "Share the report")
+						// from one tooltip to the next, it slides
+						cb := mz.CopyButton(c.Key("copy"), "https://mizan.example/q3-report", mz.CopyOptions{Label: "Copy link"}).Description("Copy the link")
+						mz.Tooltip(c.Key("copyTip"), cb, "Copy the link")
 					})
 					last := s.Last
 					if last == "" {
 						last = "nothing yet"
 					}
 					mz.Text(c, "Last action: "+last, mz.TCaption).TextColor(cl.Muted)
+				})
+			})
+			mz.Card(c, mz.CardOptions{Title: "Tooltip", Subtitle: "On hover or keyboard focus; from one to the next, it slides.", Pad: true}, func() {
+				ui.Column(c).Gap(16).Children(func() {
+					// a toolbar: run the pointer along it and one tooltip
+					// slides from tool to tool
+					ui.Row(c).Gap(4).Children(func() {
+						for _, f := range formatTools {
+							b := mz.Button(c.Key(f.name), f.name, mz.ButtonOptions{Icon: f.icon, IconOnly: true}).Description(f.tip)
+							if b.Clicked() {
+								s.Last = f.name
+							}
+							mz.Tooltip(c.Key(f.name+" tip"), b, f.tip)
+						}
+					})
+					// a longer one wraps, up to 260 wide
+					ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
+						mz.Text(c, "Retention", mz.TLabel)
+						hint := ui.Box(c.Key("retentionHint")).Focusable().Role(ui.RoleImage).Label("About retention").
+							Description("The share of users who came back within 30 days of signing up.").
+							TextColor(cl.Muted).Children(func() { ui.Icon(c, info) })
+						mz.Tooltip(c.Key("retentionTip"), hint, "The share of users who came back within 30 days of signing up, by the month they signed up in.")
+						mz.Text(c, "41.8%", mz.TLabel).TextColor(cl.Text2)
+					})
+					// on people: their names, and whether they're here
+					ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
+						for _, p := range []struct {
+							name   string
+							online bool
+						}{{"Maya Chen", true}, {"Leo Park", false}, {"Sam Rivera", true}, {"Ivy Brooks", false}} {
+							a := mz.Avatar(c.Key(p.name), p.name, mz.AvatarOptions{Online: p.online})
+							tip := p.name + " · away"
+							if p.online {
+								tip = p.name + " · online"
+							}
+							mz.Tooltip(c.Key(p.name+" tip"), a.Focusable().Description(tip), tip)
+						}
+						mz.Text(c, "can edit", mz.TCaption).TextColor(cl.Muted)
+					})
 				})
 			})
 		})

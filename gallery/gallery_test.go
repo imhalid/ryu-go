@@ -634,3 +634,33 @@ func slow(t *testing.T) {
 		t.Skip("blurs on the CPU; skipped with -short")
 	}
 }
+
+// Run along the formatting toolbar, one tooltip goes from tool to tool;
+// the info icon's long one wraps, and the avatars say who they are.
+func TestTooltipExamples(t *testing.T) {
+	_, tt := page3(mz.Light)
+	x, y := center(t, tt, "Bold")
+	tt.Move(x, y)
+	tt.Advance(2 * time.Second)
+	if !tt.HasText("Bold  ⌘B") {
+		t.Fatalf("no tooltip on Bold: %v", tt.Texts())
+	}
+	x, y = center(t, tt, "Italic")
+	tt.Move(x, y)
+	tt.Advance(2 * time.Second)
+	if !tt.HasText("Italic  ⌘I") {
+		t.Fatal("no tooltip on Italic")
+	}
+	x, y = center(t, tt, "About retention")
+	tt.Move(x, y)
+	tt.Advance(2 * time.Second)
+	if r, ok := tt.Find("The share of users who came back within 30 days of signing up, by the month they signed up in."); !ok || r.W > 260 {
+		t.Fatalf("the long tooltip is %+v (shown %v)", r, ok)
+	}
+	x, y = center(t, tt, "Maya Chen")
+	tt.Move(x, y)
+	tt.Advance(2 * time.Second)
+	if !tt.HasText("Maya Chen · online") {
+		t.Fatal("no tooltip on the avatar")
+	}
+}

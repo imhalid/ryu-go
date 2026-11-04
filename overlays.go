@@ -401,6 +401,9 @@ func (m *MenuList) Label(text string) {
 	ui.Text(m.c, text).Padding(6, 10, 2, 10).FontSize(FsXs).FontWeight(500).TextColor(m.t.Colors.Muted)
 }
 
+// menuMaxH is the most a menu's panel grows to: a longer menu scrolls.
+const menuMaxH = 440
+
 // Menu shows a list of actions below anchor while *open is true: the
 // arrows move between the items, Enter or a click chooses one, Escape or
 // a press outside closes it.
@@ -418,8 +421,13 @@ func Menu(c *ui.Context, anchor ui.Element, open *bool, build func(m *MenuList))
 	t := From(c)
 	return ui.PopoverBase(c, anchor, open, func(panel ui.Element) {
 		popover(t, panel)
-		panel.Role(ui.RoleMenu).MinWidth(max(200, anchor.Bounds().W)).MaxHeight(360).Gap(0).FocusGroup(ui.Vertical)
-		panel.Children(func() { build(&MenuList{c: c, t: t, open: open, first: true}) })
+		panel.Role(ui.RoleMenu).MinWidth(max(200, anchor.Bounds().W)).Gap(0).FocusGroup(ui.Vertical)
+		// past its height the menu scrolls inside its panel, never out of it
+		panel.Children(func() {
+			t.scrollList(c, menuMaxH-2*PadPop, func() {
+				build(&MenuList{c: c, t: t, open: open, first: true})
+			})
+		})
 	})
 }
 
@@ -436,23 +444,65 @@ func MenuButton(c *ui.Context, label string, o ButtonOptions, build func(m *Menu
 
 // Tooltip shows text above anchor while the pointer rests on it or it has
 // the keyboard focus: a small label of dark frosted glass (light in the
-// dark theme) that rises 3px as it fades in. Give anchor a Description too: assistive
-// technology does not read tooltips.
+// dark theme) that rises 3px as it fades in. Going from one element to the
+// next, it doesn't close and open again: the new one slides from where the
+// last one was. Give anchor a Description too: assistive technology does
+// not read tooltips.
 func Tooltip(c *ui.Context, anchor ui.Element, text string) ui.Element {
 	t := From(c)
 	cl := t.Colors
 	return ui.TooltipBase(c, anchor, func(tip ui.Element) {
 		tip.Margin(0, 0, 8, 0).MaxWidth(260).Padding(6, 10)
 		t.frost(tip, cl.Text.Alpha(0.9), t.R(RadiusItem), 12)
-		tip.TransformOrigin(0.5, 1).Transition(ui.ElementTransition{
-			Duration: 120 * time.Millisecond, Ease: ui.EaseOut,
-			Enter: &ui.Motion{Y: 3, Scale: 0.97}, Exit: &ui.Motion{Y: 2, Scale: 0.98},
+		// going from one element to the next, a tooltip doesn't close and open
+		// again: the new one comes from where the last one was, sliding
+		trail := ui.Local(c.Root(), "mizan-tip", func() *tipTrail { return &tipTrail{} })
+		tr := *trail
+		tb := tip.LayoutBounds()
+		slide := ui.Local(tip, "slide", func() int8 {
+			if tr.r.W > 0 && c.Now().Sub(tr.at) < tipSlideWithin {
+				return 1
+			}
+			return -1
 		})
+		exit := &ui.Motion{Y: 2, Scale: 0.98}
+		if *slide >= 1 {
+			switch {
+			case tb.W == 0:
+				// placed in the next frame: from there it slides
+				tip.Opacity(0)
+				c.AnimationFrame()
+			case *slide == 1:
+				*slide = 2
+				tip.Jump("dx", tr.r.X+tr.r.W/2-tb.X-tb.W/2)
+				tip.Jump("dy", tr.r.Y+tr.r.H/2-tb.Y-tb.H/2)
+			}
+			tip.Translate(tip.AnimateTo("dx", 0, *springPop), tip.AnimateTo("dy", 0, *springPop))
+			tip.TransformOrigin(0.5, 1).Transition(ui.ElementTransition{Duration: 120 * time.Millisecond, Ease: ui.EaseOut, Exit: exit})
+		} else {
+			tip.TransformOrigin(0.5, 1).Transition(ui.ElementTransition{
+				Duration: 120 * time.Millisecond, Ease: ui.EaseOut,
+				Enter: &ui.Motion{Y: 3, Scale: 0.97}, Exit: exit,
+			})
+		}
+		if tb.W > 0 && *slide != 1 {
+			tr.r, tr.at = tb, c.Now()
+		}
 		tip.Children(func() {
 			ui.Text(c, text).TextColor(cl.Bg).FontSize(FsXs).FontWeight(500).LineHeight(1.4).TextAlign(ui.Center).Wrap()
 		})
 	})
 }
+
+// tipTrail is where the last tooltip of a window showed, and when.
+type tipTrail struct {
+	r  ui.Rect
+	at time.Time
+}
+
+// tipSlideWithin is how soon after the last tooltip showed a new one
+// slides from it, rather than coming in where it is.
+const tipSlideWithin = 900 * time.Millisecond
 
 // Toast types: the tone of the toast's mark and of the tint in its corner.
 // Show a toast with MyGo's Context.AddToast, giving Type one of these.

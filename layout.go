@@ -1,6 +1,11 @@
 package mizan
 
-import "github.com/egoist/mygo/ui"
+import (
+	"math"
+	"time"
+
+	"github.com/egoist/mygo/ui"
+)
 
 // CardOptions are the options of Card.
 type CardOptions struct {
@@ -72,6 +77,9 @@ type FieldOptions struct {
 	Error string
 	// Required puts a muted asterisk next to the label.
 	Required bool
+	// Shake, changed, shakes the field gently sideways, motion only: bump it
+	// as a submit finds the field invalid (and give its control the focus).
+	Shake int
 }
 
 // Field is a vertical group of a label, a control and a description: the
@@ -85,6 +93,15 @@ type FieldOptions struct {
 func Field(c *ui.Context, o FieldOptions, control func()) ui.Element {
 	cl := From(c).Colors
 	f := ui.Column(c).Gap(GapField).MinWidth(0)
+	// shaken: a few swings sideways, each smaller, over 420 ms
+	shaken := ui.Local(f, "shake", func() int { return o.Shake })
+	if *shaken != o.Shake {
+		*shaken = o.Shake
+		f.Jump("shake", 0)
+	}
+	if p := f.AnimateTo("shake", 1, ui.Animation{Duration: 420 * time.Millisecond}); p < 1 {
+		f.Translate(float32(math.Sin(float64(p)*math.Pi*5))*7*(1-p), 0)
+	}
 	label := cl.Muted
 	if o.Error != "" {
 		label = cl.Up

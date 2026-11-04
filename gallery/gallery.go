@@ -36,6 +36,11 @@ type State struct {
 	Page  int
 	Msgs  []mz.ChatMessage
 	Draft string
+	// the gallery's chat: how many messages were sent, and when the last
+	sent   int
+	sentAt time.Time
+	// shake counts the form's checks, which shake its invalid field
+	shake int
 	Steps []string
 	steps ui.ListState
 	Cards []*card
@@ -223,7 +228,7 @@ func (s *State) fields(c *ui.Context, t *mz.Tokens) {
 			mz.Field(c, mz.FieldOptions{Label: "Search"}, func() {
 				mz.Input(c.Key("q"), &s.Query, mz.InputOptions{Label: "Search", Placeholder: "Patients, files, reports…", PrefixIcon: search, Clearable: true})
 			})
-			mz.Field(c, mz.FieldOptions{Label: "Email", Error: "Enter a valid email address.", Required: true}, func() {
+			mz.Field(c, mz.FieldOptions{Label: "Email", Error: "Enter a valid email address.", Required: true, Shake: s.shake}, func() {
 				mz.Input(c.Key("email"), &s.Email, mz.InputOptions{Label: "Email", Invalid: true})
 			})
 			mz.Field(c, mz.FieldOptions{Label: "Password", Help: "At least 12 characters."}, func() {
@@ -244,6 +249,10 @@ func (s *State) fields(c *ui.Context, t *mz.Tokens) {
 					{Value: "and", Label: "Android", Dot: t.Colors.C3},
 				}, mz.SelectOptions{Label: "Team", Placeholder: "Choose a team"})
 			})
+			// a check that finds the email invalid shakes its field
+			if mz.Button(c.Key("check"), "Check form", mz.ButtonOptions{Size: mz.Sm}).Clicked() {
+				s.shake++
+			}
 		})
 	})
 }

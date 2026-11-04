@@ -1,6 +1,7 @@
 package mizan
 
 import (
+	"strconv"
 	"strings"
 	"time"
 
@@ -39,6 +40,9 @@ const (
 
 // ChatMessage is a message in a chat.
 type ChatMessage struct {
+	// ID tells the message apart as messages come (its place if unset):
+	// Chat animates the new ones in.
+	ID     string
 	Author string
 	Mine   bool
 	Text   string
@@ -81,14 +85,18 @@ func Message(c *ui.Context, m ChatMessage, g Group) ui.Element {
 	}
 	row.Children(func() {
 		if !m.Mine {
-			if g.Last {
-				a := m.Avatar
-				a.Size = or(a.Size, bubbleAvatarDia)
-				// the avatar sits at the bubble's bottom edge, above the time row
-				Avatar(c, m.Author, a).Margin(0, 0, 18, 0)
-			} else {
-				ui.Box(c).Size(bubbleAvatarDia, 0).Shrink(0)
-			}
+			// the avatar goes with the group's last message: as a new one comes,
+			// it fades from the last and grows in on the new
+			ui.Box(c.Key("avatar")).Size(bubbleAvatarDia, 0).Shrink(0).Children(func() {
+				if g.Last {
+					a := m.Avatar
+					a.Size = or(a.Size, bubbleAvatarDia)
+					// the avatar sits at the bubble's bottom edge, above the time row
+					Avatar(c.Key("face"), m.Author, a).Absolute().Left(0).Bottom(18).
+						TransformOrigin(0.5, 1).Transition(ui.ElementTransition{Duration: 200 * time.Millisecond, Ease: ui.EaseOut,
+						Enter: &ui.Motion{Scale: 0.6}, Exit: &ui.Motion{Scale: 0.8}})
+				}
+			})
 		}
 		col := ui.Column(c).Gap(3).MaxWidthPercent(72).MinWidth(0)
 		if m.Mine {
@@ -100,7 +108,7 @@ func Message(c *ui.Context, m ChatMessage, g Group) ui.Element {
 			if g.First && !m.Mine && m.Author != "" {
 				ui.Text(c, m.Author).TextColor(cl.Muted).FontSize(FsSm).FontWeight(500).Padding(0, 12)
 			}
-			b := bubble(c, t, m.Mine, g.Last)
+			b := bubble(c.Key("bubble"), t, m.Mine, g.Last)
 			b.Children(func() {
 				if m.Body != nil {
 					m.Body()
@@ -109,17 +117,15 @@ func Message(c *ui.Context, m ChatMessage, g Group) ui.Element {
 				ui.Text(c, m.Text).Wrap().FontSize(FsBase).LineHeight(1.4)
 			})
 			if g.Last && (m.Time != "" || m.Status != DeliveryNone) {
-				ui.Row(c).AlignItems(ui.Center).Gap(4).Padding(0, 6).Children(func() {
-					ui.Text(c, m.Time).TextColor(cl.Muted).FontSize(FsXs).FontFeatures("tnum").NoWrap()
-					switch m.Status {
-					case Sending:
-						ui.Icon(c, iconPending).TextColor(cl.Muted).Label("Sending")
-					case Sent:
-						ui.Icon(c, iconSent).TextColor(cl.Muted).Label("Sent")
-					case Read:
-						ui.Icon(c, iconRead).TextColor(cl.Accent).Label("Read")
-					}
-				})
+				// the time row goes with the group's last message, folding away
+				ui.Row(c.Key("time")).AlignItems(ui.Center).Gap(4).Padding(0, 6).
+					Transition(ui.ElementTransition{Duration: 200 * time.Millisecond, Ease: ui.EaseOut, Enter: &ui.Motion{Collapse: true}, Exit: &ui.Motion{Collapse: true}}).
+					Children(func() {
+						ui.Text(c, m.Time).TextColor(cl.Muted).FontSize(FsXs).FontFeatures("tnum").NoWrap()
+						if m.Status != DeliveryNone {
+							delivery(c, t, m.Status)
+						}
+					})
 			}
 		})
 	})
@@ -127,15 +133,18 @@ func Message(c *ui.Context, m ChatMessage, g Group) ui.Element {
 }
 
 // bubble is a bubble's surface. The bottom corner of a group's last bubble
-// that faces the speaker is the tail (a small radius).
+// that faces the speaker is the tail (a small radius): as a new message
+// joins the group, it rounds off, and the new last bubble's sharpens.
 func bubble(c *ui.Context, t *Tokens, mine, tail bool) ui.Element {
 	cl := t.Colors
 	b := ui.Column(c).Padding(8, 12).MinWidth(0)
+	k := b.AnimateTo("tail", b2f(tail), ui.Animation{Duration: 220 * time.Millisecond, Ease: ui.EaseOut})
+	r := bubbleR + (tailR-bubbleR)*k
 	bl, br := bubbleR, bubbleR
-	if tail && mine {
-		br = tailR
-	} else if tail {
-		bl = tailR
+	if mine {
+		br = r
+	} else {
+		bl = r
 	}
 	b.Radius(bubbleR, bubbleR, br, bl)
 	if mine {
@@ -148,6 +157,52 @@ func bubble(c *ui.Context, t *Tokens, mine, tail bool) ui.Element {
 		b.Background(cl.Surface2).Border(1, cl.Hairline).TextColor(cl.Text)
 	}
 	return b
+}
+
+// delivery is a message's delivery mark: a clock while it is sent; then a
+// check that draws itself as a pen would, and, read, a second one drawn
+// after it as the marks take the accent.
+func delivery(c *ui.Context, t *Tokens, d Delivery) {
+	cl := t.Colors
+	e := ui.Box(c.Key("delivery")).Size(16, 13).Shrink(0)
+	switch d {
+	case Sending:
+		e.Label("Sending")
+	case Sent:
+		e.Label("Sent")
+	case Read:
+		e.Label("Read")
+	}
+	pen := ui.CubicBezier(0.65, 0, 0.35, 1)
+	one := e.AnimateTo("one", b2f(d >= Sent), ui.Animation{Duration: 260 * time.Millisecond, Ease: pen})
+	two := e.AnimateTo("two", b2f(d == Read), ui.Animation{Duration: 260 * time.Millisecond, Ease: pen, Delay: 80 * time.Millisecond})
+	read := e.AnimateTo("read", b2f(d == Read), ui.Animation{Duration: 240 * time.Millisecond, Ease: ui.EaseOut})
+	color := Mix(cl.Muted, cl.Accent, read)
+	e.Children(func() {
+		if one < 0.99 {
+			ui.Icon(c, iconPending).TextColor(cl.Muted).Opacity(1 - one).Absolute().Left(0).Top(0)
+		}
+	})
+	e.Draw(func(p *ui.Painter, r ui.Rect) {
+		// the marks of iconRead, in its 16 by 13 box
+		at := func(x, y float32) (float32, float32) { return r.X + x*r.W/16, r.Y + y*r.H/13 }
+		if one > 0.001 {
+			var a ui.Path
+			a.MoveTo(at(1.5+2*(1-two), 8.5))
+			a.LineTo(at(4.5+2*(1-two), 11.5))
+			a.LineTo(at(10.5+2*(1-two), 4.5))
+			a.Trim(0, one)
+			p.StrokePath(&a, 1.5, color)
+		}
+		if two > 0.001 {
+			var b ui.Path
+			b.MoveTo(at(8, 11))
+			b.LineTo(at(8.5, 11.5))
+			b.LineTo(at(14.5, 4.5))
+			b.Trim(0, two)
+			p.StrokePath(&b, 1.5, color)
+		}
+	})
 }
 
 // Typing is the bubble showing that the other side is typing: three dots
@@ -252,3 +307,158 @@ func Composer(c *ui.Context, value *string, o ComposerOptions) bool {
 	}
 	return sent
 }
+
+var iconDown = Svg(16, 14, "M8 3.5v9M4 8.5l4 4 4-4")
+
+// ChatOptions are the options of Chat.
+type ChatOptions struct {
+	// Typing, set, is who is typing: their bubble shows under the messages,
+	// and as their message comes it folds away as the message grows out of
+	// its corner.
+	Typing       string
+	TypingAvatar AvatarOptions
+	// Separator, set, is the label of a day separator before msgs[i]; ""
+	// for none.
+	Separator func(i int) string
+}
+
+// chatState is a Chat's: its scroll, and the messages as the last frame
+// had them, to tell the new ones and count those not seen.
+type chatState struct {
+	scroll  ui.ScrollState
+	keys    []any
+	unseen  int
+	started bool
+	// follow: until then the list stays at its end, as what came grows
+	follow time.Time
+	typing bool // someone was typing in the last frame
+}
+
+// chatFollow is how long the list stays at its end as a message grows in.
+const chatFollow = 700 * time.Millisecond
+
+// Chat is a conversation: the messages in a list that scrolls, kept at the
+// latest. A new message grows in from its bubble's tail corner (the right
+// for yours, the left for theirs) as the list makes room, the group's tail
+// and avatar passing to it; a message from the one typing grows out of
+// where the typing bubble was. Scrolled up, the latest messages don't pull
+// the list down: a "Latest" button springs in at the bottom, with the
+// number of messages not seen, and takes the list down to them. Give it a
+// size: Fill it, or Grow it in its parent.
+//
+//	mizan.Chat(c.Key("chat"), app.msgs, mizan.ChatOptions{Typing: app.typing}).Fill()
+func Chat(c *ui.Context, msgs []ChatMessage, o ChatOptions) ui.Element {
+	t := From(c)
+	cl := t.Colors
+	root := ui.Box(c).MinHeight(0).MinWidth(0)
+	st := *ui.Local(root, "chat", func() *chatState { return &chatState{} })
+	sc := &st.scroll
+	keys := make([]any, len(msgs))
+	for i, m := range msgs {
+		keys[i] = any(i)
+		if m.ID != "" {
+			keys[i] = m.ID
+		}
+	}
+	// the messages that came since the last frame
+	fresh := 0
+	if st.started {
+		old := map[any]bool{}
+		for _, k := range st.keys {
+			old[k] = true
+		}
+		for _, k := range keys {
+			if !old[k] {
+				fresh++
+			}
+		}
+	}
+	// at the latest, or near it: what comes keeps the list there
+	atEnd := sc.MaxY-sc.Y < 48
+	mine := len(msgs) > 0 && msgs[len(msgs)-1].Mine
+	switch {
+	case !st.started:
+		st.started, st.follow = true, c.Now().Add(chatFollow)
+	case (fresh > 0 || o.Typing != "" && !st.typing) && atEnd, fresh > 0 && mine:
+		// as the new message (or the typing bubble) grows, the list follows
+		// it down
+		st.follow, st.unseen = c.Now().Add(chatFollow), 0
+	case fresh > 0:
+		st.unseen += fresh
+	case atEnd:
+		st.unseen = 0
+	}
+	if c.Now().Before(st.follow) && !sc.Scrolling() {
+		sc.Y = 1 << 30
+		c.AnimationFrame()
+	}
+	st.keys, st.typing = keys, o.Typing != ""
+
+	enter := ui.ElementTransition{Animation: &springLand, Enter: &ui.Motion{Collapse: true, Scale: 0.82, Y: 6},
+		Exit: &ui.Motion{Collapse: true, Scale: 0.9}}
+	root.Children(func() {
+		ui.Scroll(c).Fill().TrackScroll(sc).Children(func() {
+			list := ui.Column(c.Key("list")).FillWidth().Gap(2).Padding(4, 2)
+			list.Children(func() {
+				for i, m := range msgs {
+					if o.Separator != nil {
+						if label := o.Separator(i); label != "" {
+							ui.Box(c.Key(chatSep{keys[i]})).FillWidth().Transition(ui.ElementTransition{Duration: 200 * time.Millisecond, Enter: &ui.Motion{Collapse: true}}).
+								Children(func() { DaySeparator(c, label) })
+						}
+					}
+					// a new message grows from its tail's corner, the list
+					// making room for it
+					row := ui.Box(c.Key(keys[i])).FillWidth().Transition(enter)
+					if m.Mine {
+						row.TransformOrigin(1, 1)
+					} else {
+						row.TransformOrigin(0, 1)
+					}
+					row.Children(func() { Message(c, m, GroupOf(msgs, i)) })
+				}
+				if o.Typing != "" {
+					// it folds away as the message comes, which grows out of
+					// its corner
+					ui.Box(c.Key(chatTyping{})).FillWidth().TransformOrigin(0, 1).
+						Transition(ui.ElementTransition{Animation: &springLand, Enter: &ui.Motion{Collapse: true, Scale: 0.8},
+							Exit: &ui.Motion{Collapse: true, Scale: 0.92}}).
+						Children(func() { Typing(c, o.Typing, o.TypingAvatar) })
+				}
+			})
+		})
+		// scrolled up, the way down to the latest
+		away := sc.MaxY-sc.Y > 120
+		shown := root.AnimateTo("latest", b2f(away), ui.Animation{Duration: 140 * time.Millisecond, Ease: ui.EaseOut})
+		if away {
+			shown = root.AnimateTo("latest", 1, *springPop)
+		}
+		if shown > 0.01 {
+			label := "Latest"
+			if st.unseen > 0 {
+				label = strconv.Itoa(st.unseen) + " new"
+			}
+			ui.Row(c).Absolute().Left(0).Right(0).Bottom(10).Justify(ui.Center).PassThrough().Children(func() {
+				b := ui.ButtonBase(c.Key("latest")).Label(label).Height(28).Padding(0, 12).Gap(6).AlignItems(ui.Center).
+					Radius(RadiusPill).Cursor(ui.CursorPointer).Opacity(min(shown, 1)).
+					Translate(0, 10*(1-shown)).Scale(0.9+0.1*shown, 0.9+0.1*shown)
+				t.raised(b, t.controlGradient(cl.ControlTop, cl.ControlBottom), cl.ControlBorder, t.Shadows.ShadowPop,
+					raisedState{hovered: b.Hovered(), pressed: b.Pressed(), focus: b.FocusVisible()})
+				if b.Clicked() {
+					sc.ScrollTo(0, 1<<30, ui.Animation{Spring: ui.SpringOptions{Duration: 520 * time.Millisecond}})
+					st.unseen = 0
+				}
+				b.TextColor(cl.Text).Children(func() {
+					ui.Icon(c, iconDown).Size(12, 12)
+					ui.Text(c, label).FontSize(FsSm).FontWeight(600).FontFeatures("tnum").NoWrap()
+				})
+			})
+		}
+	})
+	return root
+}
+
+type (
+	chatSep    struct{ key any }
+	chatTyping struct{}
+)

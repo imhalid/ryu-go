@@ -35,8 +35,10 @@ Small feedback and animation matter a great deal to the user. An interaction isn
 - **A toast takes its time.** It arrives rising from below, growing from 96% (`toastIn` 700 ms, bounce 0.14); the stack makes room on a 560 ms spring; it leaves over 340 ms, sinking, shrinking and fading. Swiped, it follows the pointer; past a third of its width, or flung, it goes on to the right as it fades, then closes (MyGo's exit copy doesn't know the swipe, so this is by hand); short of that it springs back, and pulled left it gives like a rubber band. A `ToastLoading` toast shows a spinner; when the result comes with the same ID, the spinner fades, the dot opens, the words cross-fade, and the beam runs again.
 - **Lights of completion are thin.** The light running along an edge when something completes (`rise`): a 1px core, a narrow glow, ~1.5 s, `EaseInOut`, one curve (don't bend the animation's curve a second time along the path).
 - **No blur.** Dialogs and Sheets have no blurred halo; a `Scrim` fades in instead. Glass (`glass`) only in popovers, menus, tooltips, toasts, and the palettes' HUD (`palette.go`: a darker glass, dark in both themes, as Pixelmator Classic's).
+- **A conversation moves as one.** In `Chat`, a new message grows in from its bubble's tail corner (the right for yours, the left for theirs) as the list makes room (`Collapse`, `springLand`); the typing bubble folds away as the message from the one typing grows out of its corner; the group's tail corner rounds off and passes to the new last bubble, its avatar and time row with it; a delivery check draws itself, and read, a second one after it as both take the accent. The list stays at the latest while it is there (following a message as it grows, not jumping to where it ends); scrolled up, a "Latest" button springs in with the number not seen.
+- **Small things move too.** CopyButton's icon gives way to a drawn check, and comes back 1.5 s later; a held Slider's knob follows the pointer between steps and settles onto its step on a spring, a label of its value rising over it; a tooltip going from one element to the next slides there; a field's `Shake` swings it sideways a few times, each smaller (420 ms), motion only; a pop-up list that scrolls fades at its edges where there is more.
 - **Less motion.** MyGo's `AnimateTo` and `Keyframes` go straight to their targets under `ReduceMotion`; drawings that count time by hand (`p.Now()`) must honor it too.
-- **Rejected:** a countdown line showing a toast's time left was found "classic" and removed; don't show countdowns. NumberFlow-style rolling digits in NumberInput were not wanted (removed); don't suggest "spinning counter" ideas. A tailed, haloed glow on the Spinner was tried and not liked; the spinner stays plain.
+- **Rejected:** a countdown line showing a toast's time left was found "classic" and removed; don't show countdowns. NumberFlow-style rolling digits in NumberInput were not wanted (removed); don't suggest "spinning counter" ideas. A tailed, haloed glow on the Spinner was tried and not liked; the spinner stays plain. A Dialog growing out of the button that opened it (and shrinking back into it) was tried and removed; dialogs rise in where they are.
 
 ### Table (`table.go`)
 
@@ -90,6 +92,8 @@ A new motion first tries one of these; when it needs a new one, name it and add 
 - **A file named `*_windows.go` (or `_linux`, `_darwin`, `_js`…) builds on that system only.** Go reads the suffix as a build constraint: name a file about windows `dock_travel.go`, not `dock_windows.go`.
 - **Overlay elements share one parent.** What two components build in `ui.Overlay` under the same key collides (two Docks in one window): key it with what tells them apart (`dockView.over`).
 - **The tester's pointer carries no modifiers.** `Press`, `Move` and `Release` send none, and each pointer event sets the held ones, so `HoldModifiers` before a press is lost: an Option-drag can't be tested in the tester.
+- **`Context.After` answers once, for the next frame.** An animation's frame in between answers it: ask again each frame until the time comes (CopyButton).
+- **An element belongs to the parent open as it is made.** Made before its parent's `Children`, it is that parent's sibling, not its child: make it inside the callback (a palette's body, folded in a clip).
 - **`Tester.Find` returns the first element showing or labeled s.** Names repeat (an area's kind button and its tab, a file list and a tab): find an element by a label only it has ("Close " + the tab's title), or give the gallery names that don't repeat.
 - **Paint-only animation** is done in `Draw` with `p.Now()` and `p.AnimationFrame()` (it doesn't rebuild the view): the cloud glow, the spinner.
 
@@ -108,13 +112,8 @@ The user shouldn't have to think of everything. While touching a component, or w
 
 Pending ideas (delete as they're done):
 
-- Copy to clipboard button: the icon turns into a drawn check (`checkMark`), and back after 1.5 s.
 - Tabs: the content slides in from the side the tab changed toward; the underline stretches toward its target as it goes, and settles to its width.
-- Dialog: it grows out of the button that opened it, and shrinks back into it as it closes.
-- Tooltip: going from one element to the next, the tooltip doesn't close and reopen; it slides to its new place.
-- On submitting a form, an invalid field shakes gently sideways, and the focus goes to it; motion only, no color.
 - Sortable, the board and the table: the list scrolls by itself as a card nears its edge, slowly, faster the nearer it gets.
-- Slider: let go, the knob settles onto its step on a spring; while dragged, a small label of its value rises over it.
 - Accordion: as a section opens, the ones under it slide down on a spring rather than jump.
 
 ## 6. To do

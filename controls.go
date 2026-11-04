@@ -1,6 +1,7 @@
 package mizan
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -441,9 +442,22 @@ type SliderOptions struct {
 	Disabled bool
 }
 
+// sliderText is a Slider's value as its label over the knob shows it:
+// with Format, or as many decimals as the range needs.
+func sliderText(v, lo, hi float64, o SliderOptions) string {
+	if o.Format != nil {
+		return o.Format(v)
+	}
+	if hi-lo >= 10 {
+		return strconv.FormatFloat(v, 'f', 0, 64)
+	}
+	return strconv.FormatFloat(v, 'f', 2, 64)
+}
+
 // Slider is a slider: a 6px inset track whose filled part is the accent
-// gradient; the 22px knob grows 12% while pressed. With Format, its value
-// stands on its right.
+// gradient; the 22px knob grows 12% while pressed, held under the pointer
+// and settling onto its step on a spring when let go, a small label of its
+// value rising over it. With Format, its value stands on its right too.
 //
 //	mizan.Slider(c.Key("vol"), &app.volume, 0, 100, mizan.SliderOptions{Label: "Volume"})
 func Slider(c *ui.Context, value *float64, lo, hi float64, o SliderOptions) ui.Element {
@@ -469,6 +483,34 @@ func Slider(c *ui.Context, value *float64, lo, hi float64, o SliderOptions) ui.E
 		}
 		pressed := s.Pressed() && !o.Disabled
 		focus := s.FocusVisible()
+		// held, the knob is under the pointer, between the steps; let go, it
+		// settles onto its step on a spring (as the keys move it)
+		sb := s.LayoutBounds()
+		if pressed && sb.W > k {
+			px, _, _ := s.PointerPosition()
+			frac = s.Jump("pos", clamp01((px-k/2)/(sb.W-k)))
+		} else {
+			frac = s.AnimateTo("pos", frac, springPill)
+		}
+		// held, a small label of the value rises over the knob
+		tip := s.AnimateTo("tip", b2f(pressed), ui.Animation{Duration: 140 * time.Millisecond, Ease: ui.EaseOut})
+		if pressed {
+			tip = s.AnimateTo("tip", 1, *springPop)
+		}
+		if tip > 0.01 && sb.W > k {
+			label := sliderText(*value, lo, hi, o)
+			x := sb.X + k/2 + frac*(sb.W-k)
+			ui.Overlay(c, func() {
+				fs := float32(FsXs)
+				tw, _ := c.MeasureText(0, ui.Span{Text: label, Size: fs, Weight: 600})
+				w := tw + 14
+				ui.Box(c).Absolute().Left(x-w/2).Top(sb.Y-24+4*(1-tip)).Width(w).Height(20).Center().PassThrough().
+					Radius(RadiusPill).Background(cl.Text).Opacity(min(tip, 1)).Scale(0.9+0.1*tip, 0.9+0.1*tip).TransformOrigin(0.5, 1).
+					Children(func() {
+						ui.Text(c, label).TextColor(cl.Bg).FontSize(fs).FontWeight(600).FontFeatures("tnum").NoWrap()
+					})
+			})
+		}
 		s.Children(func() {
 			ui.Box(c).FillWidth().Height(28).Children(func() {
 				y := float32(28-track) / 2
