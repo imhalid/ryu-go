@@ -15,13 +15,22 @@ type workspacePage struct {
 	Volume float64
 }
 
+// The icons of the workspace's kinds.
+var (
+	iconFolder  = mz.Svg(16, 14, "M2.5 4.5A1.5 1.5 0 0 1 4 3h2.6l1.4 1.5h4A1.5 1.5 0 0 1 13.5 6v5.5A1.5 1.5 0 0 1 12 13H4a1.5 1.5 0 0 1-1.5-1.5z")
+	iconCode    = mz.Svg(16, 14, "M5.5 4.5L2 8l3.5 3.5M10.5 4.5L14 8l-3.5 3.5")
+	iconPrompt  = mz.Svg(16, 14, "M3 4.5L6.5 8 3 11.5M8 11.5h5")
+	iconList    = mz.Svg(16, 14, "M2.5 4h.01M2.5 8h.01M2.5 12h.01M5.5 4h8M5.5 8h8M5.5 12h8")
+	iconSliders = mz.Svg(16, 14, "M2.5 4.5h4M9.5 4.5h4M8 3v3M2.5 11.5h7M12.5 11.5h1M11 10v3")
+)
+
 func newWorkspace() *mz.Layout {
 	pane := func(kind, title string) *mz.Pane { return &mz.Pane{Kind: kind, Title: title} }
 	return mz.NewLayout(mz.DockSplit(mz.DockRow, []float32{0.2, 0.56, 0.24},
 		mz.DockArea(pane("files", "Files")),
 		mz.DockSplit(mz.DockColumn, []float32{0.66, 0.34},
-			mz.DockArea(pane("editor", "report.go")),
-			mz.DockArea(pane("console", "Console")),
+			mz.DockArea(pane("editor", "report.go"), pane("editor", "layout.go"), pane("editor", "theme.go")),
+			mz.DockArea(pane("console", "Console"), pane("console", "Output")),
 		),
 		// its edge lines up with the middle column's: they move as one
 		mz.DockSplit(mz.DockColumn, []float32{0.66, 0.34},
@@ -36,7 +45,7 @@ func (w *workspacePage) view(c *ui.Context, t *mz.Tokens) {
 		w.Layout = newWorkspace()
 	}
 	cl := t.Colors
-	mz.Card(c, mz.CardOptions{Title: "Workspace", Subtitle: "Drag the gaps between areas; the edges lined up with one move along (Option: it alone). Where edges meet, drag both ways. A double click shares the room out. Drag an area's corner inward to split it, or into a neighbor to join them.", Pad: true}, func() {
+	mz.Card(c, mz.CardOptions{Title: "Workspace", Subtitle: "Drag the gaps between areas; the edges lined up with one move along (Option: it alone). Where edges meet, drag both ways. A double click shares the room out. Drag an area's corner inward to split it, or into a neighbor to join them. Drag a tab within its stack, onto another area's tabs or middle, or onto one of its sides to dock it there.", Pad: true}, func() {
 		ui.Column(c).Gap(12).Children(func() {
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 				if mz.Button(c.Key("save"), "Save layout", mz.ButtonOptions{Size: mz.Sm}).Clicked() {
@@ -59,11 +68,11 @@ func (w *workspacePage) view(c *ui.Context, t *mz.Tokens) {
 			})
 			ui.Box(c).FillWidth().Height(560).Children(func() {
 				mz.Dock(c.Key("dock"), w.Layout, mz.DockOptions{Kinds: []mz.DockKind{
-					{Kind: "files", Title: "Files", Build: lines(cl, []string{"cmd/", "docs/", "gallery/", "accent.go", "controls.go", "dock.go", "dock_layout.go", "forms.go", "table.go", "tokens.go"})},
-					{Kind: "editor", Title: "Editor", Build: code(cl)},
-					{Kind: "console", Title: "Console", Build: lines(cl, []string{"$ go test ./...", "ok   github.com/imhalid/mizan-go   0.4s", "ok   github.com/imhalid/mizan-go/gallery   61.2s", "$ go vet ./...", "$"})},
-					{Kind: "outline", Title: "Outline", Build: lines(cl, []string{"Layout", "DockWindow", "Node", "Pane", "Dock", "dockView.node", "dockView.edge", "dockView.lined", "dockView.move"})},
-					{Kind: "props", Title: "Properties", Build: func(c *ui.Context, p *mz.Pane) {
+					{Kind: "files", Title: "Files", Icon: iconFolder, Build: lines(cl, []string{"cmd/", "docs/", "gallery/", "accent.go", "controls.go", "dock.go", "dock_layout.go", "forms.go", "table.go", "tokens.go"})},
+					{Kind: "editor", Title: "Editor", Icon: iconCode, Build: code(cl)},
+					{Kind: "console", Title: "Console", Icon: iconPrompt, Build: lines(cl, []string{"$ go test ./...", "ok   github.com/imhalid/mizan-go   0.4s", "ok   github.com/imhalid/mizan-go/gallery   61.2s", "$ go vet ./...", "$"})},
+					{Kind: "outline", Title: "Outline", Icon: iconList, Build: lines(cl, []string{"Layout", "DockWindow", "Node", "Pane", "Dock", "dockView.node", "dockView.edge", "dockView.lined", "dockView.move"})},
+					{Kind: "props", Title: "Properties", Icon: iconSliders, Build: func(c *ui.Context, p *mz.Pane) {
 						ui.Column(c).Padding(12).Gap(10).Children(func() {
 							mz.Slider(c.Key("vol"), &w.Volume, 0, 100, mz.SliderOptions{Label: "Opacity"})
 							mz.Switch(c.Key("snap"), new(bool), mz.SwitchOptions{Label: "Snap"})

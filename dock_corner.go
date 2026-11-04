@@ -22,6 +22,10 @@ const cornerSize = 10
 // springGuide moves the split line onto a lined-up edge, and grows it.
 var springGuide = ui.Animation{Spring: ui.SpringOptions{Duration: 200 * time.Millisecond, Bounce: 0.1}}
 
+// The split line settles onto an edge or the middle nearer than snapIn,
+// and leaves it only once the pointer is snapOut away.
+const snapIn, snapOut = 8, 16
+
 // cornerKey keys corner k (0 top left, 1 top right, 2 bottom left, 3 bottom
 // right) of an area.
 type cornerKey struct {
@@ -69,6 +73,7 @@ type dockGuide struct {
 // it; then the layout changes.
 type dockFold struct {
 	split, keep, gone string
+	empty             bool // gone was left without panes: it folds away alone
 	start             time.Time
 	done              bool
 }
@@ -97,7 +102,7 @@ func (d *dockView) corner(n *Node, k int) {
 		return ui.Point{X: b.X + px, Y: b.Y + py}
 	}
 	switch {
-	case pressed && st.corner == nil && st.drag == nil && st.fold == nil && d.maxed == "":
+	case pressed && st.corner == nil && st.drag == nil && st.fold == nil && st.tab == nil && d.maxed == "":
 		p := at()
 		st.corner = &dockCorner{by: key, area: n.ID, left: left, top: top, start: p, p: p}
 		mine = true
@@ -145,6 +150,7 @@ func (d *dockView) corner(n *Node, k int) {
 func (d *dockView) aim() {
 	k, g := d.st.corner, &d.st.guide
 	a, ok := d.st.areas[k.area]
+	was := g.mode
 	g.mode = guideNone
 	if !ok {
 		return
@@ -173,9 +179,16 @@ func (d *dockView) aim() {
 			return // too small to split
 		}
 		pos = min(max(pos, lo+least), hi-least)
-		// it settles onto the middle, or onto an edge it would line up with
+		// it settles onto the middle, or onto an edge it would line up with,
+		// within snapIn; settled, it holds there until the pointer pulls
+		// snapOut away, so that a settling is felt
+		held := was == guideSplit && g.snapped && g.vertical == k.vertical && g.area == a
+		if held && abs32(g.snapTo-pos) < snapOut {
+			g.mode, g.line, g.perp = guideSplit, pos, perp
+			return
+		}
 		g.snapped = false
-		best := float32(8)
+		best := float32(snapIn)
 		try := func(at float32) {
 			if at >= lo+least && at <= hi-least && abs32(at-pos) < best {
 				best, g.snapTo, g.snapped = abs32(at-pos), at, true
@@ -281,6 +294,21 @@ func (d *dockView) guide() {
 		e.Jump("grow", 0)
 	}
 	grow := e.AnimateTo("grow", 1, springGuide)
+	// settling onto an edge, a light runs out from the pointer along the
+	// line to both its ends, once
+	type landed struct {
+		on bool
+		at float32
+	}
+	was := ui.Local(e, "landed", func() landed { return landed{} })
+	if now := (landed{g.mode == guideSplit && g.snapped, g.snapTo}); now != *was {
+		if now.on {
+			e.Jump("spark", 0)
+		}
+		*was = now
+	}
+	spark := e.AnimateTo("spark", 1, sparkCurve)
+	light := t.sparkLight()
 	// let go, the area folding draws its own darkening (folding): here it
 	// would be a frame behind it
 	if g.mode == guideFold {
@@ -305,15 +333,27 @@ func (d *dockView) guide() {
 		ox, oy := b.X-at.X, b.Y-at.Y
 		if split > 0.01 {
 			pos := g.line + (g.snapTo-g.line)*snap
-			a, color := g.area, cl.Text.Alpha(0.45*split)
-			if g.vertical {
-				from, to := a.Y+6, a.Y+a.H-6
-				y0, y1 := g.perp-(g.perp-from)*grow, g.perp+(to-g.perp)*grow
-				p.Fill(ui.Rect{X: pos - 1 + ox, Y: y0 + oy, W: 2, H: y1 - y0}, color, 1)
-			} else {
-				from, to := a.X+6, a.X+a.W-6
-				x0, x1 := g.perp-(g.perp-from)*grow, g.perp+(to-g.perp)*grow
-				p.Fill(ui.Rect{X: x0 + ox, Y: pos - 1 + oy, W: x1 - x0, H: 2}, color, 1)
+			// settled, the line is a little surer
+			a, color := g.area, cl.Text.Alpha((0.45+0.15*snap)*split)
+			from, to := a.Y+6, a.Y+a.H-6
+			if !g.vertical {
+				from, to = a.X+6, a.X+a.W-6
+			}
+			s0, s1 := g.perp-(g.perp-from)*grow, g.perp+(to-g.perp)*grow
+			// along runs from s0 to s1 down the line; across is the line's place
+			bar := func(s0, s1, across, w float32) ui.Rect {
+				if g.vertical {
+					return ui.Rect{X: across - w/2 + ox, Y: s0 + oy, W: w, H: s1 - s0}
+				}
+				return ui.Rect{X: s0 + ox, Y: across - w/2 + oy, W: s1 - s0, H: w}
+			}
+			p.Fill(bar(s0, s1, pos, 2), color, 1)
+			offAcross, offAlong := ox, oy
+			if !g.vertical {
+				offAcross, offAlong = oy, ox
+			}
+			if g.snapped {
+				sparks(p, g.vertical, pos+offAcross, g.perp+offAlong, from+offAlong, to+offAlong, spark, split, light)
 			}
 		}
 		if join < 0.01 || r.W < 1 || r.H < 1 {
@@ -347,6 +387,9 @@ func joinArrow(p *ui.Painter, r ui.Rect, dir ui.Point, grown float32, color ui.C
 // arrow fades.
 func (d *dockView) folding(a ui.Element) {
 	cl, g := d.t.Colors, d.st.guide
+	if d.st.fold.empty {
+		return
+	}
 	if seen := ui.Local(a, "folding", func() bool { return false }); !*seen {
 		*seen = true
 		a.Jump("arrow", 1)

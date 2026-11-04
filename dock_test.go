@@ -107,3 +107,72 @@ func TestSplitJoinUndo(t *testing.T) {
 		t.Fatalf("undo did not bring the layout back:\n%s\n%s", before, after)
 	}
 }
+
+// Panes move between stacks, dock beside an area and close; an area left
+// empty goes, its neighbor taking its room; Undo goes back step by step.
+func TestLayoutPanes(t *testing.T) {
+	l := sampleLayout()
+	root := l.Windows[0].Root
+	files, col := root.Children[0], root.Children[1]
+	editor, other := col.Children[0], col.Children[1]
+	b := editor.Panes[1]
+	editor.Active = 1
+
+	l.remember()
+	if !l.movePane(b.ID, files.ID, 0) || len(editor.Panes) != 1 || files.Panes[0] != b || files.Active != 0 || editor.Active != 0 {
+		t.Fatalf("move: files %v active %d, editor %v active %d", files.Panes, files.Active, editor.Panes, editor.Active)
+	}
+	u := other.Panes[0]
+	l.remember()
+	n := l.dockPane(u.ID, editor.ID, DockRow, false, 100, 100, 0)
+	if n == nil || n.Panes[0] != u || len(other.Panes) != 0 {
+		t.Fatalf("dock: new area %+v, the area left %+v", n, other)
+	}
+	if !l.removeArea(other.ID) || l.Find(other.ID) != nil {
+		t.Fatal("the empty area did not go")
+	}
+	// the column is left with the editor's row alone, which tidy gives to the
+	// root, a row too: files, the editor, the new area
+	if r := l.Windows[0].Root; len(r.Children) != 3 || r.Children[1] != editor || r.Children[2] != n {
+		t.Fatalf("after the empty area went: %+v", r.Children)
+	}
+	if !l.closePane(b.ID) || len(files.Panes) != 1 {
+		t.Fatalf("close: files %v", files.Panes)
+	}
+	for range 3 {
+		if !l.Undo() {
+			t.Fatal("nothing to undo")
+		}
+	}
+	back := l.Windows[0].Root.Children[1].Children[0]
+	if len(back.Panes) != 2 || back.Panes[1].Title != "b.go" {
+		t.Fatalf("undo: the editor holds %v", back.Panes)
+	}
+}
+
+// Cut where the columns' edges line up, a row of two columns becomes a
+// column of two rows: the layout shows the same, and each part of the
+// edge between the columns can move alone.
+func TestLayoutCutEdge(t *testing.T) {
+	pane := func(s string) *Node { return DockArea(&Pane{Kind: "k", Title: s}) }
+	l := NewLayout(DockSplit(DockRow, []float32{0.6, 0.4},
+		DockSplit(DockColumn, []float32{0.5, 0.5}, pane("editor"), pane("output")),
+		DockSplit(DockColumn, []float32{0.5, 0.5}, pane("outline"), pane("files")),
+	))
+	root := l.Windows[0].Root
+	row := l.cutEdge(root.ID, 0, [][2]int{{0, 0}}, 1, 556)
+	root = l.Windows[0].Root
+	if row == nil || root.Dir != DockColumn || len(root.Children) != 2 {
+		t.Fatalf("not a column of two rows: %+v", root)
+	}
+	if row != root.Children[1] || row.Dir != DockRow || row.Children[0].Panes[0].Title != "output" || row.Children[1].Panes[0].Title != "files" {
+		t.Fatalf("the part cut is not output and files: %+v", row)
+	}
+	top := root.Children[0]
+	if top.Children[0].Panes[0].Title != "editor" || top.Sizes[0] != 0.6 || row.Sizes[1] != 0.4 {
+		t.Fatalf("the rows' sizes or children changed: %+v %+v", top, row)
+	}
+	if d := root.Sizes[0] - 0.5; d > 0.001 || d < -0.001 {
+		t.Fatalf("the rows are %v, want halves", root.Sizes)
+	}
+}

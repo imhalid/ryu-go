@@ -74,6 +74,8 @@ Done when: edges move smoothly with no jump on release, and the layout survives 
 - **Sizes** show through springs (a double click glides), but under the pointer they follow it at once (`Jump`), and the spring takes over from where the pointer left them: no jump on release.
 - **Crossings** (after the user tried it): where edges meet, a 12px square takes the pointer and drags both ways at once, the vertical edge across, the edges across it along, each with the edges lined up with it. A small cross grows in it under the pointer. Crossings are placed from the last frame's edges; when those moved, the dock asks for one more frame, or a crossing would stay where the layout was.
 - **One edge alone:** with Option (Alt) held as it is pressed, an edge (or a crossing) moves only itself, not the edges lined up with it. Lined-up edges stay linked by default, as in Blender. Not testable in the tester: its pointer events carry no modifiers.
+- **Cutting an edge** (after the user tried it on Linux): the tree makes an edge between two splits one edge all along (a row of two columns whose edges line up: the edge between the columns runs the whole height), so Option alone couldn't move a part of it. Now, Option-pressed where the edges across it meet it from both sides, it is cut there (`cutPlan`, `Layout.cutEdge`): the two columns become a column of rows, one per part, laid out as before, and the part under the pointer moves. With Option held over such an edge, its grip shows in the middle of the part that would move. What takes the pointer on the edges is now built over the window (`hits`), from the last frame's layout, so that a press outlives the change of the tree; the gap and its grip stay in the flow. The nodes a cut makes take their sizes at once (`settled`).
+- **Settling** (after the user asked for a magnet): an edge dragged settles onto an edge it would line up with (one whose end meets its end, along the same line) within 8px, holds there until the pointer is 16px away, and glides on and off over 240 ms (`springGuide`); as it lands, the split line's light runs along it from the pointer. The edge follows the pointer by where it is from where it pressed, not by adding up its moves: what takes the pointer moves with the edge.
 - **What will move shows first:** under the pointer, the grips show on every edge that would move (on all of a line, or only the one with Option held), before it is pressed.
 - Tried by the user in the real window (edges, lined-up edges, crossings, Option): no problem seen.
 
@@ -91,7 +93,8 @@ Done when: splitting and joining feel like Blender's, measured frame by frame an
 - **Corners:** a 14px square in each area's corner (crosshair cursor); under the pointer a short bracket draws itself from its middle out along the corner, concentric with the area's radius.
 - **Split:** the axis is the one the pointer leaves the corner by (decided 8px out), and turns only when the other clearly wins (1.6×). The line grows out from the pointer across the area (`springGuide`), follows it, and settles onto the area's middle or a lined-up edge within 8px (a weight on a spring, so it glides on and off). Let go, the edge's middle is where the line was; the new area is on the corner's side with a copy of the pane (its scroll's place, not the `ScrollState`, which is bound to one view). Its surface was already there; only what it shows fades in.
 - **Join:** only into a neighbor sharing a whole edge (`tidy` keeps those siblings). The neighbor darkens (`Scrim`), an arrow grows in over it pointing the way; between neighbors the darkening slides on a spring. Let go, the area folds away on `springShift` with its edge, the darkening drawn by the folding area itself (from the guide it would be a frame behind), and the layout changes as the next frame starts.
-- **Undo:** `Layout.Undo` and `CanUndo`, the last 16 splits and joins; the gallery has an Undo button. An undone join unfolds on the springs; an undone split doesn't animate yet.
+- **Undo:** `Layout.Undo` and `CanUndo`, the last 16 changes; the gallery has an Undo button. An undone join unfolds on the springs; an area an undo (or a restore) takes away folds away where it was, darkened as a join's, toward its far side from the sibling that takes its room (`vanished`, `ghosts`).
+- **Settling** (after the user tried it): the split line settles onto the middle or a lined-up edge within 8px and holds there until the pointer is 16px away; as it lands, a light in the accent (lifted toward white in the dark theme) runs out from the pointer along the line to both ends, once (620 ms, `EaseInOut`).
 
 
 ### 3. Headers and maximize
@@ -110,10 +113,23 @@ Done when: splitting and joining feel like Blender's, measured frame by frame an
 
 ### 4. Tabs and docking
 
-- [ ] Tab stacks on Tabs, with close buttons; tabs reorder within their stack (as Sortable does, the others sliding aside).
-- [ ] A tab dragged over an area shows where it would go: its left, right, top or bottom half, or its middle (a new tab). The preview is a translucent region that slides between zones on a spring; no blue line.
-- [ ] Let go, the pane docks there: the split opens on a spring, its neighbors making room.
-- [ ] An area left empty folds away, its neighbor taking its room.
+- [x] Tab stacks on Tabs, with close buttons; tabs reorder within their stack (as Sortable does, the others sliding aside).
+- [x] A tab dragged over an area shows where it would go: its left, right, top or bottom half, or its middle (a new tab). The preview is a translucent region that slides between zones on a spring; no blue line.
+- [x] Let go, the pane docks there: the split opens on a spring, its neighbors making room.
+- [x] An area left empty folds away, its neighbor taking its room.
+
+**Result (2026-11-04, `dock_tabs.go`):** measured frame by frame in the tester, light and dark; not yet tried in the real window.
+
+- **The header** is now the kind's icon and a chevron (its menu, as Blender's editor type; `DockKind.Icon`, a generic one when nil), the tabs, and the maximize button. Every pane is a tab, one alone too, so that it can be dragged. The tab chosen is in Text (Text2 when its area isn't focused), the others Muted; with more than one, a 2px underline slides to the choice (`springPill`), as Tabs' does. The close button shows on the tab chosen and the one under the pointer. Ctrl+PageUp and Ctrl+PageDown choose the tab before and after.
+- **Picking up:** a tab dragged 4px lifts off as a raised tile (`springLift`, `ShadowPop`, leaning with its speed); its place stays empty, and the tabs after it slide over to close the room (`springShift`).
+- **Where it goes:** over an area's tabs, they slide apart where it would go (a tab in that stack); over the rest of an area, the side the pointer is nearest within 30% of it docks it beside the area (left, right, top, bottom; only when the area is large enough for two), else its middle puts it at the end of the stack. Over its own area, alone there, it goes nowhere. The region is a wash of the accent with a hairline of it (`ColorAccent500`, 10% and 55%; 16% and 70% in the dark theme), inset 3px with a concentric radius, sliding between zones and areas on `springPop`, fading in 140 ms.
+- **Let go:** the move applies as the next frame starts (as a drop does), every stack building the new order together; the tab flies from where its copy was to its place once a frame laid it out (`springLand`), and the underline slides to it. Docked beside an area, the new area opens from nothing on `springShift`, its neighbor making room, and what it shows fades in. Nowhere, the tab flies back.
+- **The compass** (after the user tried it, from Visual Studio's docking guides, in Mizan's language; `dock_compass.go`): over the area under the pointer, a plus of five raised targets (30px, the control's surface) on a plate (the popover's color, `ShadowPop`, its corners concentric with the targets'), in the middle of the area's body: the middle puts the tab in the stack, the arms dock it beside the area. Each target draws what it does: a small pane, the part it takes filled in the accent. A target that can't apply (the middle over the tab's own area, an arm where the area is too small to split) shows faded. The compass grows in on `springPop` (from 92%), glides from area to area on it, and goes in 140 ms; it shows only over an area large enough for it, and keeps clear of the window's edge targets. Under the pointer a target grows 8% (`springSqueeze`) and fills in, the region shows behind, and the tab's copy lets it show through (55%). The compass is built above the copy.
+- **The window's edges:** four targets in the middle of the window's edges (the top one under the headers, so that it hides no tab) dock the tab along the whole of that edge, a quarter of the window long (`dockPane` into the root). They fade in with the drag.
+- Targets win over the nearness of an area's side, which stays as the quick way.
+- **Closing:** the pane goes at once (Undo brings it back); where its tab was, a copy narrows to nothing as it fades (200 ms) and the tabs after it slide over.
+- **An area left empty** folds away as a join does, without the darkening, its neighbor before it (else after it) taking its room. A window's last area stays, saying "Drag a tab here".
+- **The model:** `movePane`, `dockPane`, `closePane`, `removeArea`; every change by the user is one step of Undo.
 
 ### 5. Windows and saving
 
@@ -137,9 +153,7 @@ The previews are where it feels like Blender or not; give them the most time.
 - Nothing appears or vanishes in a frame: areas open and fold, windows' panes arrive and leave with motion.
 - Measure every gesture frame by frame in the tester, then confirm in the real window: drag-and-drop taught that some bugs only show there.
 
-Polish waiting (from the user's tries; do them in a polish pass):
-
-- **The split line settling gives no feedback.** As it settles onto the middle or a lined-up edge, it should say so: sticky for a short stretch (the pointer has to pull a little past it to leave), or a light running along it as it lands.
+Polish waiting (from the user's tries; do them in a polish pass): none now.
 
 ## Limits
 

@@ -84,6 +84,11 @@ A new motion first tries one of these; when it needs a new one, name it and add 
 - **A value driven by `Jump` builds up a speed.** A channel `Jump`ed with the pointer, then `Jump`ed to another value and let go with `AnimateTo`, counts the difference between the two jumps as a speed, and the spring flings the element. When a fresh start is needed, use a new channel key (the table: `colKey`, a counter that grows with every column move).
 - **The frame between a drop and its applying must hold still too.** If the new layout applies in the next frame, values must not start sliding to their targets in the frame between; they hold where they are.
 - **A clipped box's border sits under its children.** In a rounded corner the header's fill covers the border; the border is drawn over the content with `DrawOver`.
+- **`slices.Delete` zeroes the slots it frees.** A handler that removes from a slice while a loop over it still builds (a tab's close button inside its stack's loop) leaves nil behind for the rest of the loop: build the frame from a copy (`slices.Clone`).
+- **A press ends when its element isn't built.** MyGo forgets the pressed element (and so the drag) in the first frame that doesn't build it, and keys are scoped to the parent: a drag that changes the tree must be taken by an element whose place doesn't change (the Dock's edges take the pointer over the window, with a stand-in for the edge held when it went).
+- **`Dragged` loses moves when the element moves with the pointer.** Read where the pointer is (`LayoutBounds + PointerPosition`) against where it pressed.
+- **The tester's pointer carries no modifiers.** `Press`, `Move` and `Release` send none, and each pointer event sets the held ones, so `HoldModifiers` before a press is lost: an Option-drag can't be tested in the tester.
+- **`Tester.Find` returns the first element showing or labeled s.** Names repeat (an area's kind button and its tab, a file list and a tab): find an element by a label only it has ("Close " + the tab's title), or give the gallery names that don't repeat.
 - **Paint-only animation** is done in `Draw` with `p.Now()` and `p.AnimationFrame()` (it doesn't rebuild the view): the cloud glow, the spinner.
 
 ## 4. Verifying motion
@@ -142,3 +147,4 @@ Verified frame by frame in the tester, not yet confirmed by the user in the real
 - Table (moving columns, the pinned column, opening rows, page turns, the sorted header's light).
 - The toast's two-light beam, swiping away, loading → result.
 - `Corners` S/M/L and concentric corners.
+- Dock: tabs (picking up, reordering, closing), docking with the region preview, the compass and the window's edge targets, an emptied area folding away, the split line settling with its light, an undone split folding away, an edge cut with Option, edges settling onto lined-up edges.

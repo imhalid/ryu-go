@@ -1,6 +1,7 @@
 package gallery
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -238,3 +239,214 @@ func TestDockFocusStep(t *testing.T) {
 }
 
 func abs(v float32) float32 { return max(v, -v) }
+
+// tabAt is a point on the title of the tab titled title, just before its
+// close button: the kind's button can have the same name.
+func tabAt(t *testing.T, tt *ui.Tester, title string) (x, y float32) {
+	t.Helper()
+	r, ok := tt.Find("Close " + title)
+	if !ok {
+		t.Fatalf("no tab %q", title)
+	}
+	return r.X - 12, r.Y + r.H/2
+}
+
+// dragTab drags the tab titled title to x, y, a few points at a time, and
+// lets it go there.
+func dragTab(t *testing.T, tt *ui.Tester, title string, x, y float32) {
+	t.Helper()
+	fx, fy := tabAt(t, tt, title)
+	tt.Press(fx, fy)
+	for i := 1; i <= 12; i++ {
+		f := float32(i) / 12
+		tt.Move(fx+(x-fx)*f, fy+(y-fy)*f)
+		tt.Advance(16 * time.Millisecond)
+	}
+	tt.Advance(100 * time.Millisecond)
+	tt.Release(x, y)
+	tt.Advance(800 * time.Millisecond)
+}
+
+// A tab chosen shows its pane; Ctrl+PageDown goes to the next.
+func TestDockTabChoose(t *testing.T) {
+	s, tt := workspaceTester()
+	editor := s.Work.Layout.Windows[0].Root.Children[1].Children[0]
+	if err := tt.Click("theme.go"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Advance(300 * time.Millisecond)
+	if editor.Active != 2 {
+		t.Fatalf("active %d, want theme.go (2)", editor.Active)
+	}
+	tt.Key(ui.Ctrl, ui.KeyPageDown)
+	tt.Advance(300 * time.Millisecond)
+	if editor.Active != 0 {
+		t.Fatalf("Ctrl+PageDown: active %d, want report.go (0) after the last", editor.Active)
+	}
+}
+
+// Dragged along its stack, a tab takes its new place there.
+func TestDockTabReorder(t *testing.T) {
+	s, tt := workspaceTester()
+	editor := s.Work.Layout.Windows[0].Root.Children[1].Children[0]
+	r, _ := tt.Find("report.go")
+	dragTab(t, tt, "theme.go", r.X+4, r.Y+r.H/2)
+	if got := paneTitles(editor); !slices.Equal(got, []string{"theme.go", "report.go", "layout.go"}) {
+		t.Fatalf("the stack is %v", got)
+	}
+	if editor.Active != 0 {
+		t.Fatalf("active %d, want the tab moved", editor.Active)
+	}
+}
+
+// Dropped on another area's tabs, a tab joins its stack there; dropped on
+// its right half, it docks in a new area on its right.
+func TestDockTabDock(t *testing.T) {
+	s, tt := workspaceTester()
+	root := s.Work.Layout.Windows[0].Root
+	console := root.Children[1].Children[1]
+	o, _ := tt.Find("Output")
+	dragTab(t, tt, "layout.go", o.X, o.Y+o.H/2)
+	if got := paneTitles(console); !slices.Equal(got, []string{"Console", "layout.go", "Output"}) {
+		t.Fatalf("the console's stack is %v", got)
+	}
+	f, _ := tt.Find("Files")
+	files := root.Sizes[0]
+	dragTab(t, tt, "theme.go", f.X+170, f.Y+300)
+	// the root is a row: it takes the new area in, beside Files
+	if len(root.Children) != 4 {
+		t.Fatalf("Files did not split side by side: %d children", len(root.Children))
+	}
+	if got := paneTitles(root.Children[1]); !slices.Equal(got, []string{"theme.go"}) {
+		t.Fatalf("the new area shows %v", got)
+	}
+	if d := root.Sizes[0] - root.Sizes[1]; d > 0.01 || d < -0.01 || root.Sizes[0]+root.Sizes[1]-files > 0.01 {
+		t.Fatalf("Files was not shared in halves: %v, was %v", root.Sizes, files)
+	}
+	if !tt.HasText("theme.go") || !s.Work.Layout.CanUndo() {
+		t.Fatal("theme.go is not shown, or can't be undone")
+	}
+}
+
+// An area whose last tab leaves folds away, its neighbor taking its room;
+// Undo brings it back.
+func TestDockTabEmptyFolds(t *testing.T) {
+	s, tt := workspaceTester()
+	root := s.Work.Layout.Windows[0].Root
+	p, _ := tt.Find("Properties")
+	dragTab(t, tt, "Outline", p.X+120, p.Y+p.H/2)
+	right := root.Children[2]
+	if !right.IsArea() || !slices.Equal(paneTitles(right), []string{"Properties", "Outline"}) {
+		t.Fatalf("the right column is %+v, want one area of Properties and Outline", right)
+	}
+	if err := tt.Click("Undo"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Advance(600 * time.Millisecond)
+	right = s.Work.Layout.Windows[0].Root.Children[2]
+	if right.IsArea() || len(right.Children) != 2 {
+		t.Fatalf("undo: the right column is %+v", right)
+	}
+}
+
+// A tab's close button closes its pane; Undo brings it back.
+func TestDockTabClose(t *testing.T) {
+	s, tt := workspaceTester()
+	console := s.Work.Layout.Windows[0].Root.Children[1].Children[1]
+	if err := tt.Click("Close Console"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Advance(400 * time.Millisecond)
+	if got := paneTitles(console); !slices.Equal(got, []string{"Output"}) {
+		t.Fatalf("the stack is %v", got)
+	}
+	// the Output pane is of the console's kind: its menu is named Console
+	if _, ok := tt.Find("Close Console"); ok {
+		t.Fatal("the console's tab still shows")
+	}
+	if err := tt.Click("Undo"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Advance(400 * time.Millisecond)
+	console = s.Work.Layout.Windows[0].Root.Children[1].Children[1]
+	if got := paneTitles(console); !slices.Equal(got, []string{"Console", "Output"}) {
+		t.Fatalf("undo: the stack is %v", got)
+	}
+}
+
+func paneTitles(n *mz.Node) []string {
+	var out []string
+	for _, p := range n.Panes {
+		out = append(out, p.Title)
+	}
+	return out
+}
+
+// The compass in the middle of the area under a tab dragged: its right
+// target docks the tab in a new area on the area's right.
+func TestDockCompass(t *testing.T) {
+	s, tt := workspaceTester()
+	mid := s.Work.Layout.Windows[0].Root.Children[1]
+	a := editorArea(tt)
+	// the compass's middle is the body's, under the header; its right
+	// target one tile and a gap to the right
+	cx, cy := a.X+a.W/2, a.Y+28+(a.H-28)/2
+	dragTab(t, tt, "Output", cx+34, cy)
+	row := mid.Children[0]
+	if row.IsArea() || row.Dir != mz.DockRow || len(row.Children) != 2 {
+		t.Fatalf("the editor did not split side by side: %+v", row)
+	}
+	if got := paneTitles(row.Children[1]); !slices.Equal(got, []string{"Output"}) {
+		t.Fatalf("the new area on the right shows %v", got)
+	}
+}
+
+// The target in the middle of the window's left edge docks the tab along
+// the whole of that edge; the area it left folds away.
+func TestDockEdgeTarget(t *testing.T) {
+	s, tt := workspaceTester()
+	f, _ := tt.Find("Files")
+	// the Dock's top left is the Files area's, 4 DIPs out from its kind
+	// button; the Dock is 560 tall
+	x, y := f.X-4+12+15, f.Y-4+280
+	dragTab(t, tt, "Outline", x, y)
+	tt.Advance(600 * time.Millisecond)
+	root := s.Work.Layout.Windows[0].Root
+	if len(root.Children) != 4 || !slices.Equal(paneTitles(root.Children[0]), []string{"Outline"}) {
+		t.Fatalf("Outline is not along the left edge: %d children, first %v", len(root.Children), paneTitles(root.Children[0]))
+	}
+	if right := root.Children[3]; !right.IsArea() || !slices.Equal(paneTitles(right), []string{"Properties"}) {
+		t.Fatalf("the area Outline left did not fold away: %+v", right)
+	}
+	if w := root.Sizes[0]; w < 0.2 || w > 0.3 {
+		t.Fatalf("Outline takes %v of the width, want a quarter", w)
+	}
+}
+
+// Dragged near an edge whose end meets its end, along the same line, an
+// edge settles onto it, lining them up.
+func TestDockEdgeSnap(t *testing.T) {
+	s, tt := workspaceTester()
+	pane := func(title string) *mz.Node { return mz.DockArea(&mz.Pane{Kind: "console", Title: title}) }
+	s.Work.Layout = mz.NewLayout(mz.DockSplit(mz.DockRow, nil,
+		mz.DockSplit(mz.DockColumn, []float32{0.5, 0.5}, pane("A1"), pane("B1")),
+		mz.DockSplit(mz.DockColumn, []float32{0.6, 0.4}, pane("C1"), pane("D1")),
+	))
+	tt.Frame()
+	tt.Advance(300 * time.Millisecond)
+	root := s.Work.Layout.Windows[0].Root
+	left, right := root.Children[0], root.Children[1]
+	a, _ := tt.Find("Close A1")
+	b, _ := tt.Find("Close B1")
+	c, _ := tt.Find("Close C1")
+	d, _ := tt.Find("Close D1")
+	// the edges are 2 DIPs over the headers' tops, less the 4 DIPs the close
+	// buttons sit under the areas' tops
+	y := b.Y - 6 - 2
+	want := d.Y - 6 - 2
+	// short of the right column's edge by 5
+	dragEdge(tt, a.X, y, 0, want-y-5)
+	if dd := left.Sizes[0] - right.Sizes[0]; dd > 0.002 || dd < -0.002 {
+		t.Fatalf("the left edge did not settle onto the right one: %v and %v (from %v, to %v, c %v)", left.Sizes, right.Sizes, y, want, c.Y)
+	}
+}

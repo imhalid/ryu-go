@@ -326,19 +326,28 @@ func (l *Layout) splitArea(id string, dir DockDir, first bool, keep, made, room 
 		return nil
 	}
 	l.remember()
-	n := &Node{}
+	var q *Pane
 	if len(a.Panes) > 0 {
 		p := a.Panes[a.Active]
-		q := &Pane{Kind: p.Kind, Title: p.Title, State: maps.Clone(p.State)}
+		q = &Pane{Kind: p.Kind, Title: p.Title, State: maps.Clone(p.State)}
 		// the scroll's place, not the state itself: it is bound to one view
 		q.Scroll.X, q.Scroll.Y = p.Scroll.X, p.Scroll.Y
-		n.Panes = []*Pane{q}
+	}
+	return l.beside(a, q, dir, first, keep, made, room)
+}
+
+// beside puts a new area holding pane (none when nil) beside area a, as
+// splitArea does, and returns it.
+func (l *Layout) beside(a *Node, pane *Pane, dir DockDir, first bool, keep, made, room float32) *Node {
+	n := &Node{}
+	if pane != nil {
+		n.Panes = []*Pane{pane}
 	}
 	pair, sizes := []*Node{a, n}, []float32{keep, made}
 	if first {
 		pair, sizes = []*Node{n, a}, []float32{made, keep}
 	}
-	if _, p, i := l.where(id); p != nil && p.Dir == dir && room > 0 {
+	if _, p, i := l.where(a.ID); p != nil && p.Dir == dir && room > 0 {
 		// the parent's other children keep their lengths: the new edge
 		// comes out of the area split
 		var kids []*Node
@@ -356,6 +365,98 @@ func (l *Layout) splitArea(id string, dir DockDir, first bool, keep, made, room 
 	}
 	l.fix()
 	return n
+}
+
+// paneAt returns the area holding pane id, and its place in the stack.
+func (l *Layout) paneAt(id string) (*Node, int) {
+	var area *Node
+	at := -1
+	for _, w := range l.Windows {
+		walk(w.Root, func(n *Node) {
+			for i, p := range n.Panes {
+				if p.ID == id {
+					area, at = n, i
+				}
+			}
+		})
+	}
+	return area, at
+}
+
+// takePane takes pane id out of its area, which shows its neighbor in the
+// stack if it showed it, and returns the pane and the area.
+func (l *Layout) takePane(id string) (*Pane, *Node) {
+	a, i := l.paneAt(id)
+	if a == nil {
+		return nil, nil
+	}
+	p := a.Panes[i]
+	a.Panes = slices.Delete(a.Panes, i, i+1)
+	if a.Active > i || a.Active >= len(a.Panes) {
+		a.Active--
+	}
+	a.Active = max(a.Active, 0)
+	return p, a
+}
+
+// movePane moves pane id into area to's stack at index (among the panes
+// other than it; at the end when out of range), showing it there.
+func (l *Layout) movePane(id, to string, index int) bool {
+	t := l.Find(to)
+	if t == nil || !t.IsArea() {
+		return false
+	}
+	p, _ := l.takePane(id)
+	if p == nil {
+		return false
+	}
+	index = min(max(index, 0), len(t.Panes))
+	t.Panes = slices.Insert(t.Panes, index, p)
+	t.Active = index
+	return true
+}
+
+// dockPane moves pane id into a new area beside node to (an area, or a
+// window's root to dock along its edge), as splitArea makes one, and
+// returns it.
+func (l *Layout) dockPane(id, to string, dir DockDir, first bool, keep, made, room float32) *Node {
+	t := l.Find(to)
+	if t == nil {
+		return nil
+	}
+	p, _ := l.takePane(id)
+	if p == nil {
+		return nil
+	}
+	return l.beside(t, p, dir, first, keep, made, room)
+}
+
+// closePane closes pane id, for Undo to bring back.
+func (l *Layout) closePane(id string) bool {
+	if a, _ := l.paneAt(id); a == nil {
+		return false
+	}
+	l.remember()
+	l.takePane(id)
+	return true
+}
+
+// removeArea takes area id, left empty, out of its split: the neighbor
+// before it (else after it) takes its room. A window's root stays.
+func (l *Layout) removeArea(id string) bool {
+	_, p, i := l.where(id)
+	if p == nil {
+		return false
+	}
+	k := i - 1
+	if k < 0 {
+		k = i + 1
+	}
+	p.Sizes[k] += p.Sizes[i]
+	p.Children = slices.Delete(p.Children, i, i+1)
+	p.Sizes = slices.Delete(p.Sizes, i, i+1)
+	l.fix()
+	return true
 }
 
 // joinArea joins area gone into its neighbor keep: keep takes its room and
@@ -383,7 +484,7 @@ func (l *Layout) joinable(a, b string) bool {
 	return pa != nil && pa == pb && (i-j == 1 || j-i == 1) && na.IsArea() && nb.IsArea()
 }
 
-// undoDepth is how many splits and joins Undo goes back.
+// undoDepth is how many changes Undo goes back.
 const undoDepth = 16
 
 func (l *Layout) remember() {
@@ -397,11 +498,12 @@ func (l *Layout) remember() {
 	}
 }
 
-// CanUndo reports whether there is a split or a join to undo.
+// CanUndo reports whether there is a change to undo: a split, a join, a
+// pane docked, moved or closed, a kind chosen.
 func (l *Layout) CanUndo() bool { return len(l.history) > 0 }
 
-// Undo takes the layout back to before its last split or join, and reports
-// whether there was one. The panes come back with the scroll and state they
+// Undo takes the layout back to before its last change (see CanUndo), and
+// reports whether there was one. The panes come back with the scroll and state they
 // had then.
 //
 //	if layout.Undo() {

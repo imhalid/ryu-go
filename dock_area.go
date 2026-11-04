@@ -17,6 +17,7 @@ import (
 var (
 	iconMaximize = Svg(16, 13, "M3 6.5V3h3.5M9.5 3H13v3.5M13 9.5V13H9.5M6.5 13H3V9.5")
 	iconRestore  = Svg(16, 13, "M6.5 3v3.5H3M13 6.5H9.5V3M9.5 13V9.5H13M3 9.5h3.5V13")
+	iconPanes    = Svg(16, 14, "M4 2.5h8A1.5 1.5 0 0 1 13.5 4v8a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 12V4A1.5 1.5 0 0 1 4 2.5zM2.5 6h11M6.5 6v7.5")
 )
 
 // headerH is the height of an area's header.
@@ -80,6 +81,7 @@ func (d *dockView) content(n *Node, a ui.Element, in float32, corners bool) {
 			}()
 		}
 		if len(n.Panes) == 0 {
+			d.empty(n, a)
 			return
 		}
 		p := n.Panes[min(n.Active, len(n.Panes)-1)]
@@ -87,14 +89,13 @@ func (d *dockView) content(n *Node, a ui.Element, in float32, corners bool) {
 		h := ui.Row(c.Key("header")).Height(headerH).Padding(0, 4).Gap(2).AlignItems(ui.Center).Shrink(0).
 			InsetShadow(0, -1, 0, 0, cl.Hairline.Alpha(in)).Opacity(in)
 		h.Children(func() {
-			d.kindMenu(n, p, kind, active)
-			if kind == nil || p.Title != kind.Title {
-				ui.Text(c, p.Title).FontSize(FsSm).TextColor(cl.Muted).SingleLine().Ellipsis("…").Shrink(1).MinWidth(0).Padding(0, 4)
-			}
-			ui.Box(c).Grow(1)
+			d.kindMenu(n, p, kind)
+			d.strip(n, active)
 			d.maxButton(n, h.Hovered())
 		})
-		body := ui.Column(c.Key(p.ID)).Grow(1).MinHeight(0).MinWidth(0).Opacity(in)
+		// another tab chosen, its pane fades in
+		body := ui.Column(c.Key(p.ID)).Grow(1).MinHeight(0).MinWidth(0).Opacity(in).
+			Transition(ui.ElementTransition{Duration: 160 * time.Millisecond, Ease: ui.EaseOut, Enter: &ui.Motion{}})
 		body.Children(func() {
 			if kind != nil && kind.Build != nil {
 				kind.Build(c, p)
@@ -124,35 +125,57 @@ func (d *dockView) headerButton(b ui.Element) ui.Element {
 	return b
 }
 
-// kindMenu is the header's menu of what the area shows: the kind's title
-// and a chevron; a kind chosen replaces the pane with a new one of it
-// (Undo brings the old one back).
-func (d *dockView) kindMenu(n *Node, p *Pane, kind *DockKind, active bool) {
+// kindMenu is the header's menu of what the area shows: the kind's icon
+// and a chevron, as Blender's editor type; a kind chosen replaces the pane
+// shown with a new one of it (Undo brings the old one back).
+func (d *dockView) kindMenu(n *Node, p *Pane, kind *DockKind) {
 	c, t := d.c, d.t
 	cl := t.Colors
-	title := p.Kind
+	title, icon := p.Kind, iconPanes
 	if kind != nil {
 		title = kind.Title
+		if kind.Icon != nil {
+			icon = kind.Icon
+		}
 	}
-	b := d.headerButton(ui.ButtonBase(c.Key("kind")).Label(title).Padding(0, 6).Gap(4))
+	b := d.headerButton(ui.ButtonBase(c.Key("kind")).Label(title).Padding(0, 4).Gap(2))
 	open := ui.Local(b, "menu", func() bool { return false })
 	if b.Clicked() {
 		*open = !*open
 	}
-	on := b.AnimateTo("active", b2f(active), ui.Animation{Duration: 160 * time.Millisecond, Ease: ui.EaseOut})
 	b.Children(func() {
-		ui.Text(c, title).FontSize(FsSm).FontWeight(500).TextColor(Mix(cl.Text2, cl.Text, on)).SingleLine()
-		ui.Icon(c, iconChevronEnd).Size(10, 10).TextColor(cl.Muted).Rotate(90 + 180*b2f(*open))
+		ui.Icon(c, icon).Size(14, 14).TextColor(cl.Text2)
+		ui.Icon(c, iconChevronEnd).Size(9, 9).TextColor(cl.Muted).Rotate(90 + 180*b2f(*open))
 	})
 	Menu(c, b, open, func(m *MenuList) {
 		for _, k := range d.o.Kinds {
-			if m.Item(k.Title, ItemOptions{Checkable: true, Checked: k.Kind == p.Kind}) && k.Kind != p.Kind {
+			if m.Item(k.Title, ItemOptions{Icon: k.Icon, Checkable: true, Checked: k.Kind == p.Kind}) && k.Kind != p.Kind {
 				d.l.remember()
 				*p = Pane{Kind: k.Kind, Title: k.Title}
 				d.l.fix()
 				d.changed()
 			}
 		}
+	})
+}
+
+// empty builds area n without panes: a window's last area says where they
+// come from; any other folds away, its neighbor taking its room.
+func (d *dockView) empty(n *Node, a ui.Element) {
+	c, st := d.c, d.st
+	if _, p, i := d.l.where(n.ID); p != nil {
+		if st.fold == nil {
+			k := i - 1
+			if k < 0 {
+				k = i + 1
+			}
+			st.fold = &dockFold{split: p.ID, keep: p.Children[k].ID, gone: n.ID, empty: true, start: c.Now()}
+			c.AnimationFrame()
+		}
+		return
+	}
+	ui.Column(c).Grow(1).Center().Children(func() {
+		ui.Text(c, "Drag a tab here").FontSize(FsSm).TextColor(d.t.Colors.Muted)
 	})
 }
 
@@ -265,6 +288,18 @@ func (d *dockView) keys() {
 	if d.w.Max != "" {
 		return
 	}
+	// Ctrl+PageUp and Ctrl+PageDown choose the tab before and after
+	for _, k := range []struct {
+		key  ui.Key
+		step int
+	}{{ui.KeyPageUp, -1}, {ui.KeyPageDown, 1}} {
+		if c.Shortcut(ui.Ctrl, k.key) {
+			if n := d.l.Find(or(d.st.focused, d.st.hovered)); n != nil && len(n.Panes) > 1 {
+				n.Active = (n.Active + k.step + len(n.Panes)) % len(n.Panes)
+				d.changed()
+			}
+		}
+	}
 	for _, k := range []struct {
 		key    ui.Key
 		dx, dy float32
@@ -274,3 +309,103 @@ func (d *dockView) keys() {
 		}
 	}
 }
+
+// dockGhost is an area gone from the tree by a change the Dock didn't play
+// (an undone split, a layout restored): where it was, it folds away toward
+// its far side as the neighbor that took its room shows through.
+type dockGhost struct {
+	id   int
+	rect ui.Rect  // where it was, in the window
+	dir  ui.Point // the side of the neighbor that took its room; zero when none did
+}
+
+// dockPlace is a node as the last frame laid it out, in its split.
+type dockPlace struct {
+	rect   ui.Rect
+	parent string
+	area   bool
+}
+
+// vanished finds the areas of the last frame that are gone from the tree,
+// but for skip (a join that just folded it away), and folds them away
+// toward their far side from the sibling that took their room.
+func (d *dockView) vanished(prev map[string]dockPlace, skip string) {
+	st := d.st
+	for id, pl := range prev {
+		r := pl.rect
+		if id == skip || !pl.area || r.W < 1 || r.H < 1 || d.l.Find(id) != nil {
+			continue
+		}
+		g := dockGhost{rect: r}
+		for o, q := range prev {
+			if o == id || q.parent != pl.parent || d.l.Find(o) == nil {
+				continue
+			}
+			switch b := q.rect; {
+			case abs32(b.X+b.W+dockGap-r.X) <= 1:
+				g.dir = ui.Point{X: -1}
+			case abs32(r.X+r.W+dockGap-b.X) <= 1:
+				g.dir = ui.Point{X: 1}
+			case abs32(b.Y+b.H+dockGap-r.Y) <= 1:
+				g.dir = ui.Point{Y: -1}
+			case abs32(r.Y+r.H+dockGap-b.Y) <= 1:
+				g.dir = ui.Point{Y: 1}
+			default:
+				continue
+			}
+			break
+		}
+		st.nghost++
+		g.id = st.nghost
+		st.ghosts = append(st.ghosts, g)
+	}
+}
+
+// ghosts builds the areas folding away: darkened, as a join's, they shrink
+// toward their far side, or into their middle, fading, with no neighbor.
+func (d *dockView) ghosts() {
+	st, t := d.st, d.t
+	cl := t.Colors
+	at := d.root.LayoutBounds()
+	R := t.R(RadiusControl)
+	kept := st.ghosts[:0]
+	for _, g := range st.ghosts {
+		e := ui.Box(d.c.Key(areaGhostKey(g.id))).Absolute().PassThrough()
+		if seen := ui.Local(e, "seen", func() bool { return false }); !*seen {
+			*seen = true
+			e.Jump("f", 0)
+		}
+		f := e.AnimateTo("f", 1, springShift)
+		if f >= 0.995 {
+			continue
+		}
+		kept = append(kept, g)
+		r, k := g.rect, max(1-f, 0)
+		switch {
+		case g.dir.X < 0:
+			r.X, r.W = r.X+r.W*(1-k), r.W*k
+		case g.dir.X > 0:
+			r.W *= k
+		case g.dir.Y < 0:
+			r.Y, r.H = r.Y+r.H*(1-k), r.H*k
+		case g.dir.Y > 0:
+			r.H *= k
+		default:
+			r = ui.Rect{X: r.X + r.W*(1-k)/2, Y: r.Y + r.H*(1-k)/2, W: r.W * k, H: r.H * k}
+		}
+		fade := float32(1)
+		if g.dir == (ui.Point{}) {
+			fade = k
+		}
+		// darkened as an area taken in by a join is, lightening as it goes
+		e.Left(r.X - at.X).Top(r.Y - at.Y).Width(r.W).Height(r.H).Opacity(fade).
+			Radius(R).Background(cl.Card).Clip().
+			DrawOver(func(p *ui.Painter, b ui.Rect) {
+				p.Fill(b, cl.Scrim.Alpha(0.6*k), R)
+				p.Stroke(b, cl.Hairline, R, 1)
+			})
+	}
+	st.ghosts = kept
+}
+
+type areaGhostKey int
