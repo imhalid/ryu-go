@@ -1,4 +1,5 @@
-// Package dockwin shows the windows of a Dock's layout in MyGo's windows:
+// Package dockwin shows the windows of a Dock's layout in MyGo's windows,
+// experimental as Dock is:
 // a mizan.DockHost. A tab dragged out of a window tears off into a window
 // of its own where it is let go, and docks into another window of the
 // layout it is let go over; a window closed gives what it holds back to

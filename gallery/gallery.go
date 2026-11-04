@@ -32,7 +32,7 @@ type State struct {
 
 	// Page is 0: controls; 1: chat, drag and drop, and indicators; 2: layers;
 	// 3: more form controls; 4: feedback, disclosure and toggles; 5: tables;
-	// 6: the workspace.
+	// 6: the workspace; 7: the studio, palettes over a canvas.
 	Page  int
 	Msgs  []mz.ChatMessage
 	Draft string
@@ -55,7 +55,8 @@ type State struct {
 	// Tables is the state of the table page.
 	Tables tablePage
 	// Work is the state of the workspace page.
-	Work workspacePage
+	Work   workspacePage
+	Studio studioPage
 }
 
 // card is a task on the board; col is the column it is in.
@@ -117,7 +118,7 @@ func (s *State) page(c *ui.Context, t *mz.Tokens) {
 			// size step, the corners and the theme
 			ui.Column(c).Gap(10).AlignItems(ui.End).Children(func() {
 				ui.Row(c).Gap(mz.GapControl).Children(func() {
-					for i, name := range []string{"Controls", "Chat and drag", "Layers", "Forms", "Feedback", "Table", "Workspace"} {
+					for i, name := range []string{"Controls", "Chat and drag", "Layers", "Forms", "Feedback", "Table", "Workspace", "Studio"} {
 						o := mz.ButtonOptions{Size: mz.Sm}
 						if s.Page == i {
 							o.Color = t.Colors.Accent
@@ -146,6 +147,14 @@ func (s *State) page(c *ui.Context, t *mz.Tokens) {
 				})
 			})
 		})
+		if s.Page == 7 {
+			s.Studio.view(c, t)
+			return
+		}
+		// the studio's palettes in windows of their own go with its page
+		if s.Studio.Board.Host != nil {
+			s.Studio.Board.Hide()
+		}
 		if s.Page == 6 {
 			s.Work.view(c, t)
 			return

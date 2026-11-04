@@ -108,24 +108,14 @@ func (d *dockView) content(n *Node, a ui.Element, in float32, corners bool) {
 	})
 }
 
-// headerButton is a quiet button in an area's header: a fill under the
-// pointer, a little shrink when pressed, its corner concentric with the
-// area's.
+// headerButton is a button in an area's header: Mizan's raised pill, as
+// Button's, small (a circle with an icon alone).
 func (d *dockView) headerButton(b ui.Element) ui.Element {
 	t := d.t
 	cl := t.Colors
-	b.Height(headerH - 8).Radius(Concentric(t.R(RadiusControl), 4)).Cursor(ui.CursorPointer).FocusRing(false).Shrink(0)
-	hot := b.AnimateTo("hot", b2f(b.Hovered() || b.FocusVisible()), ui.Animation{Duration: 120 * time.Millisecond, Ease: ui.EaseOut})
-	if hot > 0.01 {
-		b.Background(cl.Fill.Alpha(hot))
-	}
-	press := b.AnimateTo("press", b2f(b.Pressed()), springSqueeze)
-	if press > 0.001 {
-		b.Scale(1-0.04*press, 1-0.04*press)
-	}
-	if b.FocusVisible() {
-		t.Shadows.FocusRing.Apply(b)
-	}
+	b.Height(headerH - 8).Radius(RadiusPill).Cursor(ui.CursorPointer).FocusRing(false).Shrink(0)
+	t.raised(b, t.controlGradient(cl.ControlTop, cl.ControlBottom), cl.ControlBorder, t.Shadows.ControlShadow,
+		raisedState{hovered: b.Hovered(), pressed: b.Pressed(), focus: b.FocusVisible()})
 	return b
 }
 

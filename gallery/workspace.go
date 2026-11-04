@@ -91,7 +91,10 @@ func newWorkspace() *mz.Layout {
 func (w *workspacePage) view(c *ui.Context, t *mz.Tokens) {
 	w.layout()
 	cl := t.Colors
-	mz.Card(c, mz.CardOptions{Title: "Workspace", Subtitle: "Drag the gaps between areas; the edges lined up with one move along (Option: it alone). Where edges meet, drag both ways. A double click shares the room out. Drag an area's corner inward to split it, or into a neighbor to join them. Drag a tab within its stack, onto another area's tabs or middle, or onto one of its sides to dock it there.", Pad: true}, func() {
+	mz.Card(c, mz.CardOptions{Title: "Workspace", Actions: func() {
+		// what it is for isn't settled yet
+		mz.Badge(c, "Experimental", mz.ToneWarn)
+	}, Subtitle: "Experimental: what it is for isn't settled, and it may change or go. Drag the gaps between areas; the edges lined up with one move along (Option: it alone). Where edges meet, drag both ways. A double click shares the room out. Drag an area's corner inward to split it, or into a neighbor to join them. Drag a tab within its stack, onto another area's tabs or middle, or onto one of its sides to dock it there.", Pad: true}, func() {
 		ui.Column(c).Gap(12).Children(func() {
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 				if mz.Button(c.Key("save"), "Save layout", mz.ButtonOptions{Size: mz.Sm}).Clicked() {

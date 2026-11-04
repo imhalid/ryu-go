@@ -7,6 +7,9 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
+// Dock is experimental: what it is for isn't settled yet, and its API may
+// change or go.
+//
 // A Dock shows a window of a Layout as Blender shows its areas: the window
 // filled edge to edge with areas on the card surface, a thin gap between
 // them. The gaps are edges: dragging one resizes the areas on both sides,
@@ -148,7 +151,8 @@ type dockState struct {
 }
 
 // Dock shows window o.Window of l, its areas built by o.Kinds. Give it a
-// size: Fill it, or Grow it in its parent.
+// size: Fill it, or Grow it in its parent. Experimental: what it is for
+// isn't settled, and its API may change or go.
 //
 //	mizan.Dock(c.Key("work"), app.layout, mizan.DockOptions{
 //		Kinds:    map[string]func(*ui.Context, *mizan.Pane){"files": app.files, "editor": app.editor},

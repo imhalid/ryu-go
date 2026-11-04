@@ -15,6 +15,7 @@ import (
 	mz "github.com/imhalid/mizan-go"
 	"github.com/imhalid/mizan-go/dockwin"
 	"github.com/imhalid/mizan-go/gallery"
+	"github.com/imhalid/mizan-go/palettewin"
 )
 
 func main() {
@@ -53,6 +54,8 @@ func main() {
 			Content: ui.View(view),
 		})
 		host = dockwin.New(w, s.Layout, s.WindowView)
+		// the studio's palettes float in windows of their own where they can
+		s.Studio.Board.Host = palettewin.New(w)
 		host.OnChange = save
 		s.Work.Host, s.Work.OnChange = host, save
 		// the windows saved with the layout open again

@@ -92,7 +92,6 @@ type tabGhost struct {
 // strip builds the tabs of area n, focused when it has the keyboard focus.
 func (d *dockView) strip(n *Node, focused bool) {
 	c, st, t := d.c, d.st, d.t
-	cl := t.Colors
 	s := ui.Row(c.Key("tabs")).Grow(1).Shrink(1).MinWidth(0).Height(headerH).AlignItems(ui.Center).Gap(tabGap)
 	gen := ui.Local(s, "gen", func() int { return st.tabGen })
 	settle := *gen != st.tabGen
@@ -118,7 +117,8 @@ func (d *dockView) strip(n *Node, focused bool) {
 		}
 	}
 	sel := min(n.Active, len(n.Panes)-1)
-	var line ui.Rect
+	var pill ui.Rect // the chosen tab, from the strip's top left, as it shows
+	held, hidden := false, false
 	var slots []tabSlot
 	// a tab closed while the stack builds changes n.Panes: build this frame's
 	panes := slices.Clone(n.Panes)
@@ -143,11 +143,12 @@ func (d *dockView) strip(n *Node, focused bool) {
 			if i != from {
 				m++
 			}
-			e, x := d.tab(n, i, p, focused, shift, settle)
-			b := e.LayoutBounds()
+			tb := d.tab(n, i, p, focused, shift, settle)
+			b := tb.e.LayoutBounds()
 			slots = append(slots, tabSlot{p.ID, b})
 			if i == sel && b.W > 0 && sb.W > 0 {
-				line = ui.Rect{X: b.X - sb.X + x, W: b.W}
+				pill = ui.Rect{X: b.X - sb.X + tb.x + tb.lx, Y: b.Y - sb.Y + tb.ly, W: b.W, H: b.H}
+				held, hidden = tb.pressed, tb.hidden
 			}
 		}
 		for _, g := range ghosts {
@@ -163,33 +164,40 @@ func (d *dockView) strip(n *Node, focused bool) {
 	})
 	st.tabs[n.ID] = slots
 
-	// the chosen tab's underline, when there is more than one: it slides to
-	// a new choice as Tabs' does, and leaves a tab picked up
-	many := len(n.Panes) > 1 && line.W > 0 && (dr == nil || from != sel)
-	shown := s.AnimateTo("line", b2f(many), ui.Animation{Duration: 160 * time.Millisecond, Ease: ui.EaseOut})
-	placed := ui.Local(s, "placed", func() bool { return false })
-	var lx, lw float32
-	if line.W > 0 {
-		if !*placed || shown < 0.01 {
-			lx, lw = s.Jump("line-x", line.X), s.Jump("line-w", line.W)
-			*placed = true
-		} else {
-			lx, lw = s.AnimateTo("line-x", line.X, springPill), s.AnimateTo("line-w", line.W, springPill)
-		}
-	}
-	if shown < 0.01 || lw < 16 {
+	// the chosen tab sits on a raised pill, Mizan's control, as Segmented's
+	// chosen segment does: it slides to a new choice on a spring (straight
+	// there the first time), gives under a press, and goes while its tab is
+	// picked up
+	if pill.W == 0 || hidden {
 		return
 	}
-	color := Mix(cl.Muted, cl.Text, b2f(focused))
-	s.Draw(func(p *ui.Painter, r ui.Rect) {
-		p.Fill(ui.Rect{X: r.X + lx + 8, Y: r.Y + r.H - 2, W: lw - 16, H: 2}, color.Alpha(shown), 1)
+	placed := ui.Local(s, "placed", func() bool { return false })
+	var px, pw float32
+	if !*placed {
+		px, pw = s.Jump("pill-x", pill.X), s.Jump("pill-w", pill.W)
+		*placed = true
+	} else {
+		px, pw = s.AnimateTo("pill-x", pill.X, springPill), s.AnimateTo("pill-w", pill.W, springPill)
+	}
+	sq := s.AnimateTo("squeeze", b2f(held), springSqueeze)
+	r := ui.Rect{X: px + 2*sq, Y: pill.Y + sq, W: pw - 4*sq, H: pill.H - 2*sq}
+	s.Draw(func(p *ui.Painter, b ui.Rect) {
+		t.paintRaised(p, ui.Rect{X: b.X + r.X, Y: b.Y + r.Y, W: r.W, H: r.H}, r.H/2, t.Shadows.ShadowRaised)
 	})
 }
 
+// builtTab is a tab built: its place, how far it is moved to make room
+// (x) and landing (lx, ly), whether it is pressed, and whether it is
+// hidden, picked up.
+type builtTab struct {
+	e               ui.Element
+	x, lx, ly       float32
+	pressed, hidden bool
+}
+
 // tab builds tab i of area n, pane p, shift DIPs from its place to make
-// room (straight there after a move applied, settle). It returns the tab's
-// place and how far it is moved.
-func (d *dockView) tab(n *Node, i int, p *Pane, focused bool, shift float32, settle bool) (ui.Element, float32) {
+// room (straight there after a move applied, settle).
+func (d *dockView) tab(n *Node, i int, p *Pane, focused bool, shift float32, settle bool) builtTab {
 	c, st, t := d.c, d.st, d.t
 	cl := t.Colors
 	e := ui.Row(c.Key(p.ID)).Height(headerH - 8).Shrink(1).MinWidth(44).MaxWidth(180).AlignItems(ui.Stretch)
@@ -227,23 +235,23 @@ func (d *dockView) tab(n *Node, i int, p *Pane, focused bool, shift float32, set
 		c.AnimationFrame()
 	}
 
+	// as Segmented's: the chosen one in the text color on its pill (the
+	// second text color while its area isn't focused), the others muted,
+	// darkening under the pointer
 	hover := e.Hovered() && dr == nil
 	text := cl.Muted
 	switch {
-	case selected && focused:
-		text = cl.Text
-	case selected, hover:
+	case selected && !focused:
 		text = cl.Text2
+	case selected, hover:
+		text = cl.Text
 	}
+	out := builtTab{e: e, x: x, lx: lx, ly: ly, hidden: picked || landing}
 	e.Children(func() {
-		body := ui.Row(c).Grow(1).MinWidth(0).AlignItems(ui.Center).Radius(Concentric(t.R(RadiusControl), 4)).
+		body := ui.Row(c).Grow(1).MinWidth(0).AlignItems(ui.Center).Radius(RadiusPill).
 			Translate(lx, ly).Scale(1+0.03*lift, 1+0.03*lift).Rotate(tilt)
-		hot := body.AnimateTo("hot", b2f(hover), ui.Animation{Duration: 120 * time.Millisecond, Ease: ui.EaseOut})
-		if hot > 0.01 {
-			body.Background(cl.Fill.Alpha(hot))
-		}
 		body.Children(func() {
-			b := ui.ButtonBase(c.Key("title")).Label(p.Title).Grow(1).MinWidth(0).Padding(0, 4, 0, 8).
+			b := ui.ButtonBase(c.Key("title")).Label(p.Title).Grow(1).MinWidth(0).Padding(0, 4, 0, 10).
 				AlignItems(ui.Center).FocusRing(false).Cursor(ui.CursorPointer)
 			if d.native {
 				// the system drags the tab, where it doesn't say where windows
@@ -269,6 +277,13 @@ func (d *dockView) tab(n *Node, i int, p *Pane, focused bool, shift float32, set
 			if b.FocusVisible() {
 				t.Shadows.FocusRing.Apply(body)
 			}
+			// pressed, the chosen tab's pill gives; another tab shrinks a little
+			if b.Pressed() && !picked {
+				out.pressed = selected
+				if !selected {
+					body.Scale(0.97, 0.97)
+				}
+			}
 			b.Children(func() {
 				ui.Text(c, p.Title).FontSize(FsSm).FontWeight(500).TextColor(text).SingleLine().Ellipsis("…").MinWidth(0).
 					Transition(ui.ElementTransition{Duration: 160 * time.Millisecond, Colors: true})
@@ -276,7 +291,7 @@ func (d *dockView) tab(n *Node, i int, p *Pane, focused bool, shift float32, set
 			d.closeButton(n, i, p, selected || hover, e.LayoutBounds().W)
 		})
 	})
-	return e, x
+	return out
 }
 
 // closeButton is a tab's close button: it shows on the tab chosen and the
@@ -284,7 +299,7 @@ func (d *dockView) tab(n *Node, i int, p *Pane, focused bool, shift float32, set
 func (d *dockView) closeButton(n *Node, i int, p *Pane, shown bool, w float32) {
 	c, st, t := d.c, d.st, d.t
 	b := ui.ButtonBase(c.Key("close")).Label("Close "+p.Title).Size(16, 16).Center().Margin(0, 3, 0, 0).
-		Radius(Concentric(t.R(RadiusControl), 6)).Cursor(ui.CursorPointer).FocusRing(false).Shrink(0)
+		Radius(RadiusPill).Cursor(ui.CursorPointer).FocusRing(false).Shrink(0)
 	on := b.AnimateTo("shown", b2f(shown || b.FocusVisible()), ui.Animation{Duration: 140 * time.Millisecond, Ease: ui.EaseOut})
 	hot := b.AnimateTo("hot", b2f(b.Hovered()), ui.Animation{Duration: 120 * time.Millisecond, Ease: ui.EaseOut})
 	if hot > 0.01 {

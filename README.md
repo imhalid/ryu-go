@@ -80,7 +80,8 @@ The tokens are Go values in [tokens.go](tokens.go), written in OKLCH.
 | Indicators | `Badge`, `Tag`, `StatusDot`, `Kbd`, `Avatar`, `EmptyState` |
 | Feedback | `Progress`, `Meter`, `Spinner`, `Skeleton`, `SkeletonText` |
 | Data | `Table`, `Pagination` |
-| Workspace | `Dock` (with `mizan/dockwin` for its windows) |
+| Workspace (experimental) | `Dock` (with `mizan/dockwin` for its windows) |
+| Palettes (experimental) | `Palettes`, `Board`, `PaletteSet.Palette` (with `mizan/palettewin` for windows of their own) |
 
 ![Chat and drag and drop, dark theme](docs/chat-drag-dark.png)
 
@@ -102,7 +103,10 @@ Layers move on quick springs: they spring in, and leave faster than they came.
 
 ![A menu and a stack of toasts on glass](docs/menu-toasts-light.png)
 
-## Dock
+## Dock (experimental)
+
+**Experimental:** what `Dock` is for isn't settled yet; its API may change
+or go without notice.
 
 `Dock` fills a window with areas as Blender does: edge to edge, every
 edge shared. Its layout is plain data the app owns (`Layout`), saved as
@@ -115,7 +119,8 @@ its holder, so it goes anywhere without losing what it shows.
   Where edges meet, a drag moves both ways.
 - **Corners** split an area (dragged inward) or join it to a neighbor
   (dragged into it). Undo and Redo go back and forth through every change.
-- **Tabs:** every pane is a tab of its area's stack. Dragged, a tab lifts;
+- **Tabs:** every pane is a tab of its area's stack, the chosen one on a
+  raised pill that slides between them, as Segmented's. Dragged, a tab lifts;
   over an area, a compass in its middle and targets on the window's edges
   say where it would dock, and a region shows it. A right click splits the
   area with it, sends it to a window of its own, or closes it; a double
@@ -142,6 +147,30 @@ mizan.Dock(c.Key("dock"), layout, mizan.DockOptions{
 ```
 
 ![A tab docking onto the right half of an area](docs/dock-light.png)
+
+## Palettes (experimental)
+
+Tool panels floating over a canvas, as Pixelmator Classic's: a dark glass
+HUD in both themes, a thin title bar with a round close button. A palette
+moves by its title bar, lifting as it goes, and settles onto the board's
+edges and onto the palettes near it, as a magnet would; a light runs along
+the edge it settles onto. A press brings it to the front, a double click on
+its title folds it up, and closed, it shrinks away. Where the palettes are
+is plain data (`Board`), to save. Given a host (`palettewin.New`, on
+MyGo's windows), they float in windows of their own over the app's, as
+Pixelmator Classic's, settling onto the screen's edges, the app's window
+and each other; where the system doesn't let windows go where asked
+(Wayland), they float over their board in the app's window. Experimental,
+as the Dock.
+
+```go
+mizan.Palettes(c.Key("studio"), &app.board, func(p *mizan.PaletteSet) {
+	app.canvas(c)
+	p.Palette("layers", mizan.PaletteOptions{Title: "Layers", At: ui.Point{X: -12, Y: 12}}, app.layers)
+}).Fill()
+```
+
+![Palettes over a canvas](docs/palettes-dark.png)
 
 ## Development
 

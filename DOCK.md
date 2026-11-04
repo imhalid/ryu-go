@@ -1,5 +1,7 @@
 # Dock: a Blender-style workspace
 
+**Experimental** (2026-11-04, the user's call): what the Dock is for isn't settled yet. It is marked so in its doc comment, the README and the gallery's Workspace page; its API may change or go.
+
 The plan for Mizan's area layout: a window filled edge to edge with areas that split, join, resize, hold tabs, and tear off into windows of their own, as Blender's do, with no data ever lost. This file is the plan and the to-do list; tick items off as they land, and keep the rules of [AGENTS.md](AGENTS.md) (motion, verification, no color on press).
 
 The working name of the component is `Dock`. It is written by us, on MyGo's native windows and our own drag layer (`dnd.go`); MyGo has no docking component.
@@ -120,6 +122,7 @@ Done when: splitting and joining feel like Blender's, measured frame by frame an
 
 **Result (2026-11-04, `dock_tabs.go`):** measured frame by frame in the tester, light and dark; not yet tried in the real window.
 
+- **Mizan's buttons** (after the user asked): the chosen tab sits on a raised pill (`paintRaised`, `ShadowRaised`, the button's pill shape), which slides to a new choice on `springPill` and gives under a press (`springSqueeze`), as Segmented's; the others are Muted, Text under the pointer, with no fill. The header's buttons (the kind's menu, maximize, a window's close) are Button's raised pill, small. This replaces the underline below.
 - **The header** is now the kind's icon and a chevron (its menu, as Blender's editor type; `DockKind.Icon`, a generic one when nil), the tabs, and the maximize button. Every pane is a tab, one alone too, so that it can be dragged. The tab chosen is in Text (Text2 when its area isn't focused), the others Muted; with more than one, a 2px underline slides to the choice (`springPill`), as Tabs' does. The close button shows on the tab chosen and the one under the pointer. Ctrl+PageUp and Ctrl+PageDown choose the tab before and after.
 - **Picking up:** a tab dragged 4px lifts off as a raised tile (`springLift`, `ShadowPop`, leaning with its speed); its place stays empty, and the tabs after it slide over to close the room (`springShift`).
 - **Where it goes:** over an area's tabs, they slide apart where it would go (a tab in that stack); over the rest of an area, the side the pointer is nearest within 30% of it docks it beside the area (left, right, top, bottom; only when the area is large enough for two), else its middle puts it at the end of the stack. Over its own area, alone there, it goes nowhere. The region is a wash of the accent with a hairline of it (`ColorAccent500`, 10% and 55%; 16% and 70% in the dark theme), inset 3px with a concentric radius, sliding between zones and areas on `springPop`, fading in 140 ms.
