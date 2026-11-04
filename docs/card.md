@@ -7,8 +7,8 @@ in the dark theme, where shadows don't show, the border sets it apart.
 <!-- preview card 210 -->
 
 ```go
-mizan.Card(c, mizan.CardOptions{Title: "Weekly report", Subtitle: "Updated 5 minutes ago", Pad: true, Actions: func() {
-	mizan.Button(c.Key("share"), "Share", mizan.ButtonOptions{Icon: shareIcon, IconOnly: true, Size: mizan.Sm})
+ryugo.Card(c, ryugo.CardOptions{Title: "Weekly report", Subtitle: "Updated 5 minutes ago", Pad: true, Actions: func() {
+	ryugo.Button(c.Key("share"), "Share", ryugo.ButtonOptions{Icon: shareIcon, IconOnly: true, Size: ryugo.Sm})
 }}, func() {
 	...
 })

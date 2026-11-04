@@ -8,8 +8,8 @@ name, so the same name has the same color everywhere.
 <!-- preview avatar 150 -->
 
 ```go
-mizan.Avatar(c, "Maya Chen", mizan.AvatarOptions{Online: true})
-mizan.Avatar(c, "Ivy Brooks", mizan.AvatarOptions{Solid: true, Size: 40})
+ryugo.Avatar(c, "Maya Chen", ryugo.AvatarOptions{Online: true})
+ryugo.Avatar(c, "Ivy Brooks", ryugo.AvatarOptions{Solid: true, Size: 40})
 ```
 
 `Image` shows a picture in place of the initials, `Online` a green dot at

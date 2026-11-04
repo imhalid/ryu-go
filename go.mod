@@ -1,4 +1,4 @@
-module github.com/imhalid/mizan-go
+module github.com/imhalid/ryu-go
 
 go 1.27.3
 

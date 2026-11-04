@@ -7,6 +7,6 @@ the surface rather than drawn on it. With a `Label` it parts around a word;
 <!-- preview separator 240 -->
 
 ```go
-mizan.Separator(c, mizan.SeparatorOptions{Label: "or"})
-mizan.Separator(c, mizan.SeparatorOptions{Vertical: true})
+ryugo.Separator(c, ryugo.SeparatorOptions{Label: "or"})
+ryugo.Separator(c, ryugo.SeparatorOptions{Vertical: true})
 ```

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	mz "github.com/imhalid/mizan-go"
+	mz "github.com/imhalid/ryu-go"
 )
 
 // page5 opens the feedback page.

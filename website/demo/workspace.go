@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/egoist/mygo/ui"
-	mz "github.com/imhalid/mizan-go"
+	mz "github.com/imhalid/ryu-go"
 )
 
 // The icons of the workspace's kinds.
@@ -37,7 +37,7 @@ func init() {
 		kinds := []mz.DockKind{
 			{Kind: "files", Title: "Files", Icon: iconFolder, Build: lines(cl, []string{"cmd/", "docs/", "gallery/", "accent.go", "controls.go", "dock.go", "forms.go", "table.go", "tokens.go"})},
 			{Kind: "editor", Title: "Editor", Icon: iconCode, Build: source(cl)},
-			{Kind: "console", Title: "Console", Icon: iconPrompt, Build: lines(cl, []string{"$ go test ./...", "ok   github.com/imhalid/mizan-go   0.4s", "$ go vet ./...", "$"})},
+			{Kind: "console", Title: "Console", Icon: iconPrompt, Build: lines(cl, []string{"$ go test ./...", "ok   github.com/imhalid/ryu-go   0.4s", "$ go vet ./...", "$"})},
 			{Kind: "props", Title: "Properties", Icon: iconSliders, Build: func(c *ui.Context, p *mz.Pane) {
 				ui.Column(c).Padding(12).Gap(12).Children(func() {
 					mz.Slider(c.Key("opacity"), &opacity, 0, 100, mz.SliderOptions{Label: "Opacity"})

@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import (
 	"time"
@@ -40,7 +40,7 @@ type ButtonOptions struct {
 // Button is a raised pill button: a single kind, as tall as the fields of
 // the same size step (control-h). Clicked reports that it was pressed.
 //
-//	if mizan.Button(c.Key("export"), "Export", mizan.ButtonOptions{Color: t.Colors.Accent, Variant: mizan.Solid}).Clicked() {
+//	if ryugo.Button(c.Key("export"), "Export", ryugo.ButtonOptions{Color: t.Colors.Accent, Variant: ryugo.Solid}).Clicked() {
 //		...
 //	}
 func Button(c *ui.Context, label string, o ButtonOptions) ui.Element {
@@ -132,7 +132,7 @@ const copiedFor = 1500 * time.Millisecond
 // its icon shrinks away as a check draws itself in its place, in the Down
 // color, and 1.5 s later the check draws back and the icon returns.
 //
-//	mizan.CopyButton(c.Key("copy"), app.link, mizan.CopyOptions{Label: "Copy link"})
+//	ryugo.CopyButton(c.Key("copy"), app.link, ryugo.CopyOptions{Label: "Copy link"})
 func CopyButton(c *ui.Context, text string, o CopyOptions) ui.Element {
 	t := sizedFrom(c, o.Size)
 	m := t.Metrics

@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import (
 	"github.com/egoist/mygo/transfer"
@@ -15,7 +15,7 @@ import (
 
 // dockTabFormat is what a tab dragged by the system is to other apps:
 // nothing they take.
-const dockTabFormat transfer.Format = "application/x-mizan-dock-tab"
+const dockTabFormat transfer.Format = "application/x-ryugo-dock-tab"
 
 // dockTab is a tab dragged by the system: what the Docks of its layout take.
 type dockTab struct {

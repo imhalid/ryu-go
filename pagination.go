@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import (
 	"strconv"
@@ -21,7 +21,7 @@ type PaginationOptions struct {
 // that slides from number to number on a spring; the numbers keep their
 // places as it moves.
 //
-//	mizan.Pagination(c.Key("pages"), &app.page, len(app.rows), mizan.PaginationOptions{PageSize: 20})
+//	ryugo.Pagination(c.Key("pages"), &app.page, len(app.rows), ryugo.PaginationOptions{PageSize: 20})
 func Pagination(c *ui.Context, page *int, total int, o PaginationOptions) ui.Element {
 	t := sizedFrom(c, o.Size)
 	m := t.Metrics

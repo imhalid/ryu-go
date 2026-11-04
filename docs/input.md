@@ -7,7 +7,7 @@ text input, for `Changed`, `Submitted` and `Focus`.
 <!-- preview input 260 -->
 
 ```go
-mizan.Input(c.Key("q"), &app.query, mizan.InputOptions{Label: "Search", Placeholder: "Search", PrefixIcon: searchIcon, Clearable: true})
+ryugo.Input(c.Key("q"), &app.query, ryugo.InputOptions{Label: "Search", Placeholder: "Search", PrefixIcon: searchIcon, Clearable: true})
 ```
 
 ## Options

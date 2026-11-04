@@ -2,10 +2,10 @@ package main
 
 import (
 	"github.com/egoist/mygo/ui"
-	mz "github.com/imhalid/mizan-go"
+	mz "github.com/imhalid/ryu-go"
 )
 
-// accents are the brand colors the theming demo offers, Mizan's blue first.
+// accents are the brand colors the theming demo offers, Ryugo's blue first.
 var accents = []struct {
 	Name  string
 	Color ui.Color

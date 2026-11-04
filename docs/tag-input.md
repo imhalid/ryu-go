@@ -8,7 +8,7 @@ out the last. The well grows a line as the tags fill one.
 <!-- preview tag-input 250 -->
 
 ```go
-mizan.TagInput(c.Key("tags"), &app.tags, mizan.TagInputOptions{Label: "Tags", Placeholder: "Add a tag"})
+ryugo.TagInput(c.Key("tags"), &app.tags, ryugo.TagInputOptions{Label: "Tags", Placeholder: "Add a tag"})
 ```
 
 `Max` stops it taking more.

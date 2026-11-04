@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import (
 	"fmt"
@@ -9,10 +9,10 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// A Table is Mizan's data table: rows on the table surface under a header
+// A Table is Ryugo's data table: rows on the table surface under a header
 // in its tint, divided by hairlines, numbers tabular and at the end. Its
 // rows are built only as far as they show, at a height set by the size
-// step, so that thousands stay quick. It moves as the rest of Mizan does,
+// step, so that thousands stay quick. It moves as the rest of Ryugo does,
 // never by a flash of color: rows slide to their new places as the sort
 // changes and as rows come and go, a column picked up by its header lifts
 // and the others slide aside for it, a selection bar springs in over the
@@ -216,16 +216,16 @@ type tableFrame[R any] struct {
 // on the table, Up and Down move the cursor row, Space chooses it, Shift
 // with the arrows chooses a range, and Enter opens it.
 //
-//	cols := []mizan.Column[Order]{
-//		{Title: "Customer", Kind: mizan.KindPerson, Value: func(o Order) any { return o.Customer }, Sortable: true},
-//		{Title: "Total", Kind: mizan.KindNumber, Value: func(o Order) any { return o.Total }, Sortable: true, Decimals: 2},
+//	cols := []ryugo.Column[Order]{
+//		{Title: "Customer", Kind: ryugo.KindPerson, Value: func(o Order) any { return o.Customer }, Sortable: true},
+//		{Title: "Total", Kind: ryugo.KindNumber, Value: func(o Order) any { return o.Total }, Sortable: true, Decimals: 2},
 //	}
-//	mizan.Table(c.Key("orders"), &app.table, cols, app.orders, mizan.TableOptions[Order]{
+//	ryugo.Table(c.Key("orders"), &app.table, cols, app.orders, ryugo.TableOptions[Order]{
 //		Key: func(o Order) any { return o.ID }, Selectable: true,
 //	})
 func Table[R any](c *ui.Context, s *TableState, cols []Column[R], rows []R, o TableOptions[R]) ui.Element {
 	if o.Key == nil {
-		panic("mizan: Table needs a Key")
+		panic("ryugo: Table needs a Key")
 	}
 	t := sizedFrom(c, or(s.Density, o.Size))
 	f := &tableFrame[R]{t: t, c: c, s: s, o: o, cols: cols, rows: rows, m: tableSizes(t.Size), now: c.Now(),

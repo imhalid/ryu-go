@@ -1,5 +1,5 @@
 // The previews of the docs: demo/ is a Go app of native UI showing
-// Mizan's components, which this plugin compiles to WebAssembly and
+// Ryugo's components, which this plugin compiles to WebAssembly and
 // publishes at /docs-demo, with Go's loader and the page loading it. A page
 // of docs/ shows one of its demos in a frame where it has
 // `<!-- preview name height -->` (markdown.server.ts).
@@ -53,7 +53,7 @@ export function docsDemo(repoDir: string): Plugin {
   // for frames loading together, so that a reload shows the demos as edited.
   let building: Promise<Buffer> | undefined
   return {
-    name: "mizan-docs-demo",
+    name: "ryugo-docs-demo",
     applyToEnvironment: (environment) => environment.name === "client",
     async generateBundle() {
       const wasm = await compile(repoDir)

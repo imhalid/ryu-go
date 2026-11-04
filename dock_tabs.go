@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import (
 	"slices"
@@ -164,7 +164,7 @@ func (d *dockView) strip(n *Node, focused bool) {
 	})
 	st.tabs[n.ID] = slots
 
-	// the chosen tab sits on a raised pill, Mizan's control, as Segmented's
+	// the chosen tab sits on a raised pill, Ryugo's control, as Segmented's
 	// chosen segment does: it slides to a new choice on a spring (straight
 	// there the first time), gives under a press, and goes while its tab is
 	// picked up

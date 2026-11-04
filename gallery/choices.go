@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/egoist/mygo/ui"
-	mz "github.com/imhalid/mizan-go"
+	mz "github.com/imhalid/ryu-go"
 )
 
 func (s *State) choices(c *ui.Context, t *mz.Tokens) {

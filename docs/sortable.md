@@ -8,7 +8,7 @@ Alt+Up and Alt+Down move the focused row.
 <!-- preview sortable 280 -->
 
 ```go
-mizan.Sortable(c.Key("steps"), &app.list, &app.steps, mizan.SortableOptions{
+ryugo.Sortable(c.Key("steps"), &app.list, &app.steps, ryugo.SortableOptions{
 	Label: func(i int) string { return app.steps[i] },
 }, func(step string) {
 	ui.Text(c, step).Grow(1)

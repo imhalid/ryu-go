@@ -10,14 +10,14 @@ its header and footer.
 <!-- preview dialog 480 -->
 
 ```go
-mizan.Dialog(c.Key("delete"), &app.confirm, mizan.DialogOptions{
+ryugo.Dialog(c.Key("delete"), &app.confirm, ryugo.DialogOptions{
 	Title:       "Delete the report?",
 	Description: "Q3-report.pdf will be removed for everyone.",
 	Footer: func() {
-		if mizan.Button(c.Key("cancel"), "Cancel", mizan.ButtonOptions{}).Clicked() {
+		if ryugo.Button(c.Key("cancel"), "Cancel", ryugo.ButtonOptions{}).Clicked() {
 			app.confirm = false
 		}
-		if mizan.Button(c.Key("ok"), "Delete report", mizan.ButtonOptions{Danger: true}).Clicked() {
+		if ryugo.Button(c.Key("ok"), "Delete report", ryugo.ButtonOptions{Danger: true}).Clicked() {
 			app.delete()
 		}
 	},

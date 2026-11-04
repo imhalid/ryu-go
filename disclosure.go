@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import (
 	"time"
@@ -22,7 +22,7 @@ type CollapsibleOptions struct {
 // takes a soft fill under the pointer. It returns the header, whose
 // Changed reports a click.
 //
-//	mizan.Collapsible(c.Key("advanced"), "Advanced", &app.advanced, mizan.CollapsibleOptions{}, func() { ... })
+//	ryugo.Collapsible(c.Key("advanced"), "Advanced", &app.advanced, ryugo.CollapsibleOptions{}, func() { ... })
 func Collapsible(c *ui.Context, title string, open *bool, o CollapsibleOptions, body func()) ui.Element {
 	t := From(c)
 	var head ui.Element
@@ -79,7 +79,7 @@ func (a *AccordionList) ItemWith(title string, open *bool, o CollapsibleOptions,
 // settings page's; build them with Item. Each opens and closes on its own,
 // or, with Single, opening one closes the others.
 //
-//	mizan.Accordion(c.Key("faq"), mizan.AccordionOptions{Single: true}, func(a *mizan.AccordionList) {
+//	ryugo.Accordion(c.Key("faq"), ryugo.AccordionOptions{Single: true}, func(a *ryugo.AccordionList) {
 //		a.Item("Billing", &app.billing, func() { ... })
 //		a.Item("Security", &app.security, func() { ... })
 //	})

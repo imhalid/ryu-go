@@ -6,7 +6,7 @@ import { notFoundScript } from "@/lib/not-found"
 // Prerendered as 404.html, which Cloudflare serves for paths without a page.
 export const Route = createFileRoute("/404")({
   head: () => ({
-    meta: [{ title: "Page not found · Mizan" }],
+    meta: [{ title: "Page not found · Ryugo" }],
     scripts: [{ children: notFoundScript }],
   }),
   component: NotFound,

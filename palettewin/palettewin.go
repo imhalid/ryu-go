@@ -1,5 +1,5 @@
 // Package palettewin floats a board's palettes in windows of their own,
-// as Pixelmator Classic's, on MyGo's windows: a mizan.PaletteHost. Each
+// as Pixelmator Classic's, on MyGo's windows: a ryugo.PaletteHost. Each
 // palette is a borderless, transparent child window of the app's, which
 // the palette draws itself in; it stays over the app's window and closes
 // with it. Where the system doesn't put a window where asked, nor say

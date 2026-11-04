@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import (
 	"math"
@@ -23,7 +23,7 @@ type CardOptions struct {
 // strong at the top and fading downwards (in the dark theme shadows don't
 // show, so the border separates).
 //
-//	mizan.Card(c, mizan.CardOptions{Title: "Active users", Pad: true}, func() {
+//	ryugo.Card(c, ryugo.CardOptions{Title: "Active users", Pad: true}, func() {
 //		...
 //	})
 func Card(c *ui.Context, o CardOptions, body func()) ui.Element {
@@ -87,8 +87,8 @@ type FieldOptions struct {
 // field the label turns the Up color; the control itself is marked with
 // Invalid.
 //
-//	mizan.Field(c, mizan.FieldOptions{Label: "Email", Error: app.emailErr}, func() {
-//		mizan.Input(c.Key("email"), &app.email, mizan.InputOptions{Label: "Email", Invalid: app.emailErr != ""})
+//	ryugo.Field(c, ryugo.FieldOptions{Label: "Email", Error: app.emailErr}, func() {
+//		ryugo.Input(c.Key("email"), &app.email, ryugo.InputOptions{Label: "Email", Invalid: app.emailErr != ""})
 //	})
 func Field(c *ui.Context, o FieldOptions, control func()) ui.Element {
 	cl := From(c).Colors

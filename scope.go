@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import "github.com/egoist/mygo/ui"
 
@@ -23,7 +23,7 @@ const (
 )
 
 // Corners is how round the corners are: the radii of cards, fields, menus
-// and tables at half, at, or one and a half times Mizan's. Pills (buttons,
+// and tables at half, at, or one and a half times Ryugo's. Pills (buttons,
 // badges) and circles keep their shape.
 type Corners uint8
 
@@ -42,8 +42,8 @@ type Options struct {
 	Size    Size
 	Corners Corners
 	// Accent is the brand color: the accent ramp, the selection fills and
-	// the rings take its hue and chroma, at Mizan's lightness steps (so
-	// contrast holds in both themes). Zero keeps Mizan's blue. Keep it to a
+	// the rings take its hue and chroma, at Ryugo's lightness steps (so
+	// contrast holds in both themes). Zero keeps Ryugo's blue. Keep it to a
 	// few colors: every one is cached for the life of the program.
 	Accent ui.Color
 }
@@ -56,7 +56,7 @@ type Tokens struct {
 	Corners Corners
 	// corner is the factor the radii take for Corners.
 	corner float32
-	// accent is the brand color the scope was made with, zero for Mizan's.
+	// accent is the brand color the scope was made with, zero for Ryugo's.
 	accent ui.Color
 
 	Colors  Colors
@@ -67,7 +67,7 @@ type Tokens struct {
 	// darker in light, lighter in dark (CSS --control-hover).
 	ControlHover float32
 
-	// theme is this scope's MyGo theme: the built-in widgets get Mizan's
+	// theme is this scope's MyGo theme: the built-in widgets get Ryugo's
 	// colors too, and since Context.Theme returns this pointer, the scope is
 	// found from it.
 	theme *ui.Theme
@@ -131,7 +131,7 @@ func tokensFor(dark bool, size Size, corners Corners, accent ui.Color) *Tokens {
 }
 
 // uiTheme gives MyGo's built-in widgets (scroll bar, menu, tooltip, focus
-// ring) Mizan's colors and dimensions.
+// ring) Ryugo's colors and dimensions.
 func (t *Tokens) uiTheme() *ui.Theme {
 	c := t.Colors
 	th := ui.LightTheme()
@@ -177,11 +177,11 @@ func Painting(p *ui.Painter) *Tokens {
 	return tokensFor(p.Theme().Dark, Md, CornersMd, ui.Color{})
 }
 
-// Root gives Mizan to the whole window; it is called at the start of the
+// Root gives Ryugo to the whole window; it is called at the start of the
 // view, every frame. ModeInherit follows the system's light/dark appearance.
 //
 //	func (a *app) view(c *ui.Context) {
-//		mizan.Root(c, mizan.Options{})
+//		ryugo.Root(c, ryugo.Options{})
 //		...
 //	}
 func Root(c *ui.Context, o Options) *Tokens {
@@ -204,10 +204,10 @@ func Root(c *ui.Context, o Options) *Tokens {
 // Scope is a column whose children are built with another theme, size or
 // accent (giving a container data-theme, data-size in CSS). Fields
 // left unset are inherited. It paints no background; if the region needs
-// one, give it with Background(mizan.From(c).Colors.Bg).
+// one, give it with Background(ryugo.From(c).Colors.Bg).
 //
-//	mizan.Scope(c, mizan.Options{Size: mizan.Sm}).Gap(8).Children(func() {
-//		mizan.Button(c, "Export", mizan.ButtonOptions{})
+//	ryugo.Scope(c, ryugo.Options{Size: ryugo.Sm}).Gap(8).Children(func() {
+//		ryugo.Button(c, "Export", ryugo.ButtonOptions{})
 //	})
 func Scope(c *ui.Context, o Options) ui.Element {
 	return ui.Themed(c, scoped(c, o).theme).Background(ui.Transparent)
@@ -231,8 +231,8 @@ func scoped(c *ui.Context, o Options) *Tokens {
 // same radius inside and out, leave the gap between the corners thicker
 // than along the sides.
 //
-//	track := t.R(mizan.RadiusControl)
-//	pill := mizan.Concentric(track, 3)
+//	track := t.R(ryugo.RadiusControl)
+//	pill := ryugo.Concentric(track, 3)
 func Concentric(outer, pad float32) float32 { return max(outer-pad, 0) }
 
 // R is radius r at the scope's Corners; pills stay pills.
@@ -274,7 +274,7 @@ func (s TypeStyle) Apply(e ui.Element) ui.Element {
 
 // Text writes s in a type style.
 //
-//	mizan.Text(c, "Weekly active users", mizan.TTitle)
+//	ryugo.Text(c, "Weekly active users", ryugo.TTitle)
 func Text(c *ui.Context, s string, style TypeStyle) ui.Element {
 	return style.Apply(ui.Text(c, s))
 }

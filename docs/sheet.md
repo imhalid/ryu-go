@@ -8,7 +8,7 @@ does, and takes the same options.
 <!-- preview sheet 440 -->
 
 ```go
-mizan.Sheet(c.Key("settings"), &app.settings, mizan.DialogOptions{
+ryugo.Sheet(c.Key("settings"), &app.settings, ryugo.DialogOptions{
 	Title:       "Report settings",
 	Description: "Changes apply to the next export.",
 	Footer:      func() { ... },

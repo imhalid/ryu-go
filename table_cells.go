@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import (
 	"cmp"
@@ -21,7 +21,7 @@ const (
 	// end of the cell, with the column's Unit muted beside it.
 	KindNumber
 	// KindChange is a change in percent points as a toned badge: a rise
-	// in the Down color, a fall in the Up color, as Mizan reads money.
+	// in the Down color, a fall in the Up color, as Ryugo reads money.
 	KindChange
 	// KindDate is a time.Time as "Nov 3, 2026".
 	KindDate

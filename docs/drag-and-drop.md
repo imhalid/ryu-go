@@ -8,9 +8,9 @@ go. As the card lands, a light runs up both sides of the column.
 <!-- preview drag-and-drop 270 -->
 
 ```go
-mizan.DropArea(c.Key("done"), mizan.DropAreaOptions{Title: "Done", Count: "3"}, func() {
+ryugo.DropArea(c.Key("done"), ryugo.DropAreaOptions{Title: "Done", Count: "3"}, func() {
 	for _, task := range app.done {
-		mizan.DragCard(c.Key(task.ID), task, func() { ui.Text(c, task.Title).Wrap() })
+		ryugo.DragCard(c.Key(task.ID), task, func() { ui.Text(c, task.Title).Wrap() })
 	}
 }, func(task *Task, index int) {
 	app.move(task, "done", index)

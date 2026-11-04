@@ -12,12 +12,12 @@ and forth through every change.
 <!-- preview workspace 560 -->
 
 ```go
-layout := mizan.NewLayout(mizan.DockSplit(mizan.DockRow, []float32{0.25, 0.75},
-	mizan.DockArea(&mizan.Pane{Kind: "files", Title: "Files"}),
-	mizan.DockArea(&mizan.Pane{Kind: "editor", Title: "main.go"}),
+layout := ryugo.NewLayout(ryugo.DockSplit(ryugo.DockRow, []float32{0.25, 0.75},
+	ryugo.DockArea(&ryugo.Pane{Kind: "files", Title: "Files"}),
+	ryugo.DockArea(&ryugo.Pane{Kind: "editor", Title: "main.go"}),
 ))
-mizan.Dock(c.Key("dock"), layout, mizan.DockOptions{
-	Kinds: []mizan.DockKind{
+ryugo.Dock(c.Key("dock"), layout, ryugo.DockOptions{
+	Kinds: []ryugo.DockKind{
 		{Kind: "files", Title: "Files", Build: app.files},
 		{Kind: "editor", Title: "Editor", Build: app.editor},
 	},

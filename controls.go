@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import (
 	"strconv"
@@ -79,7 +79,7 @@ type CheckOptions struct {
 // accent gradient and a white check when checked. The whole row is
 // clickable.
 //
-//	mizan.Checkbox(c.Key("mail"), &app.mail, "Email notifications", mizan.CheckOptions{})
+//	ryugo.Checkbox(c.Key("mail"), &app.mail, "Email notifications", ryugo.CheckOptions{})
 func Checkbox(c *ui.Context, checked *bool, label string, o CheckOptions) ui.Element {
 	t := From(c)
 	e := ui.CheckboxBase(c, checked).Disabled(o.Disabled)
@@ -147,8 +147,8 @@ func checkMark(c *ui.Context, size, width float32, on, dash, drawIn bool, color 
 // ui.RadioGroup.
 //
 //	ui.RadioGroup(c, func() {
-//		mizan.Radio(c.Key("d"), &app.plan, "day", "Daily", mizan.CheckOptions{})
-//		mizan.Radio(c.Key("w"), &app.plan, "week", "Weekly", mizan.CheckOptions{})
+//		ryugo.Radio(c.Key("d"), &app.plan, "day", "Daily", ryugo.CheckOptions{})
+//		ryugo.Radio(c.Key("w"), &app.plan, "week", "Weekly", ryugo.CheckOptions{})
 //	}).Label("Plan")
 func Radio[T comparable](c *ui.Context, selected *T, value T, label string, o CheckOptions) ui.Element {
 	t := From(c)
@@ -251,7 +251,7 @@ type SwitchOptions struct {
 // accent gradient when on; the knob slides on a spring and stretches into
 // a short capsule while held.
 //
-//	mizan.Switch(c.Key("sync"), &app.sync, mizan.SwitchOptions{Label: "Sync"})
+//	ryugo.Switch(c.Key("sync"), &app.sync, ryugo.SwitchOptions{Label: "Sync"})
 func Switch(c *ui.Context, on *bool, o SwitchOptions) ui.Element {
 	t := From(c)
 	cl := t.Colors
@@ -300,7 +300,7 @@ type SegmentedOptions struct {
 // divided by grooved separators; the separators on both sides of the pill
 // fade out.
 //
-//	mizan.Segmented(c.Key("view"), &app.view, []string{"List", "Grid"}, mizan.SegmentedOptions{Label: "View"})
+//	ryugo.Segmented(c.Key("view"), &app.view, []string{"List", "Grid"}, ryugo.SegmentedOptions{Label: "View"})
 func Segmented(c *ui.Context, selected *int, labels []string, o SegmentedOptions) ui.Element {
 	t := sizedFrom(c, o.Size)
 	m := t.Metrics
@@ -459,7 +459,7 @@ func sliderText(v, lo, hi float64, o SliderOptions) string {
 // and settling onto its step on a spring when let go, a small label of its
 // value rising over it. With Format, its value stands on its right too.
 //
-//	mizan.Slider(c.Key("vol"), &app.volume, 0, 100, mizan.SliderOptions{Label: "Volume"})
+//	ryugo.Slider(c.Key("vol"), &app.volume, 0, 100, ryugo.SliderOptions{Label: "Volume"})
 func Slider(c *ui.Context, value *float64, lo, hi float64, o SliderOptions) ui.Element {
 	t := From(c)
 	cl := t.Colors

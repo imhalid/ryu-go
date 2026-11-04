@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import (
 	"strconv"
@@ -8,7 +8,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// Mizan has no chat; its language is set here: your own message wears the
+// Ryugo has no chat; its language is set here: your own message wears the
 // solid button's skin (accent gradient, white text), the other side's the
 // second surface and a hairline border. Labels look like field labels
 // (fs-sm 500 muted), times are tabular. Consecutive messages from the same
@@ -71,7 +71,7 @@ func GroupOf(msgs []ChatMessage, i int) Group {
 // sits on the right, the other side's on the left with its avatar.
 //
 //	for i, m := range app.msgs {
-//		mizan.Message(c.Key(i), m, mizan.GroupOf(app.msgs, i))
+//		ryugo.Message(c.Key(i), m, ryugo.GroupOf(app.msgs, i))
 //	}
 func Message(c *ui.Context, m ChatMessage, g Group) ui.Element {
 	t := From(c)
@@ -255,7 +255,7 @@ type ComposerOptions struct {
 // returns true in the frame the message is sent; clearing the text is up to
 // the caller.
 //
-//	if mizan.Composer(c.Key("composer"), &app.draft, mizan.ComposerOptions{Placeholder: "Message"}) {
+//	if ryugo.Composer(c.Key("composer"), &app.draft, ryugo.ComposerOptions{Placeholder: "Message"}) {
 //		app.send()
 //	}
 func Composer(c *ui.Context, value *string, o ComposerOptions) bool {
@@ -346,7 +346,7 @@ const chatFollow = 700 * time.Millisecond
 // number of messages not seen, and takes the list down to them. Give it a
 // size: Fill it, or Grow it in its parent.
 //
-//	mizan.Chat(c.Key("chat"), app.msgs, mizan.ChatOptions{Typing: app.typing}).Fill()
+//	ryugo.Chat(c.Key("chat"), app.msgs, ryugo.ChatOptions{Typing: app.typing}).Fill()
 func Chat(c *ui.Context, msgs []ChatMessage, o ChatOptions) ui.Element {
 	t := From(c)
 	cl := t.Colors

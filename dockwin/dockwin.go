@@ -1,6 +1,6 @@
 // Package dockwin shows the windows of a Dock's layout in MyGo's windows,
 // experimental as Dock is:
-// a mizan.DockHost. A tab dragged out of a window tears off into a window
+// a ryugo.DockHost. A tab dragged out of a window tears off into a window
 // of its own where it is let go, and docks into another window of the
 // layout it is let go over; a window closed gives what it holds back to
 // the main window; windows' places and sizes are kept in the layout, so
@@ -11,10 +11,10 @@
 // It is a package of its own so that apps that use a Dock without windows
 // of its own don't take in MyGo's window package with it.
 //
-//	host := dockwin.New(win, func() *mizan.Layout { return app.layout }, func(id string) func(*ui.Context) {
+//	host := dockwin.New(win, func() *ryugo.Layout { return app.layout }, func(id string) func(*ui.Context) {
 //		return func(c *ui.Context) {
-//			mizan.Root(c, mizan.Options{})
-//			mizan.Dock(c, app.layout, mizan.DockOptions{Window: id, Kinds: app.kinds, Host: host}).Fill()
+//			ryugo.Root(c, ryugo.Options{})
+//			ryugo.Dock(c, app.layout, ryugo.DockOptions{Window: id, Kinds: app.kinds, Host: host}).Fill()
 //		}
 //	})
 //	host.Sync() // the windows saved with the layout open
@@ -27,13 +27,13 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
-	"github.com/imhalid/mizan-go"
+	"github.com/imhalid/ryu-go"
 )
 
 // Host shows a layout's windows in MyGo's windows.
 type Host struct {
 	main   *mygo.Window
-	layout func() *mizan.Layout
+	layout func() *ryugo.Layout
 	view   func(window string) func(*ui.Context)
 	// OnChange runs when a window moved, was resized or closed: the layout
 	// changed, the moment to save it.
@@ -47,7 +47,7 @@ type Host struct {
 // New returns the host of the layout layout returns (it can change, as a
 // layout restored), whose main window is main; view builds the content of
 // a window the layout tears off, by its ID: a Dock of that window.
-func New(main *mygo.Window, layout func() *mizan.Layout, view func(window string) func(*ui.Context)) *Host {
+func New(main *mygo.Window, layout func() *ryugo.Layout, view func(window string) func(*ui.Context)) *Host {
 	return &Host{main: main, layout: layout, view: view,
 		wins: map[string]*mygo.Window{"main": main}, opening: map[string]bool{}}
 }
@@ -81,15 +81,15 @@ func frame(view func(*ui.Context)) func(*ui.Context) {
 		return view
 	}
 	return func(c *ui.Context) {
-		var t *mizan.Tokens
+		var t *ryugo.Tokens
 		var surface ui.Element
 		ui.Box(c).Fill().Padding(margin).Children(func() {
 			surface = ui.Box(c).Fill().Clip().Children(func() {
 				view(c)
-				t = mizan.From(c)
+				t = ryugo.From(c)
 			})
 		})
-		r := t.R(mizan.RadiusControl)
+		r := t.R(ryugo.RadiusControl)
 		surface.Radius(r).Shadow(0, 4, 14, 0, ui.RGBA(0, 0, 0, 0.28)).Shadow(0, 0, 0, 0.5, ui.RGBA(0, 0, 0, 0.12)).
 			DrawOver(func(p *ui.Painter, b ui.Rect) { p.Stroke(b, t.Colors.Hairline, r, 1) })
 		c.Root().Background(ui.Transparent)
@@ -130,7 +130,7 @@ func (h *Host) Pointer() (ui.Point, bool) {
 }
 
 // Move puts the content of window id at p on the screen, faded (see
-// mizan.DockHost).
+// ryugo.DockHost).
 func (h *Host) Move(id string, p ui.Point, faded bool) {
 	w := h.win(id)
 	if w == nil {
@@ -191,7 +191,7 @@ func (h *Host) Sync() {
 
 // open opens a window for dw, where it was, or where the system puts it
 // when that is on no display.
-func (h *Host) open(dw mizan.DockWindow) {
+func (h *Host) open(dw ryugo.DockWindow) {
 	// the layout keeps the surface's place and size; the window takes the
 	// margin round it too
 	x, y, wd, ht := dw.X, dw.Y, dw.Width, dw.Height
@@ -279,7 +279,7 @@ func onDisplay(x, y, w int) bool {
 }
 
 // title is a window's title: the pane its first area shows.
-func title(dw mizan.DockWindow) string {
+func title(dw ryugo.DockWindow) string {
 	n := dw.Root
 	for n != nil && !n.IsArea() {
 		n = n.Children[0]

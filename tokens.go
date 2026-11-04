@@ -1,9 +1,9 @@
-// Mizan's design tokens, written directly as Go values. Colors are OKLCH
+// Ryugo's design tokens, written directly as Go values. Colors are OKLCH
 // (oklch(l, c, h, alpha), with l and alpha from 0 to 1 and h in degrees),
 // and derived colors mix others in Oklab (Mix), as CSS color-mix does.
 // Edit the values here: this file is the source of the tokens.
 
-package mizan
+package ryugo
 
 import "github.com/egoist/mygo/ui"
 

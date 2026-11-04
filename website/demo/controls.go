@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/egoist/mygo/ui"
-	mz "github.com/imhalid/mizan-go"
+	mz "github.com/imhalid/ryu-go"
 )
 
 func init() {
@@ -45,8 +45,8 @@ func init() {
 
 	demo("copy-button", func(c *ui.Context, t *mz.Tokens) {
 		ui.Row(c).Gap(mz.GapControl).AlignItems(ui.Center).Children(func() {
-			mz.Text(c, "https://mizan.example/q3-report", mz.TCode).TextColor(t.Colors.Text2)
-			mz.CopyButton(c.Key("copy"), "https://mizan.example/q3-report", mz.CopyOptions{Label: "Copy link"})
+			mz.Text(c, "https://ryugo.example/q3-report", mz.TCode).TextColor(t.Colors.Text2)
+			mz.CopyButton(c.Key("copy"), "https://ryugo.example/q3-report", mz.CopyOptions{Label: "Copy link"})
 		})
 	})
 

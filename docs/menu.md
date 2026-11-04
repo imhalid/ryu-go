@@ -8,21 +8,21 @@ below any element you give it.
 <!-- preview menu 290 -->
 
 ```go
-mizan.MenuButton(c.Key("sort"), "Sort", mizan.ButtonOptions{}, func(m *mizan.MenuList) {
+ryugo.MenuButton(c.Key("sort"), "Sort", ryugo.ButtonOptions{}, func(m *ryugo.MenuList) {
 	m.Label("Sort by")
 	for _, by := range []string{"Name", "Date", "Size"} {
-		if m.Item(by, mizan.ItemOptions{Checkable: true, Checked: app.sort == by}) {
+		if m.Item(by, ryugo.ItemOptions{Checkable: true, Checked: app.sort == by}) {
 			app.sort = by
 		}
 	}
 })
 
-mizan.Menu(c.Key("more"), moreButton, &app.menu, func(m *mizan.MenuList) {
-	if m.Item("Rename", mizan.ItemOptions{Icon: editIcon, Shortcut: "⌘R"}) {
+ryugo.Menu(c.Key("more"), moreButton, &app.menu, func(m *ryugo.MenuList) {
+	if m.Item("Rename", ryugo.ItemOptions{Icon: editIcon, Shortcut: "⌘R"}) {
 		app.rename()
 	}
 	m.Separator()
-	if m.Item("Delete", mizan.ItemOptions{Icon: trashIcon, Danger: true}) {
+	if m.Item("Delete", ryugo.ItemOptions{Icon: trashIcon, Danger: true}) {
 		app.delete()
 	}
 })

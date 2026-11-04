@@ -7,9 +7,9 @@ others.
 <!-- preview accordion 270 -->
 
 ```go
-mizan.Accordion(c.Key("settings"), mizan.AccordionOptions{Single: true}, func(a *mizan.AccordionList) {
+ryugo.Accordion(c.Key("settings"), ryugo.AccordionOptions{Single: true}, func(a *ryugo.AccordionList) {
 	a.Item("Billing", &app.billing, func() { ... })
-	a.ItemWith("Security", &app.security, mizan.CollapsibleOptions{Description: "Two-factor sign-in, sessions"}, func() { ... })
+	a.ItemWith("Security", &app.security, ryugo.CollapsibleOptions{Description: "Two-factor sign-in, sessions"}, func() { ... })
 })
 ```
 

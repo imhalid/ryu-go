@@ -8,9 +8,9 @@ to swap them for the content.
 <!-- preview skeleton 170 -->
 
 ```go
-mizan.Skeleton(c, 36, 36).Radius(mizan.RadiusPill) // an avatar's
-mizan.Skeleton(c, 120, 12)
-mizan.SkeletonText(c, 2)
+ryugo.Skeleton(c, 36, 36).Radius(ryugo.RadiusPill) // an avatar's
+ryugo.Skeleton(c, 120, 12)
+ryugo.SkeletonText(c, 2)
 ```
 
 A width of zero takes the row's width. Round it otherwise with `Radius`;

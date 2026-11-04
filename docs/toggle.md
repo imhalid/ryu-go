@@ -9,9 +9,9 @@ on one raised bar, which the arrows move within; a vertical
 <!-- preview toggle 130 -->
 
 ```go
-mizan.ToggleGroup(c.Key("style"), "Text style", func() {
-	mizan.Toggle(c.Key("b"), &app.bold, "Bold", mizan.ToggleOptions{Icon: boldIcon, IconOnly: true})
-	mizan.Toggle(c.Key("i"), &app.italic, "Italic", mizan.ToggleOptions{Icon: italicIcon, IconOnly: true})
+ryugo.ToggleGroup(c.Key("style"), "Text style", func() {
+	ryugo.Toggle(c.Key("b"), &app.bold, "Bold", ryugo.ToggleOptions{Icon: boldIcon, IconOnly: true})
+	ryugo.Toggle(c.Key("i"), &app.italic, "Italic", ryugo.ToggleOptions{Icon: italicIcon, IconOnly: true})
 })
 ```
 

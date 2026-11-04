@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import (
 	"math"
@@ -54,7 +54,7 @@ type TextareaOptions struct {
 // count of characters stands in its bottom right corner. It returns the
 // text area itself (for Changed, Focus).
 //
-//	mizan.Textarea(c.Key("bio"), &app.bio, mizan.TextareaOptions{Placeholder: "About you", MaxLength: 280})
+//	ryugo.Textarea(c.Key("bio"), &app.bio, ryugo.TextareaOptions{Placeholder: "About you", MaxLength: 280})
 func Textarea(c *ui.Context, value *string, o TextareaOptions) ui.Element {
 	t := sizedFrom(c, o.Size)
 	m := t.Metrics
@@ -131,7 +131,7 @@ type NumberInputOptions struct {
 // range, to the nearest step, or, when it is no number, back to the
 // value. It returns the text input (for Changed, Focus).
 //
-//	mizan.NumberInput(c.Key("qty"), &app.qty, mizan.NumberInputOptions{Min: 1, Max: 99, Label: "Quantity"})
+//	ryugo.NumberInput(c.Key("qty"), &app.qty, ryugo.NumberInputOptions{Min: 1, Max: 99, Label: "Quantity"})
 func NumberInput(c *ui.Context, value *float64, o NumberInputOptions) ui.Element {
 	t := sizedFrom(c, o.Size)
 	m := t.Metrics
@@ -347,7 +347,7 @@ type ComboboxOptions struct {
 // matched nothing goes back to the choice as the field loses the focus.
 // It returns the text input.
 //
-//	mizan.Combobox(c.Key("owner"), &app.owner, people, mizan.ComboboxOptions{Placeholder: "Assign to…"})
+//	ryugo.Combobox(c.Key("owner"), &app.owner, people, ryugo.ComboboxOptions{Placeholder: "Assign to…"})
 func Combobox[T comparable](c *ui.Context, value *T, options []Option[T], o ComboboxOptions) ui.Element {
 	t := sizedFrom(c, o.Size)
 	m := t.Metrics
@@ -518,7 +518,7 @@ type DatePickerOptions struct {
 // day of the user's regional formats. A chosen day keeps the time of day
 // and location of *date. It returns the trigger.
 //
-//	mizan.DatePicker(c.Key("due"), &app.due, mizan.DatePickerOptions{Label: "Due date"})
+//	ryugo.DatePicker(c.Key("due"), &app.due, ryugo.DatePickerOptions{Label: "Due date"})
 func DatePicker(c *ui.Context, date *time.Time, o DatePickerOptions) ui.Element {
 	t := sizedFrom(c, o.Size)
 	m := t.Metrics
@@ -791,7 +791,7 @@ type TagInputOptions struct {
 // last tag. The well grows a line as the tags fill one. It returns the
 // text input.
 //
-//	mizan.TagInput(c.Key("tags"), &app.tags, mizan.TagInputOptions{Placeholder: "Add a tag"})
+//	ryugo.TagInput(c.Key("tags"), &app.tags, ryugo.TagInputOptions{Placeholder: "Add a tag"})
 func TagInput(c *ui.Context, tags *[]string, o TagInputOptions) ui.Element {
 	t := sizedFrom(c, o.Size)
 	m := t.Metrics

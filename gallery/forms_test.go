@@ -10,7 +10,7 @@ import (
 
 	"github.com/egoist/mygo/i18n"
 	"github.com/egoist/mygo/ui"
-	mz "github.com/imhalid/mizan-go"
+	mz "github.com/imhalid/ryu-go"
 )
 
 // formsTester opens the forms page.
@@ -348,9 +348,9 @@ func TestTagInput(t *testing.T) {
 // TestFormsSnapshots draws the forms page in both themes, and with the
 // date picker and the combobox open.
 func TestFormsSnapshots(t *testing.T) {
-	dir := os.Getenv("MIZAN_SNAPSHOTS")
+	dir := os.Getenv("RYUGO_SNAPSHOTS")
 	if dir == "" {
-		t.Skip("MIZAN_SNAPSHOTS not set")
+		t.Skip("RYUGO_SNAPSHOTS not set")
 	}
 	save := func(tt *ui.Tester, name string) {
 		f, err := os.Create(filepath.Join(dir, name+".png"))

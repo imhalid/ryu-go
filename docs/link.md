@@ -8,8 +8,8 @@ no URL it is a button that reads as a link: `Clicked` reports it.
 <!-- preview link 130 -->
 
 ```go
-mizan.Link(c, "Read the changelog", "https://github.com/imhalid/mizan-go")
-if mizan.Link(c, "Show details", "").Clicked() {
+ryugo.Link(c, "Read the changelog", "https://github.com/imhalid/ryu-go")
+if ryugo.Link(c, "Show details", "").Clicked() {
 	app.details = !app.details
 }
 ```

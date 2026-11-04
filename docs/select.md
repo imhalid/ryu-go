@@ -8,11 +8,11 @@ chosen one as the list opens.
 <!-- preview select 300 -->
 
 ```go
-mizan.Select(c.Key("range"), &app.days, []mizan.Option[int]{
+ryugo.Select(c.Key("range"), &app.days, []ryugo.Option[int]{
 	{Value: 7, Label: "Last 7 days"},
 	{Value: 30, Label: "Last 30 days", Description: "default"},
 	{Value: 365, Label: "Last year", Disabled: true},
-}, mizan.SelectOptions{Label: "Period"})
+}, ryugo.SelectOptions{Label: "Period"})
 ```
 
 The value is any comparable type: the option whose `Value` equals it is

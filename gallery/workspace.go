@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/egoist/mygo/ui"
-	mz "github.com/imhalid/mizan-go"
+	mz "github.com/imhalid/ryu-go"
 )
 
 // workspacePage is the state of the workspace page: a Dock's layout, and
@@ -52,7 +52,7 @@ func (w *workspacePage) kinds(cl mz.Colors) []mz.DockKind {
 	return []mz.DockKind{
 		{Kind: "files", Title: "Files", Icon: iconFolder, Build: lines(cl, []string{"cmd/", "docs/", "gallery/", "accent.go", "controls.go", "dock.go", "dock_layout.go", "forms.go", "table.go", "tokens.go"})},
 		{Kind: "editor", Title: "Editor", Icon: iconCode, Build: code(cl)},
-		{Kind: "console", Title: "Console", Icon: iconPrompt, Build: lines(cl, []string{"$ go test ./...", "ok   github.com/imhalid/mizan-go   0.4s", "ok   github.com/imhalid/mizan-go/gallery   61.2s", "$ go vet ./...", "$"})},
+		{Kind: "console", Title: "Console", Icon: iconPrompt, Build: lines(cl, []string{"$ go test ./...", "ok   github.com/imhalid/ryu-go   0.4s", "ok   github.com/imhalid/ryu-go/gallery   61.2s", "$ go vet ./...", "$"})},
 		{Kind: "outline", Title: "Outline", Icon: iconList, Build: lines(cl, []string{"Layout", "DockWindow", "Node", "Pane", "Dock", "dockView.node", "dockView.edge", "dockView.lined", "dockView.move"})},
 		{Kind: "props", Title: "Properties", Icon: iconSliders, Build: func(c *ui.Context, p *mz.Pane) {
 			ui.Column(c).Padding(12).Gap(10).Children(func() {

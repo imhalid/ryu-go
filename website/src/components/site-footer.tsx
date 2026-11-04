@@ -6,7 +6,7 @@ export function SiteFooter() {
   return (
     <footer className="frame label flex flex-wrap items-center justify-between gap-4 border-t px-4 py-6 sm:px-6">
       <span>
-        Mizan · MyGo {__MYGO_VERSION__} ·{" "}
+        Ryugo · MyGo {__MYGO_VERSION__} ·{" "}
         <a href={`${site.repo}/blob/main/LICENSE`} className="hover:text-foreground">
           MIT License
         </a>

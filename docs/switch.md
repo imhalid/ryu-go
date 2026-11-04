@@ -7,7 +7,7 @@ capsule while it is held.
 <!-- preview switch 170 -->
 
 ```go
-mizan.Switch(c.Key("sync"), &app.sync, mizan.SwitchOptions{Label: "Sync", Description: "Refresh the data every hour."})
+ryugo.Switch(c.Key("sync"), &app.sync, ryugo.SwitchOptions{Label: "Sync", Description: "Refresh the data every hour."})
 ```
 
 A switch applies at once; for a choice that waits for a Save, a

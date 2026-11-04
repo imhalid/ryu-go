@@ -9,7 +9,7 @@ number, the numbers keeping their places as it moves.
 <!-- preview pagination 100 -->
 
 ```go
-mizan.Pagination(c.Key("pages"), &app.page, len(app.rows), mizan.PaginationOptions{PageSize: 20})
+ryugo.Pagination(c.Key("pages"), &app.page, len(app.rows), ryugo.PaginationOptions{PageSize: 20})
 ```
 
 `*page` counts from 0. A [Table](table.md) with `PageSize` has one of its

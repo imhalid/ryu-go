@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import (
 	"time"
@@ -23,7 +23,7 @@ type ToggleOptions struct {
 // turns it over, which Changed reports; assistive technology sees a toggle
 // button. It is as tall as a button of its size step.
 //
-//	mizan.Toggle(c.Key("bold"), &app.bold, "Bold", mizan.ToggleOptions{Icon: boldIcon, IconOnly: true})
+//	ryugo.Toggle(c.Key("bold"), &app.bold, "Bold", ryugo.ToggleOptions{Icon: boldIcon, IconOnly: true})
 func Toggle(c *ui.Context, on *bool, label string, o ToggleOptions) ui.Element {
 	t := sizedFrom(c, o.Size)
 	m := t.Metrics
@@ -77,9 +77,9 @@ func Toggle(c *ui.Context, on *bool, label string, o ToggleOptions) ui.Element {
 // leaves the bar. Separator{Vertical: true} divides groups within it. label
 // names it to assistive technology.
 //
-//	mizan.ToggleGroup(c, "Text style", func() {
-//		mizan.Toggle(c.Key("b"), &app.bold, "Bold", mizan.ToggleOptions{Icon: boldIcon, IconOnly: true})
-//		mizan.Toggle(c.Key("i"), &app.italic, "Italic", mizan.ToggleOptions{Icon: italicIcon, IconOnly: true})
+//	ryugo.ToggleGroup(c, "Text style", func() {
+//		ryugo.Toggle(c.Key("b"), &app.bold, "Bold", ryugo.ToggleOptions{Icon: boldIcon, IconOnly: true})
+//		ryugo.Toggle(c.Key("i"), &app.italic, "Italic", ryugo.ToggleOptions{Icon: italicIcon, IconOnly: true})
 //	})
 func ToggleGroup(c *ui.Context, label string, build func()) ui.Element {
 	t := From(c)
@@ -113,7 +113,7 @@ type SeparatorOptions struct {
 // beside it, as Menu's and Sheet's footer's, cut into the surface rather
 // than drawn on it.
 //
-//	mizan.Separator(c, mizan.SeparatorOptions{Label: "or"})
+//	ryugo.Separator(c, ryugo.SeparatorOptions{Label: "or"})
 func Separator(c *ui.Context, o SeparatorOptions) ui.Element {
 	cl := From(c).Colors
 	groove := func() ui.Element {
@@ -143,7 +143,7 @@ func Separator(c *ui.Context, o SeparatorOptions) ui.Element {
 // pointer. A click or Enter opens url in the browser (in a Router, a path
 // goes there). Inside a RichText, it is a link within the paragraph.
 //
-//	mizan.Link(c, "Read the changelog", "https://example.com/changelog")
+//	ryugo.Link(c, "Read the changelog", "https://example.com/changelog")
 func Link(c *ui.Context, label, url string) ui.Element {
 	t := From(c)
 	color := t.Colors.ColorAccent600

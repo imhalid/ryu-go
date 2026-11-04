@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import "github.com/egoist/mygo/ui"
 
@@ -26,7 +26,7 @@ type InputOptions struct {
 // it lightens to the surface and gets an accent ring. It returns the text
 // input itself (for Changed, Submitted, Focus).
 //
-//	mizan.Input(c.Key("q"), &app.query, mizan.InputOptions{Placeholder: "Search", Clearable: true})
+//	ryugo.Input(c.Key("q"), &app.query, ryugo.InputOptions{Placeholder: "Search", Clearable: true})
 func Input(c *ui.Context, value *string, o InputOptions) ui.Element {
 	t := sizedFrom(c, o.Size)
 	m := t.Metrics

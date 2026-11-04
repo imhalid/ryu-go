@@ -8,7 +8,7 @@ divide the other options, fading on either side of the pill.
 <!-- preview segmented 130 -->
 
 ```go
-mizan.Segmented(c.Key("view"), &app.view, []string{"List", "Grid", "Calendar", "Board"}, mizan.SegmentedOptions{Label: "View"})
+ryugo.Segmented(c.Key("view"), &app.view, []string{"List", "Grid", "Calendar", "Board"}, ryugo.SegmentedOptions{Label: "View"})
 ```
 
 `*selected` is the index of the chosen label. `Fill` stretches it across

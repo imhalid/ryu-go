@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import (
 	"time"
@@ -27,8 +27,8 @@ type TabsOptions struct {
 // End move the choice while a tab has the focus (straight there, without
 // the slide). Build the chosen panel below it, in TabPanel.
 //
-//	mizan.Tabs(c.Key("tabs"), &app.tab, []mizan.Tab{{Label: "Overview"}, {Label: "Activity", Badge: "3"}}, mizan.TabsOptions{})
-//	mizan.TabPanel(c, app.tab, func() { ... })
+//	ryugo.Tabs(c.Key("tabs"), &app.tab, []ryugo.Tab{{Label: "Overview"}, {Label: "Activity", Badge: "3"}}, ryugo.TabsOptions{})
+//	ryugo.TabPanel(c, app.tab, func() { ... })
 func Tabs(c *ui.Context, selected *int, tabs []Tab, o TabsOptions) ui.Element {
 	t := sizedFrom(c, o.Size)
 	m := t.Metrics

@@ -8,8 +8,8 @@ whole row, label and description, takes the click.
 <!-- preview checkbox 200 -->
 
 ```go
-mizan.Checkbox(c.Key("mail"), &app.mail, "Newsletter", mizan.CheckOptions{})
-mizan.Checkbox(c.Key("all"), &all, "All notifications", mizan.CheckOptions{Indeterminate: app.mail != app.push})
+ryugo.Checkbox(c.Key("mail"), &app.mail, "Newsletter", ryugo.CheckOptions{})
+ryugo.Checkbox(c.Key("all"), &all, "All notifications", ryugo.CheckOptions{Indeterminate: app.mail != app.push})
 ```
 
 `Indeterminate` shows a dash for a parent whose children differ; `Changed`

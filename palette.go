@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import (
 	"slices"
@@ -83,7 +83,7 @@ func (b *Board) IsOpen(id string) bool { return !b.state(id).Closed }
 
 // Open shows palette id again, in front, where it was.
 //
-//	if mizan.Button(c, "Layers", mizan.ButtonOptions{}).Clicked() {
+//	if ryugo.Button(c, "Layers", ryugo.ButtonOptions{}).Clicked() {
 //		app.board.Open("layers")
 //	}
 func (b *Board) Open(id string) {
@@ -165,9 +165,9 @@ type paletteSnap struct {
 // in it, and add the palettes that float over it with p.Palette. b keeps
 // where they are.
 //
-//	mizan.Palettes(c.Key("studio"), &app.board, func(p *mizan.PaletteSet) {
+//	ryugo.Palettes(c.Key("studio"), &app.board, func(p *ryugo.PaletteSet) {
 //		app.canvas(c)
-//		p.Palette("layers", mizan.PaletteOptions{Title: "Layers", At: ui.Point{X: -12, Y: 12}}, app.layers)
+//		p.Palette("layers", ryugo.PaletteOptions{Title: "Layers", At: ui.Point{X: -12, Y: 12}}, app.layers)
 //	}).Fill()
 func Palettes(c *ui.Context, b *Board, build func(p *PaletteSet)) ui.Element {
 	root := ui.Box(c).MinWidth(0).MinHeight(0).Clip()

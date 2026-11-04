@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import "github.com/egoist/mygo/ui"
 

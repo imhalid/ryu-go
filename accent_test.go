@@ -1,4 +1,4 @@
-package mizan
+package ryugo
 
 import (
 	"math"
@@ -12,7 +12,7 @@ func near(a, b ui.Color, tol int) bool {
 	return d(a.R, b.R) <= tol && d(a.G, b.G) <= tol && d(a.B, b.B) <= tol && d(a.A, b.A) <= tol
 }
 
-// Mizan's own accent given as the brand changes nothing.
+// Ryugo's own accent given as the brand changes nothing.
 func TestAccentIdentity(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		base := tokensFor(dark, Md, CornersMd, ui.Color{})
@@ -31,7 +31,7 @@ func TestAccentIdentity(t *testing.T) {
 	}
 }
 
-// Another accent takes its hue, keeps Mizan's lightness steps, and leaves
+// Another accent takes its hue, keeps Ryugo's lightness steps, and leaves
 // the focus ring's gap and the neutrals alone.
 func TestAccentDerives(t *testing.T) {
 	orange := oklch(0.7, 0.18, 50, 1)

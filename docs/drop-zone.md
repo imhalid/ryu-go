@@ -8,11 +8,11 @@ of a file added, with a button taking it out.
 <!-- preview drop-zone 270 -->
 
 ```go
-for _, path := range mizan.DropZone(c.Key("upload"), mizan.DropZoneOptions{Title: "Drop files here", Hint: "PDF, XLSX · up to 10 MB"}) {
+for _, path := range ryugo.DropZone(c.Key("upload"), ryugo.DropZoneOptions{Title: "Drop files here", Hint: "PDF, XLSX · up to 10 MB"}) {
 	app.add(path)
 }
 for i, f := range app.files {
-	if mizan.FileItem(c.Key(f.Name), f.Name, f.Size) {
+	if ryugo.FileItem(c.Key(f.Name), f.Name, f.Size) {
 		app.remove(i)
 	}
 }
