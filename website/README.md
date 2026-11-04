@@ -11,7 +11,7 @@ bun install                    # in website/
 bun run dev                    # http://localhost:3000
 bun run build                  # dist/client
 bun run preview                # dist/client, served by wrangler as in production
-bun run deploy                 # build, then wrangler deploy
+bun run deploy                 # build, then cf deploy to ryugo.halid.dev (cf-output.ts)
 ```
 
 Go must be installed: the build compiles the previews to WebAssembly.

@@ -16,9 +16,10 @@ the look.
 
 ## Install
 
-```sh
-go get github.com/imhalid/ryu-go
-```
+Coming soon: the package isn't published yet. Its first release will say
+here how to add it to an app.
+
+## Use
 
 ```go
 import (
@@ -40,10 +41,11 @@ func (a *app) view(c *ui.Context) {
 }
 ```
 
-Run the gallery, a tour of every component:
+Run the gallery, a tour of every component, from a clone of this
+repository:
 
 ```sh
-go run github.com/imhalid/ryu-go/cmd/gallery@latest
+go run ./cmd/gallery
 ```
 
 ## Theming
