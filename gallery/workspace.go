@@ -36,7 +36,7 @@ func (w *workspacePage) view(c *ui.Context, t *mz.Tokens) {
 		w.Layout = newWorkspace()
 	}
 	cl := t.Colors
-	mz.Card(c, mz.CardOptions{Title: "Workspace", Subtitle: "Drag the gaps between areas; the edges lined up with one move along (Option: it alone). Where edges meet, drag both ways. A double click shares the room out.", Pad: true}, func() {
+	mz.Card(c, mz.CardOptions{Title: "Workspace", Subtitle: "Drag the gaps between areas; the edges lined up with one move along (Option: it alone). Where edges meet, drag both ways. A double click shares the room out. Drag an area's corner inward to split it, or into a neighbor to join them.", Pad: true}, func() {
 		ui.Column(c).Gap(12).Children(func() {
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 				if mz.Button(c.Key("save"), "Save layout", mz.ButtonOptions{Size: mz.Sm}).Clicked() {
@@ -46,6 +46,9 @@ func (w *workspacePage) view(c *ui.Context, t *mz.Tokens) {
 					if l, err := mz.ParseLayout(w.Saved); err == nil {
 						w.Layout = l
 					}
+				}
+				if mz.Button(c.Key("undo"), "Undo", mz.ButtonOptions{Size: mz.Sm, Disabled: !w.Layout.CanUndo()}).Clicked() {
+					w.Layout.Undo()
 				}
 				if mz.Button(c.Key("reset"), "Reset", mz.ButtonOptions{Size: mz.Sm}).Clicked() {
 					w.Layout = newWorkspace()

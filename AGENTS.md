@@ -64,6 +64,7 @@ Small feedback and animation matter a great deal to the user. An interaction isn
 | `springBar` | A Progress filling | 500 ms, bounce 0 |
 | `springSelBar` | The table's selection bar | 320 ms, bounce 0.1 |
 | `springOpen` | A table row's details | 320 ms, bounce 0.04 |
+| `springGuide` | The Dock's split line: growing, settling onto an edge | 200 ms, bounce 0.1 |
 
 A new motion first tries one of these; when it needs a new one, name it and add it here.
 
@@ -75,6 +76,7 @@ A new motion first tries one of these; when it needs a new one, name it and add 
 - **`LayoutBounds` is the last frame's layout.** An operation that reorders is measured in the frame *after* the one that builds the new order. A change of state (as a drop) applies when every list will build the new order in the same frame: at the start of the next frame, never in the frame it was let go in (`settleDrop`).
 - **The last frame's `ui.Element` can't be used** ("element from pass N used in pass M"). To carry a measure across frames, keep the number (`dropList.heights`), not the element.
 - **A drag can leave the window.** While pressed, `Dragged` and `PointerPosition` keep reporting outside the window; the screen point is `Window.ContentBounds()` + `LayoutBounds` + `PointerPosition`. Open windows with `mygo.NewWindow` from a goroutine, never inside a frame (DOCK.md, step 0).
+- **A `ui.ScrollState` is bound to one view.** Copying the struct copies its handle, and two scroll views built with it panic ("Handle bound to two controls"). To give a copy the same place, set `X` and `Y` on a fresh one (`Layout.splitArea`).
 - **We have our own drag layer.** `Element.Drag`'s copy and `ui.List` Reorder's blue line can't be styled; instead the pointer is followed with `Dragged`/`PointerPosition` and the copy drawn in `ui.Overlay`. The pointer's position is read as `LayoutBounds + PointerPosition`, not by adding up deltas.
 - **`ScrollWith` doesn't move absolute children.** A pinned cell in the header needs no counter-translate; one in the body does.
 - **`ButtonBase.Selected(true)` paints MyGo's theme accent fill.** Draw states such as the current page with our own surface, and put the selection in the label.

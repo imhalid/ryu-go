@@ -53,6 +53,13 @@ type dockState struct {
 	edges []dockEdge // this frame's, as the last frame laid them out
 	drag  *dockDrag
 	shown []edgeKey // the edges whose grips show: those that would move, or move
+
+	areas  map[string]ui.Rect // this frame's areas, as the last frame laid them out
+	room   map[string]float32 // each split's room for its children, along it
+	corner *dockCorner
+	guide  dockGuide
+	fold   *dockFold
+	born   map[string]bool // areas a split made, to fade in
 }
 
 // Dock shows window o.Window of l, its areas built by o.Kinds. Give it a
@@ -69,19 +76,40 @@ func Dock(c *ui.Context, l *Layout, o DockOptions) ui.Element {
 	if w == nil || w.Root == nil {
 		return root
 	}
-	st := *ui.Local(root, "dock", func() *dockState { return &dockState{} })
+	st := *ui.Local(root, "dock", func() *dockState { return &dockState{born: map[string]bool{}} })
 	last := slices.Clone(st.edges)
 	st.edges = st.edges[:0]
+	st.areas, st.room = map[string]ui.Rect{}, map[string]float32{}
 	d := &dockView{t: t, c: c, l: l, o: o, st: st, root: root}
 	if d.o.MinSize <= 0 {
 		d.o.MinSize = 96
+	}
+	if f := st.fold; f != nil && f.done {
+		// a join folded away: the layout changes as the frame starts, so that
+		// every split builds the new tree
+		st.fold, st.guide.mode = nil, guideNone
+		if l.joinArea(f.keep, f.gone) {
+			d.changed()
+		}
 	}
 	root.Children(func() {
 		d.node(w.Root).Fill()
 		for _, x := range d.crossings() {
 			d.cross(x)
 		}
+		d.guide()
 	})
+	if k := st.corner; k != nil {
+		before := st.guide
+		if k.let {
+			d.let()
+		} else {
+			d.aim()
+		}
+		if st.guide != before {
+			c.AnimationFrame()
+		}
+	}
 	if dd := st.drag; dd != nil && dd.finding {
 		dd.edges, dd.finding = d.spread(dd.seeds, dd.alone), false
 	}
@@ -138,22 +166,56 @@ func (d *dockView) node(n *Node) ui.Element {
 		length = b.H
 	}
 	length -= dockGap * float32(len(n.Children)-1)
+	d.st.room[n.ID] = length
 	held := d.held(n)
+	// a join folding: the area taken in shrinks to nothing, its edge with it,
+	// as its neighbor grows over it
+	fold := d.st.fold
+	gone, keep := -1, -1
+	if fold != nil && fold.split == n.ID {
+		for i, ch := range n.Children {
+			switch ch.ID {
+			case fold.gone:
+				gone = i
+			case fold.keep:
+				keep = i
+			}
+		}
+	}
+	fs := make([]float32, len(n.Children))
+	for i, ch := range n.Children {
+		// the sizes show through springs, so that a change of them (shared
+		// out, an area joining) glides; under the pointer they follow it at
+		// once
+		size := n.Sizes[i]
+		if gone >= 0 && keep >= 0 {
+			switch i {
+			case gone:
+				size = 0
+			case keep:
+				size += n.Sizes[gone]
+			}
+		}
+		if held {
+			fs[i] = box.Jump("f:"+ch.ID, size)
+		} else {
+			fs[i] = box.AnimateTo("f:"+ch.ID, size, springShift)
+		}
+	}
+	if gone >= 0 && keep >= 0 && (fs[gone] < 0.002 || d.c.Now().Sub(fold.start) > 700*time.Millisecond) {
+		fold.done = true
+		d.c.AnimationFrame()
+	}
 	box.Children(func() {
 		for i, ch := range n.Children {
 			if i > 0 {
-				d.edge(n, i-1, length)
+				scale := float32(1)
+				if gone >= 0 && (i == gone || i-1 == gone) && (i == keep || i-1 == keep) {
+					scale = min(max(fs[gone]/n.Sizes[gone], 0), 1)
+				}
+				d.edge(n, i-1, length, scale)
 			}
-			// the sizes show through springs, so that a change of them
-			// (shared out, an area joining) glides; under the pointer they
-			// follow it at once
-			var f float32
-			if held {
-				f = box.Jump("f:"+ch.ID, n.Sizes[i])
-			} else {
-				f = box.AnimateTo("f:"+ch.ID, n.Sizes[i], springShift)
-			}
-			d.node(ch).Basis(0).Grow(max(f, 0.0001)).Shrink(1)
+			d.node(ch).Basis(0).Grow(max(fs[i], 0.0001)).Shrink(1)
 		}
 	})
 	return box
@@ -179,15 +241,31 @@ func (d *dockView) area(n *Node) ui.Element {
 	cl := t.Colors
 	a := ui.Column(c.Key(n.ID)).MinWidth(0).MinHeight(0).Radius(t.R(RadiusControl)).Background(cl.Card).Clip().
 		DrawOver(func(p *ui.Painter, r ui.Rect) { p.Stroke(r, cl.Hairline, t.R(RadiusControl), 1) })
+	d.st.areas[n.ID] = a.LayoutBounds()
+	if f := d.st.fold; f != nil && f.gone == n.ID {
+		d.folding(a)
+	}
+	// an area a split made: its surface was there, the area's it came out
+	// of; what it shows fades in
+	if d.st.born[n.ID] {
+		delete(d.st.born, n.ID)
+		a.Jump("in", 0)
+	}
+	in := a.AnimateTo("in", 1, ui.Animation{Duration: 240 * time.Millisecond, Ease: ui.EaseOut})
 	a.Children(func() {
+		defer func() {
+			for k := range 4 {
+				d.corner(n, k)
+			}
+		}()
 		if len(n.Panes) == 0 {
 			return
 		}
 		p := n.Panes[min(n.Active, len(n.Panes)-1)]
-		ui.Row(c).Height(28).Padding(0, 12).AlignItems(ui.Center).Shrink(0).InsetShadow(0, -1, 0, 0, cl.Hairline).Children(func() {
+		ui.Row(c).Height(28).Padding(0, 12).AlignItems(ui.Center).Shrink(0).InsetShadow(0, -1, 0, 0, cl.Hairline.Alpha(in)).Opacity(in).Children(func() {
 			ui.Text(c, p.Title).FontSize(FsSm).FontWeight(500).TextColor(cl.Text2).SingleLine().Ellipsis("…")
 		})
-		body := ui.Column(c.Key(p.ID)).Grow(1).MinHeight(0).MinWidth(0)
+		body := ui.Column(c.Key(p.ID)).Grow(1).MinHeight(0).MinWidth(0).Opacity(in)
 		body.Children(func() {
 			if build := d.o.Kinds[p.Kind]; build != nil {
 				build(c, p)
@@ -202,15 +280,15 @@ func (d *dockView) area(n *Node) ui.Element {
 // it goes alone); a double click shares the split's room out equally. A
 // short grip grows in it while it would move, longer as it is held; no color
 // comes with it.
-func (d *dockView) edge(n *Node, i int, length float32) {
+func (d *dockView) edge(n *Node, i int, length, scale float32) {
 	c, st := d.c, d.st
 	cl := d.t.Colors
 	vertical := n.Dir == DockRow
 	e := ui.Box(c.Key(edgeKey{n.ID, i})).Shrink(0).AlignSelf(ui.Stretch)
 	if vertical {
-		e.Width(dockGap).Cursor(ui.CursorResizeEW)
+		e.Width(dockGap * scale).Cursor(ui.CursorResizeEW)
 	} else {
-		e.Height(dockGap).Cursor(ui.CursorResizeNS)
+		e.Height(dockGap * scale).Cursor(ui.CursorResizeNS)
 	}
 	me := dockEdge{split: n.ID, i: i, vertical: vertical, rect: e.LayoutBounds(), length: length}
 	st.edges = append(st.edges, me)
@@ -252,7 +330,7 @@ func (d *dockView) handle(e ui.Element, by any, seeds []dockEdge) {
 	dx, dy, pressed := e.Dragged()
 	mine := st.drag != nil && st.drag.by == by
 	switch {
-	case pressed && st.drag == nil:
+	case pressed && st.drag == nil && st.corner == nil && st.fold == nil:
 		// the edges lined up are found once the frame built them all
 		alone := d.c.Modifiers()&ui.Alt != 0
 		st.drag = &dockDrag{by: by, seeds: seeds, edges: seeds, alone: alone, finding: true}

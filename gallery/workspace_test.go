@@ -106,3 +106,58 @@ func TestDockCrossing(t *testing.T) {
 		t.Fatalf("the lined-up edges parted: %v and %v", mid.Sizes, right.Sizes)
 	}
 }
+
+// editorArea is the editor's area, from its title.
+func editorArea(tt *ui.Tester) ui.Rect {
+	r, _ := tt.Find("report.go")
+	c, _ := tt.Find("Console")
+	o, _ := tt.Find("Outline")
+	top := r.Y + r.H/2 - 14
+	bottom := c.Y + c.H/2 - 14 - 4
+	return ui.Rect{X: r.X - 12, Y: top, W: o.X - 12 - 4 - (r.X - 12), H: bottom - top}
+}
+
+// Dragged inward from its top left corner, the editor splits side by side,
+// the new area on the corner's side, the line where the pointer let go.
+func TestDockCornerSplit(t *testing.T) {
+	s, tt := workspaceTester()
+	a := editorArea(tt)
+	dragEdge(tt, a.X+5, a.Y+5, 200, 12)
+	mid := s.Work.Layout.Windows[0].Root.Children[1]
+	row := mid.Children[0]
+	if row.Dir != mz.DockRow || len(row.Children) != 2 {
+		t.Fatalf("the editor did not split side by side: %+v", row)
+	}
+	if row.Children[0].Panes[0].Title != "report.go" || row.Children[1].Panes[0].Title != "report.go" {
+		t.Fatalf("the areas don't show the editor: %+v %+v", row.Children[0].Panes[0], row.Children[1].Panes[0])
+	}
+	if w := row.Sizes[0] * (a.W - 4); w < 195 || w > 215 {
+		t.Fatalf("the new area is %v wide, want about 205", w)
+	}
+	if !s.Work.Layout.CanUndo() {
+		t.Fatal("the split can't be undone")
+	}
+}
+
+// Dragged from its bottom right corner into the console, the editor takes
+// the console in: the middle column folds away into the editor alone.
+func TestDockCornerJoin(t *testing.T) {
+	s, tt := workspaceTester()
+	a := editorArea(tt)
+	dragEdge(tt, a.X+a.W-5, a.Y+a.H-5, 0, 80)
+	tt.Advance(600 * time.Millisecond)
+	root := s.Work.Layout.Windows[0].Root
+	if len(root.Children) != 3 || !root.Children[1].IsArea() || root.Children[1].Panes[0].Title != "report.go" {
+		t.Fatalf("the console was not taken in: %+v", root.Children[1])
+	}
+	if tt.HasText("Console") {
+		t.Fatal("the console still shows")
+	}
+	if err := tt.Click("Undo"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Advance(600 * time.Millisecond)
+	if !tt.HasText("Console") {
+		t.Fatal("undo did not bring the console back")
+	}
+}

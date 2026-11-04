@@ -3,6 +3,8 @@ package mizan
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
+	"slices"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -19,6 +21,8 @@ type Layout struct {
 	Windows []*DockWindow `json:"windows"`
 	// next numbers the nodes and panes the layout makes.
 	next int
+	// history holds the layouts before the last splits and joins, for Undo.
+	history [][]byte
 }
 
 // DockWindow is a window of a Layout: the main one ("main"), or one a pane
@@ -220,7 +224,37 @@ func (l *Layout) fix() {
 			}
 			normalize(n)
 		})
+		w.Root = tidy(w.Root)
 	}
+}
+
+// tidy folds away what a split or a join can leave: a split of one child
+// becomes the child, and a split inside a split of the same direction gives
+// its children to it, so that two areas sharing a whole edge are always
+// siblings. It returns what takes n's place.
+func tidy(n *Node) *Node {
+	if n == nil || n.IsArea() {
+		return n
+	}
+	var kids []*Node
+	var sizes []float32
+	for k, ch := range n.Children {
+		ch = tidy(ch)
+		if !ch.IsArea() && ch.Dir == n.Dir {
+			for j, g := range ch.Children {
+				kids = append(kids, g)
+				sizes = append(sizes, n.Sizes[k]*ch.Sizes[j])
+			}
+			continue
+		}
+		kids = append(kids, ch)
+		sizes = append(sizes, n.Sizes[k])
+	}
+	n.Children, n.Sizes = kids, sizes
+	if len(n.Children) == 1 {
+		return n.Children[0]
+	}
+	return n
 }
 
 // normalize makes n's sizes match its children and add up to 1.
@@ -243,4 +277,148 @@ func normalize(n *Node) {
 	for i := range n.Sizes {
 		n.Sizes[i] /= sum
 	}
+}
+
+// where returns the window holding node id, its parent (nil for a window's
+// root) and its place there.
+func (l *Layout) where(id string) (*DockWindow, *Node, int) {
+	for _, w := range l.Windows {
+		if w.Root != nil && w.Root.ID == id {
+			return w, nil, 0
+		}
+		var parent *Node
+		at := 0
+		walk(w.Root, func(n *Node) {
+			for i, ch := range n.Children {
+				if ch.ID == id {
+					parent, at = n, i
+				}
+			}
+		})
+		if parent != nil {
+			return w, parent, at
+		}
+	}
+	return nil, nil, 0
+}
+
+// replace puts by in old's place, in its parent or as its window's root.
+func (l *Layout) replace(old, by *Node) {
+	w, p, i := l.where(old.ID)
+	switch {
+	case p != nil:
+		p.Children[i] = by
+	case w != nil:
+		w.Root = by
+	}
+}
+
+// splitArea splits area id in direction dir into itself and a new area
+// showing a copy of its pane, keep and made DIPs long; the new one comes
+// first when first. room is the length the parent shares out, for a parent
+// of the same direction, which takes the new area in. It returns the new
+// area.
+func (l *Layout) splitArea(id string, dir DockDir, first bool, keep, made, room float32) *Node {
+	a := l.Find(id)
+	if a == nil || !a.IsArea() {
+		return nil
+	}
+	l.remember()
+	n := &Node{}
+	if len(a.Panes) > 0 {
+		p := a.Panes[a.Active]
+		q := &Pane{Kind: p.Kind, Title: p.Title, State: maps.Clone(p.State)}
+		// the scroll's place, not the state itself: it is bound to one view
+		q.Scroll.X, q.Scroll.Y = p.Scroll.X, p.Scroll.Y
+		n.Panes = []*Pane{q}
+	}
+	pair, sizes := []*Node{a, n}, []float32{keep, made}
+	if first {
+		pair, sizes = []*Node{n, a}, []float32{made, keep}
+	}
+	if _, p, i := l.where(id); p != nil && p.Dir == dir && room > 0 {
+		// the parent's other children keep their lengths: the new edge
+		// comes out of the area split
+		var kids []*Node
+		var px []float32
+		for k, ch := range p.Children {
+			if k == i {
+				kids, px = append(kids, pair...), append(px, sizes...)
+				continue
+			}
+			kids, px = append(kids, ch), append(px, p.Sizes[k]*room)
+		}
+		p.Children, p.Sizes = kids, px
+	} else {
+		l.replace(a, &Node{Dir: dir, Children: pair, Sizes: sizes})
+	}
+	l.fix()
+	return n
+}
+
+// joinArea joins area gone into its neighbor keep: keep takes its room and
+// gone goes, with its panes (Undo brings them back).
+func (l *Layout) joinArea(keep, gone string) bool {
+	if !l.joinable(keep, gone) {
+		return false
+	}
+	l.remember()
+	_, p, i := l.where(gone)
+	_, _, k := l.where(keep)
+	p.Sizes[k] += p.Sizes[i]
+	p.Children = slices.Delete(p.Children, i, i+1)
+	p.Sizes = slices.Delete(p.Sizes, i, i+1)
+	l.fix()
+	return true
+}
+
+// joinable reports whether areas a and b sit side by side in one split,
+// sharing a whole edge.
+func (l *Layout) joinable(a, b string) bool {
+	_, pa, i := l.where(a)
+	_, pb, j := l.where(b)
+	na, nb := l.Find(a), l.Find(b)
+	return pa != nil && pa == pb && (i-j == 1 || j-i == 1) && na.IsArea() && nb.IsArea()
+}
+
+// undoDepth is how many splits and joins Undo goes back.
+const undoDepth = 16
+
+func (l *Layout) remember() {
+	b, err := l.MarshalJSON()
+	if err != nil {
+		return
+	}
+	l.history = append(l.history, b)
+	if len(l.history) > undoDepth {
+		l.history = l.history[1:]
+	}
+}
+
+// CanUndo reports whether there is a split or a join to undo.
+func (l *Layout) CanUndo() bool { return len(l.history) > 0 }
+
+// Undo takes the layout back to before its last split or join, and reports
+// whether there was one. The panes come back with the scroll and state they
+// had then.
+//
+//	if layout.Undo() {
+//		app.saveLayout()
+//	}
+func (l *Layout) Undo() bool {
+	for len(l.history) > 0 {
+		b := l.history[len(l.history)-1]
+		h := l.history[:len(l.history)-1]
+		back, err := ParseLayout(b)
+		if err != nil {
+			l.history = h
+			continue
+		}
+		next := l.next
+		*l = *back
+		// IDs made from here on are new, never those of the nodes undone
+		l.history, l.next = h, max(l.next, next)
+		return true
+	}
+	return false
 }

@@ -79,12 +79,20 @@ Done when: edges move smoothly with no jump on release, and the layout survives 
 
 ### 2. Split and join from corners
 
-- [ ] Corner zones on every area; a drag inward splits, along the axis the pointer leaves the corner by.
-- [ ] The split line follows the pointer and springs into place when let go.
-- [ ] A drag from a corner into a neighbor joins: the area to be taken in darkens, an arrow shows the direction; let go, the neighbor grows over it on a spring.
-- [ ] Undo of a split or a join (the tree is data: keep the last few).
+- [x] Corner zones on every area; a drag inward splits, along the axis the pointer leaves the corner by.
+- [x] The split line follows the pointer and springs into place when let go.
+- [x] A drag from a corner into a neighbor joins: the area to be taken in darkens, an arrow shows the direction; let go, the neighbor grows over it on a spring.
+- [x] Undo of a split or a join (the tree is data: keep the last few).
 
 Done when: splitting and joining feel like Blender's, measured frame by frame and confirmed in the real window.
+
+**Result (2026-11-04, `dock_corner.go`):** measured frame by frame in the tester, light and dark; tried by the user in the real window ("good for now"; the snap feedback is waiting, above).
+
+- **Corners:** a 14px square in each area's corner (crosshair cursor); under the pointer a short bracket draws itself from its middle out along the corner, concentric with the area's radius.
+- **Split:** the axis is the one the pointer leaves the corner by (decided 8px out), and turns only when the other clearly wins (1.6×). The line grows out from the pointer across the area (`springGuide`), follows it, and settles onto the area's middle or a lined-up edge within 8px (a weight on a spring, so it glides on and off). Let go, the edge's middle is where the line was; the new area is on the corner's side with a copy of the pane (its scroll's place, not the `ScrollState`, which is bound to one view). Its surface was already there; only what it shows fades in.
+- **Join:** only into a neighbor sharing a whole edge (`tidy` keeps those siblings). The neighbor darkens (`Scrim`), an arrow grows in over it pointing the way; between neighbors the darkening slides on a spring. Let go, the area folds away on `springShift` with its edge, the darkening drawn by the folding area itself (from the guide it would be a frame behind), and the layout changes as the next frame starts.
+- **Undo:** `Layout.Undo` and `CanUndo`, the last 16 splits and joins; the gallery has an Undo button. An undone join unfolds on the springs; an undone split doesn't animate yet.
+
 
 ### 3. Headers and maximize
 
@@ -120,6 +128,10 @@ The previews are where it feels like Blender or not; give them the most time.
 - What is held lifts (as cards do); what makes room slides aside.
 - Nothing appears or vanishes in a frame: areas open and fold, windows' panes arrive and leave with motion.
 - Measure every gesture frame by frame in the tester, then confirm in the real window: drag-and-drop taught that some bugs only show there.
+
+Polish waiting (from the user's tries; do them in a polish pass):
+
+- **The split line settling gives no feedback.** As it settles onto the middle or a lined-up edge, it should say so: sticky for a short stretch (the pointer has to pull a little past it to leave), or a light running along it as it lands.
 
 ## Limits
 

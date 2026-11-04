@@ -66,3 +66,44 @@ func TestParseLayoutMends(t *testing.T) {
 		t.Fatal("a layout with no window parsed")
 	}
 }
+
+// A split in a split of the other direction makes a new split; one in a
+// split of its direction joins it, the others keeping their lengths. A
+// join takes the room back, folds a split of one child away, and Undo
+// brings everything back.
+func TestSplitJoinUndo(t *testing.T) {
+	l := sampleLayout()
+	root := l.Windows[0].Root // row [files 0.25 | column [a.go, unknown]]
+	files := root.Children[0]
+	before, _ := l.MarshalJSON()
+	// files is 250 of a 1000 DIP room: split it side by side, the new area first
+	made := l.splitArea(files.ID, DockRow, true, 150, 96, 1000)
+	if made == nil || len(root.Children) != 3 || root.Children[0] != made || root.Children[1] != files {
+		t.Fatalf("split side by side: %+v", root.Children)
+	}
+	if d := root.Sizes[2]*(1000-dockGap) - 750; d > 0.01 || d < -0.01 {
+		t.Fatalf("the other child's length changed: %v", root.Sizes)
+	}
+	if made.Panes[0].Kind != "files" || made.Panes[0].ID == files.Panes[0].ID {
+		t.Fatalf("the new area's pane: %+v", made.Panes[0])
+	}
+	// stacked: files becomes a column of itself and a new area
+	low := l.splitArea(files.ID, DockColumn, false, 300, 200, 0)
+	col := root.Children[1]
+	if col.Dir != DockColumn || col.Children[0] != files || col.Children[1] != low || col.Sizes[0] != 0.6 {
+		t.Fatalf("split stacked: %+v", col)
+	}
+	// joined back: the column of one folds away, files takes its place
+	if !l.joinArea(files.ID, low.ID) || root.Children[1] != files {
+		t.Fatalf("join: %+v", root.Children)
+	}
+	if l.joinArea(files.ID, root.Children[2].Children[0].ID) {
+		t.Fatal("joined areas that don't share a whole edge")
+	}
+	for l.Undo() {
+	}
+	after, _ := l.MarshalJSON()
+	if !bytes.Equal(before, after) {
+		t.Fatalf("undo did not bring the layout back:\n%s\n%s", before, after)
+	}
+}
