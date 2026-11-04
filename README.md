@@ -80,6 +80,7 @@ The tokens are Go values in [tokens.go](tokens.go), written in OKLCH.
 | Indicators | `Badge`, `Tag`, `StatusDot`, `Kbd`, `Avatar`, `EmptyState` |
 | Feedback | `Progress`, `Meter`, `Spinner`, `Skeleton`, `SkeletonText` |
 | Data | `Table`, `Pagination` |
+| Workspace | `Dock` (with `mizan/dockwin` for its windows) |
 
 ![Chat and drag and drop, dark theme](docs/chat-drag-dark.png)
 
@@ -100,6 +101,47 @@ Layers move on quick springs: they spring in, and leave faster than they came.
 ![A dialog over its scrim](docs/dialog-light.png)
 
 ![A menu and a stack of toasts on glass](docs/menu-toasts-light.png)
+
+## Dock
+
+`Dock` fills a window with areas as Blender does: edge to edge, every
+edge shared. Its layout is plain data the app owns (`Layout`), saved as
+JSON and read back as it was; a pane is a view of the app's data, never
+its holder, so it goes anywhere without losing what it shows.
+
+- **Edges** drag, and the edges lined up with them move along; Option
+  moves one alone, cut where edges across it meet it. An edge dragged
+  settles onto an edge it would line up with, and a light runs along it.
+  Where edges meet, a drag moves both ways.
+- **Corners** split an area (dragged inward) or join it to a neighbor
+  (dragged into it). Undo and Redo go back and forth through every change.
+- **Tabs:** every pane is a tab of its area's stack. Dragged, a tab lifts;
+  over an area, a compass in its middle and targets on the window's edges
+  say where it would dock, and a region shows it. A right click splits the
+  area with it, sends it to a window of its own, or closes it; a double
+  click maximizes the area (Ctrl+Space too).
+- **Windows:** with a `DockHost` (`dockwin.New`, on MyGo's windows), a tab
+  dragged out of the window tears off into a window of its own where it is
+  let go, and docks into another window it is let go over. Windows torn
+  off have no title bar: their headers move them, a window's only tab
+  carries it to dock it elsewhere, and their top right area closes them,
+  giving what they hold back to the main one. Windows keep their places
+  in the layout. On Wayland, where the system doesn't say where windows
+  are, tabs tear off but don't dock from one window into another by a
+  drag; their menu moves them back.
+
+```go
+layout := mizan.NewLayout(mizan.DockSplit(mizan.DockRow, []float32{0.25, 0.75},
+	mizan.DockArea(&mizan.Pane{Kind: "files", Title: "Files"}),
+	mizan.DockArea(&mizan.Pane{Kind: "editor", Title: "main.go"}),
+))
+mizan.Dock(c.Key("dock"), layout, mizan.DockOptions{
+	Kinds:    []mizan.DockKind{{Kind: "files", Title: "Files", Build: app.files}, {Kind: "editor", Title: "Editor", Build: app.editor}},
+	OnChange: app.saveLayout,
+}).Fill()
+```
+
+![A tab docking onto the right half of an area](docs/dock-light.png)
 
 ## Development
 

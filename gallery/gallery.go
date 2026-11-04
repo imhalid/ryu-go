@@ -94,9 +94,13 @@ func New() *State {
 var search = mz.Svg(16, 15, "M7 12.5a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM14.5 14.5l-3.6-3.6")
 
 // View builds the showcase.
+// steps and corners are the header's size steps and corners.
+var (
+	steps   = [...]mz.Size{mz.Sm, mz.Md, mz.Lg}
+	corners = [...]mz.Corners{mz.CornersSm, mz.CornersMd, mz.CornersLg}
+)
+
 func (s *State) View(c *ui.Context) {
-	steps := [...]mz.Size{mz.Sm, mz.Md, mz.Lg}
-	corners := [...]mz.Corners{mz.CornersSm, mz.CornersMd, mz.CornersLg}
 	t := mz.Root(c, mz.Options{Mode: s.Mode, Accent: s.Accent, Size: steps[s.Density], Corners: corners[s.Round]})
 	ui.Scroll(c).Fill().Children(func() { s.page(c, t) })
 	mz.Toaster(c)

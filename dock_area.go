@@ -37,8 +37,8 @@ func (d *dockView) area(n *Node) ui.Element {
 	}
 	// an area a split made: its surface was there, the area's it came out
 	// of; what it shows fades in
-	if st.born[n.ID] {
-		delete(st.born, n.ID)
+	if d.l.born[n.ID] {
+		delete(d.l.born, n.ID)
 		a.Jump("in", 0)
 	}
 	in := a.AnimateTo("in", 1, ui.Animation{Duration: 240 * time.Millisecond, Ease: ui.EaseOut})
@@ -92,6 +92,10 @@ func (d *dockView) content(n *Node, a ui.Element, in float32, corners bool) {
 			d.kindMenu(n, p, kind)
 			d.strip(n, active)
 			d.maxButton(n, h.Hovered())
+			// a window torn off has no title bar: its top right area closes it
+			if d.w.ID != "main" && d.o.Host != nil && topRight(d.w.Root) == n {
+				d.closeWindow()
+			}
 		})
 		// another tab chosen, its pane fades in
 		body := ui.Column(c.Key(p.ID)).Grow(1).MinHeight(0).MinWidth(0).Opacity(in).
@@ -409,3 +413,17 @@ func (d *dockView) ghosts() {
 }
 
 type areaGhostKey int
+
+// closeWindow is the close button of a window torn off, which has no
+// title bar: what it holds goes back to the main window, and it closes.
+func (d *dockView) closeWindow() {
+	c := d.c
+	b := d.headerButton(ui.ButtonBase(c.Key("close-window")).Label("Close window").Width(headerH - 8).Center())
+	if b.Clicked() && d.l.DockBack(d.w.ID) {
+		d.changed()
+		d.o.Host.Sync()
+	}
+	b.Children(func() {
+		ui.Icon(c, iconClose).TextColor(d.t.Colors.Muted)
+	})
+}

@@ -60,6 +60,17 @@ type tabDrag struct {
 	tilt       float32
 	zone       dockZone
 	let        bool
+	// out: the pointer left the window; screen is where it is on the
+	// screen, when known. remote: dragged from another window, over this one.
+	out, remote bool
+	screen      ui.Point
+	known       bool
+	// carry: the tab is its window's only one, which moves with it, held
+	// at anchor (the pointer in the window's content)
+	carry  bool
+	anchor ui.Point
+	// native: the system drags it (Wayland), its copy its own
+	native bool
 }
 
 // tabLanding is a tab let go, flying from where its copy was to its place,
@@ -90,6 +101,9 @@ func (d *dockView) strip(n *Node, focused bool) {
 
 	// the tab dragged, when it is one of these, and where it would go here
 	dr := st.tab
+	if dr != nil && dr.carry {
+		dr = nil
+	}
 	from, at := -1, -1
 	var room float32
 	if dr != nil {
@@ -141,6 +155,11 @@ func (d *dockView) strip(n *Node, focused bool) {
 				d.closingTab(n.ID, g)
 			}
 		}
+		// in a window without a title bar, the room after the tabs moves the
+		// window, as a title bar does
+		if d.w.ID != "main" && d.o.Host != nil {
+			ui.Box(c.Key("drag-window")).Grow(1).AlignSelf(ui.Stretch).MinWidth(0).DragWindow()
+		}
 	})
 	st.tabs[n.ID] = slots
 
@@ -181,7 +200,8 @@ func (d *dockView) tab(n *Node, i int, p *Pane, focused bool, shift float32, set
 	e.Translate(x, 0)
 	selected := i == n.Active
 	dr := st.tab
-	picked := dr != nil && dr.pane == p.ID
+	// carried, the tab stays: its window is what moves
+	picked := dr != nil && dr.pane == p.ID && !dr.carry
 
 	// let go, it flies from where its copy was to its place, once a frame
 	// laid it out there
@@ -225,11 +245,27 @@ func (d *dockView) tab(n *Node, i int, p *Pane, focused bool, shift float32, set
 		body.Children(func() {
 			b := ui.ButtonBase(c.Key("title")).Label(p.Title).Grow(1).MinWidth(0).Padding(0, 4, 0, 8).
 				AlignItems(ui.Center).FocusRing(false).Cursor(ui.CursorPointer)
-			d.pick(n, p, e, b)
+			if d.native {
+				// the system drags the tab, where it doesn't say where windows
+				// are (Wayland): from window to window too
+				d.nativeSource(n, p, e, b)
+			} else {
+				d.pick(n, p, e, b)
+			}
 			if b.Clicked() && !picked && n.Active != i {
 				n.Active = i
 				d.changed()
 			}
+			// a double click maximizes the area, and brings it back
+			if b.DoubleClicked() {
+				d.toggleMax(n.ID)
+			}
+			// a right click opens the tab's menu
+			menu := ui.Local(e, "menu", func() bool { return false })
+			if b.RightClicked() {
+				*menu = true
+			}
+			d.tabMenu(n, p, e, menu)
 			if b.FocusVisible() {
 				t.Shadows.FocusRing.Apply(body)
 			}
@@ -325,6 +361,7 @@ func (d *dockView) pick(n *Node, p *Pane, e, b ui.Element) {
 			pos := at()
 			st.tab = &tabDrag{pane: p.ID, from: n.ID, title: p.Title, w: eb.W, h: eb.H,
 				grab: ui.Point{X: pos.X - eb.X, Y: pos.Y - eb.Y}, pos: pos}
+			d.carryWindow(st.tab)
 			c.AnimationFrame()
 		}
 	case !pressed:
@@ -423,64 +460,82 @@ func (d *dockView) letTab() {
 	st, l := d.st, d.l
 	dr := st.tab
 	z := dr.zone
-	st.tabLand = &tabLanding{pane: dr.pane, at: ui.Point{X: dr.pos.X - dr.grab.X, Y: dr.pos.Y - dr.grab.Y}, tilt: dr.tilt, after: d.c.Now()}
-	if z.side == zoneNone {
-		st.tab = nil
+	st.applyAt = d.c.Now()
+	if dr.carry {
+		d.letCarry()
 		return
 	}
+	if dr.out && d.o.Host != nil {
+		d.letOut()
+		return
+	}
+	st.tabLand = &tabLanding{pane: dr.pane, at: ui.Point{X: dr.pos.X - dr.grab.X, Y: dr.pos.Y - dr.grab.Y}, tilt: dr.tilt, after: d.c.Now()}
 	if a, i := l.paneAt(dr.pane); z.side == zoneStack && a != nil && a.ID == z.area && i == z.index {
 		// back where it was
 		st.tab = nil
 		return
 	}
-	pane, to := dr.pane, z.area
+	if st.tabApply = d.dropOp(z, dr.pane); st.tabApply == nil {
+		st.tab = nil
+		return
+	}
+	d.c.AnimationFrame()
+}
+
+// dropOp is what letting the tab of pane go in zone z does to the layout;
+// nil when z takes nothing.
+func (d *dockView) dropOp(z dockZone, pane string) func() {
+	st, l := d.st, d.l
+	to := z.area
 	switch z.side {
+	case zoneNone:
+		return nil
 	case zoneStack:
-		st.tabApply = func() {
+		return func() {
 			l.remember()
 			l.movePane(pane, to, z.index)
 		}
-	default:
-		r := st.areas[to]
-		if z.edge {
-			r = d.root.LayoutBounds()
-		}
-		dir, first, length := DockRow, z.side == zoneLeft, r.W
-		if z.side == zoneTop || z.side == zoneBottom {
-			dir, first, length = DockColumn, z.side == zoneTop, r.H
-		}
-		keep, made := (length-dockGap)/2, (length-dockGap)/2
-		if z.edge {
-			// along the window's edge, a quarter of it
-			made = d.edgeLength(z.side, r)
-			keep = length - made - dockGap
-		}
-		var room float32
-		if _, p, _ := l.where(to); p != nil {
-			room = st.room[p.ID]
-		}
-		st.tabApply = func() {
-			l.remember()
-			if n := l.dockPane(pane, to, dir, first, keep, made, room); n != nil {
-				st.born[n.ID], st.opening[n.ID] = true, true
-			}
+	}
+	r := st.areas[to]
+	if z.edge {
+		r = d.root.LayoutBounds()
+	}
+	dir, first, length := DockRow, z.side == zoneLeft, r.W
+	if z.side == zoneTop || z.side == zoneBottom {
+		dir, first, length = DockColumn, z.side == zoneTop, r.H
+	}
+	keep, made := (length-dockGap)/2, (length-dockGap)/2
+	if z.edge {
+		// along the window's edge, a quarter of it
+		made = d.edgeLength(z.side, r)
+		keep = length - made - dockGap
+	}
+	var room float32
+	if _, p, _ := l.where(to); p != nil {
+		room = st.room[p.ID]
+	}
+	return func() {
+		l.remember()
+		if n := l.dockPane(pane, to, dir, first, keep, made, room); n != nil {
+			l.mark(n.ID, true)
 		}
 	}
-	d.c.AnimationFrame()
 }
 
 // applyTab applies the move a tab let go asked for, as the frame starts,
 // so that every stack builds the new order together.
 func (d *dockView) applyTab() {
 	st := d.st
-	if st.tabApply == nil || st.tabLand == nil || !d.c.Now().After(st.tabLand.after) {
+	if st.tabApply == nil || !d.c.Now().After(st.applyAt) {
 		return
 	}
 	st.tabApply()
 	st.tabApply, st.tab = nil, nil
 	st.tabGen++
 	// the tab lands once a frame laid out its new place
-	st.tabLand.after = d.c.Now()
+	if st.tabLand != nil {
+		st.tabLand.after = d.c.Now()
+	}
 	d.changed()
 	d.c.AnimationFrame()
 }
@@ -491,7 +546,7 @@ func (d *dockView) applyTab() {
 func (d *dockView) tabCopy() {
 	c, st, t := d.c, d.st, d.t
 	dr, land := st.tab, st.tabLand
-	if dr == nil && land == nil {
+	if dr == nil && land == nil || dr != nil && (dr.carry || dr.native) {
 		return
 	}
 	// the copy keeps the size the tab had when it was picked up
@@ -513,7 +568,7 @@ func (d *dockView) tabCopy() {
 	}
 	w, h := size.X, size.Y
 	ui.Overlay(c, func() {
-		g := ui.Row(c.Key("tab-copy")).Absolute().Left(at.X).Top(at.Y).Width(w).Height(h).PassThrough().
+		g := ui.Row(c.Key(d.over("tab-copy", 0))).Absolute().Left(at.X).Top(at.Y).Width(w).Height(h).PassThrough().
 			AlignItems(ui.Center).Padding(0, 8)
 		if seen := ui.Local(g, "picked", func() bool { return false }); !*seen {
 			*seen = true

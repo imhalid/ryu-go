@@ -133,16 +133,31 @@ Done when: splitting and joining feel like Blender's, measured frame by frame an
 
 ### 5. Windows and saving
 
-- [ ] Tear-off of a pane or a tab into its own window (from step 0), and docking back from it.
-- [ ] Moving a whole area to a new window (Shift-drag from a corner, as Blender's duplicate).
-- [ ] Closing a torn-off window docks its panes back into the main window.
-- [ ] Saving the layout on every change; restoring windows, positions and panes on open; a window placed off every display comes back onto one.
+- [x] Tear-off of a pane or a tab into its own window (from step 0), and docking back from it.
+- [x] Moving a whole area to a new window: from a tab's menu ("Move area to new window"); a Shift-drag from a corner is not done.
+- [x] Closing a torn-off window docks its panes back into the main window.
+- [x] Saving the layout on every change; restoring windows, positions and panes on open; a window placed off every display comes back onto one.
+
+**Result (2026-11-04, `dock_travel.go`, `dockwin/`):** measured in the tester with two Docks of one layout side by side, a fake host making them two windows; not tried in real windows yet.
+
+- **The core stays free of windows.** The Dock knows windows through `DockHost`: `Content(window)` (where its content is on the screen, and whether the system says) and `Sync()` (open the app's windows for the layout's, close those it no longer holds, redraw them all). `mizan/dockwin` is the host on MyGo's windows, a package of its own so that an app using a Dock without windows doesn't take in MyGo's window package. The layout's windows are the truth: every Dock notices when they change (a tear-off, an Undo, a layout restored) and calls `Sync`.
+- **A tab dragged out of its window** (its pointer outside the window's content, read from the window's own coordinates, so it works everywhere) is no longer the window's to show: its edge targets fade, and the layout's `travel` says where it is on the screen and over which window. That window's Dock shows it as its own tab dragged: the copy, the stack making room, the region, the compass; and says what letting it go there does. Let go there, the move applies as the source's next frame starts, and the tab lands in the other window from where its copy was.
+- **Let go over no window,** the tab tears off into a new window where its copy was, the size of the area it left (320×240 to 900×700). A window left without panes closes (`pruneWindows`).
+- **Closing a window** gives its tree back to the main window, along its right edge, a quarter of it, opening from nothing (`Layout.DockBack`, which `dockwin` calls from `OnClose`).
+- **Places:** `dockwin` writes a window's content bounds into its `DockWindow` as it moves and resizes, and calls its `OnChange`; opening, a window whose title bar would be on no display's work area opens where the system puts it.
+- **Wayland** says nowhere where windows are: there a tab dragged out only tears off (the compositor places the new window), and the tab's menu has "Move to main window". With `GDK_BACKEND=x11` GTK runs on XWayland, and all of it works.
+- **No title bar** (after the user tried it): windows torn off open with MyGo's hidden title bar and no window buttons (`TitleBarHidden`, `HideWindowButtons`), which keeps their shadow, corners and resizing edges where the system draws them. Linux rounds no window's corners and outlined them with a black band (the content's padding on the dark background): there the window is transparent, and `dockwin` draws its surface, rounded as the Dock's areas are, with a hairline and a soft shadow in a 16px margin whose pixels resize the window; the layout keeps the surface's place and size, without the margin. The Dock's areas fill a torn-off window to its edges, their corners its own. The room after an area's tabs moves the window (`DragWindow`), and the top right area's header ends with the window's close button. A window's only tab carries the window: it follows the pointer (`DockHost.Pointer`, `Move`), fades to 55% over another window of the layout, which shows where it would dock, and let go there, docks into it as the window closes. Where the system doesn't say where the pointer is (Wayland), that tab moves the window by the system, as a title bar does.
+- **Redrawing** (after the user tried it): a window is drawn only when its own input or animations ask, so a theme changed in the main window left a torn-off one in the old theme until the pointer went over it. A Dock now redraws the layout's other windows (`DockHost.Sync`) when its layout changes and when its theme does; `dockwin.Host.Redraw` is there for the app's own data, and the gallery calls it when its theme changes on any page.
+- **Merging windows** where no drag can (Wayland): a tab's menu lists the other windows torn off ("Move to Properties window"), and moves the tab into the target's top right area; the window left empty closes. - **Dragging on Wayland** (`dock_native.go`): where the system says nowhere where windows or the pointer are, tabs are dragged by the system's drag and drop (MyGo's `DragData` with a typed value, in a format of our own that other apps don't take). The copy is the system's (a picture of the tab), the tab's place stays empty; the Dock under the pointer, in whichever window, takes the value (`DragOver`, `Drop` on its root) and shows it as its own tab dragged: its stack making room, the region, the compass. Let go, it docks there and lands from where its copy was; let go over no window (not given up with Escape), it tears off into a window of its own, which the system places. A window torn off moves by the room after its tabs. Not testable in the tester (it has no way to drag the system's way); to try in real windows.
+- **The gallery** (`cmd/gallery`) saves the workspace's layout in the user's config directory (`mizan-gallery/layout.json`) on every change, and opens it as it was, windows too.
 
 ### 6. Gallery and docs
 
-- [ ] The Workspace page showing all of it, with the table, charts and a console as kinds.
-- [ ] README: a section on Dock, with a screenshot.
-- [ ] Interaction tests for split, join, resize, docking, maximize, and the save and restore round trip.
+- [x] The Workspace page showing all of it (files, editors, a console, an outline and properties as kinds; the table and charts as kinds wait for the charts).
+- [x] README: a section on Dock, with a screenshot.
+- [x] Interaction tests for split, join, resize, docking, maximize, and the save and restore round trip.
+
+**Also in the core (2026-11-04):** Redo (`Layout.Redo`, `CanRedo`; a new change clears what Undo went back from); a tab's menu on a right click (split right or down, open in a new window, move the area to a new window, move to the main window, close, close the others); a double click on a tab maximizes its area; a layout put in place of another (restored, reset) starts afresh, every node where it is, instead of gliding from the springs of nodes that had the same IDs.
 
 ## Polish to get right
 

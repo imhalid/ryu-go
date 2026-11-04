@@ -21,8 +21,41 @@ type Layout struct {
 	Windows []*DockWindow `json:"windows"`
 	// next numbers the nodes and panes the layout makes.
 	next int
-	// history holds the layouts before the last splits and joins, for Undo.
-	history [][]byte
+	// history holds the layouts before the last changes, for Undo, and
+	// future those Undo went back from, for Redo.
+	history, future [][]byte
+
+	// What the Docks of a layout's windows share, not saved: a tab dragged
+	// from one window over another, and the areas a change made, which the
+	// Dock that shows them opens from nothing (opening) or fades in (born).
+	travel  *dockTravel
+	opening map[string]bool
+	born    map[string]bool
+}
+
+// dockTravel is a tab dragged out of its window: where the pointer is on
+// the screen and over which window, and what letting go there does, which
+// that window's Dock says.
+type dockTravel struct {
+	pane, from string // the pane, and the window it is dragged from
+	title      string
+	w, h       float32
+	grab       ui.Point
+	over       string   // the window under the pointer; none when outside every one
+	at         ui.Point // the pointer in that window's content
+	op         func()   // letting go there; nil when it takes nothing
+}
+
+// mark notes that the Docks show area id as new: opening from nothing, as
+// its neighbors make room, and fading in what it shows.
+func (l *Layout) mark(id string, open bool) {
+	if l.born == nil {
+		l.born, l.opening = map[string]bool{}, map[string]bool{}
+	}
+	l.born[id] = true
+	if open {
+		l.opening[id] = true
+	}
 }
 
 // DockWindow is a window of a Layout: the main one ("main"), or one a pane
@@ -496,33 +529,158 @@ func (l *Layout) remember() {
 	if len(l.history) > undoDepth {
 		l.history = l.history[1:]
 	}
+	// a new change: what was undone can't be redone over it
+	l.future = nil
 }
 
 // CanUndo reports whether there is a change to undo: a split, a join, a
-// pane docked, moved or closed, a kind chosen.
+// pane docked, moved, torn off or closed, a kind chosen.
 func (l *Layout) CanUndo() bool { return len(l.history) > 0 }
 
+// CanRedo reports whether there is a change Undo went back from.
+func (l *Layout) CanRedo() bool { return len(l.future) > 0 }
+
 // Undo takes the layout back to before its last change (see CanUndo), and
-// reports whether there was one. The panes come back with the scroll and state they
-// had then.
+// reports whether there was one. The panes come back with the scroll and
+// state they had then; windows torn off since close, and those closed
+// open again, when a Dock with a DockHost shows the layout.
 //
 //	if layout.Undo() {
 //		app.saveLayout()
 //	}
-func (l *Layout) Undo() bool {
-	for len(l.history) > 0 {
-		b := l.history[len(l.history)-1]
-		h := l.history[:len(l.history)-1]
+func (l *Layout) Undo() bool { return l.step(&l.history, &l.future) }
+
+// Redo makes again the last change Undo went back from, and reports
+// whether there was one.
+func (l *Layout) Redo() bool { return l.step(&l.future, &l.history) }
+
+// step takes the layout to the last of from, keeping what it was in to.
+func (l *Layout) step(from, to *[][]byte) bool {
+	now, err := l.MarshalJSON()
+	if err != nil {
+		return false
+	}
+	for len(*from) > 0 {
+		b := (*from)[len(*from)-1]
+		*from = (*from)[:len(*from)-1]
 		back, err := ParseLayout(b)
 		if err != nil {
-			l.history = h
 			continue
 		}
-		next := l.next
+		*to = append(*to, now)
+		// IDs made from here on are new, never those of the nodes undone;
+		// what the Docks share stays
+		next, history, future, travel, opening, born := l.next, l.history, l.future, l.travel, l.opening, l.born
 		*l = *back
-		// IDs made from here on are new, never those of the nodes undone
-		l.history, l.next = h, max(l.next, next)
+		l.next = max(l.next, next)
+		l.history, l.future, l.travel, l.opening, l.born = history, future, travel, opening, born
 		return true
 	}
 	return false
+}
+
+// newWindowID returns an ID no window of l has.
+func (l *Layout) newWindowID() string {
+	for i := len(l.Windows); ; i++ {
+		if id := fmt.Sprintf("w%d", i); l.Window(id) == nil {
+			return id
+		}
+	}
+}
+
+// tearOff moves pane id out into a new window, its content at r on the
+// screen (r's place zero: where the system puts it), and returns it.
+func (l *Layout) tearOff(id string, r ui.Rect) *DockWindow {
+	p, _ := l.takePane(id)
+	if p == nil {
+		return nil
+	}
+	w := &DockWindow{ID: l.newWindowID(), X: int(r.X), Y: int(r.Y), Width: int(r.W), Height: int(r.H), Root: &Node{Panes: []*Pane{p}}}
+	l.Windows = append(l.Windows, w)
+	l.fix()
+	return w
+}
+
+// tearOffArea moves area id, all its panes, out into a new window, as
+// tearOff does.
+func (l *Layout) tearOffArea(id string, r ui.Rect) *DockWindow {
+	a := l.Find(id)
+	if a == nil || !a.IsArea() || len(a.Panes) == 0 {
+		return nil
+	}
+	panes, active := a.Panes, a.Active
+	a.Panes, a.Active = nil, 0
+	w := &DockWindow{ID: l.newWindowID(), X: int(r.X), Y: int(r.Y), Width: int(r.W), Height: int(r.H), Root: &Node{Panes: panes, Active: active}}
+	l.Windows = append(l.Windows, w)
+	l.fix()
+	return w
+}
+
+// DockBack moves what window id holds into the main window, along its
+// right edge, a quarter of it, and drops the window: what a window torn
+// off holds comes back when it closes. It reports whether there was such
+// a window.
+//
+//	win.OnClose(func(*mygo.CloseEvent) { layout.DockBack(id) })
+func (l *Layout) DockBack(id string) bool {
+	w, main := l.Window(id), l.Window("main")
+	if w == nil || main == nil || w == main {
+		return false
+	}
+	l.Windows = slices.DeleteFunc(l.Windows, func(o *DockWindow) bool { return o == w })
+	if w.Root != nil && countPanes(w.Root) > 0 {
+		l.graft(w.Root)
+	}
+	l.fix()
+	return true
+}
+
+// moveToMain moves pane id into a new area along the main window's right
+// edge, and returns it.
+func (l *Layout) moveToMain(id string) *Node {
+	if l.Window("main") == nil {
+		return nil
+	}
+	p, _ := l.takePane(id)
+	if p == nil {
+		return nil
+	}
+	n := &Node{Panes: []*Pane{p}}
+	l.graft(n)
+	l.fix()
+	return n
+}
+
+// graft puts n along the main window's right edge, a quarter of it, or in
+// its place when the window holds nothing; the Docks open it from nothing.
+func (l *Layout) graft(n *Node) {
+	main := l.Window("main")
+	if main.Root == nil || main.Root.IsArea() && len(main.Root.Panes) == 0 {
+		main.Root = n
+	} else {
+		main.Root = &Node{Dir: DockRow, Children: []*Node{main.Root, n}, Sizes: []float32{0.75, 0.25}}
+	}
+	l.fix()
+	walk(n, func(m *Node) {
+		if m.IsArea() {
+			l.mark(m.ID, false)
+		}
+	})
+	l.mark(n.ID, true)
+}
+
+// pruneWindows drops the windows other than the main one left without a
+// pane, and reports whether it dropped any.
+func (l *Layout) pruneWindows() bool {
+	n := len(l.Windows)
+	l.Windows = slices.DeleteFunc(l.Windows, func(w *DockWindow) bool {
+		return w.ID != "main" && (w.Root == nil || countPanes(w.Root) == 0)
+	})
+	return len(l.Windows) != n
+}
+
+func countPanes(n *Node) int {
+	c := 0
+	walk(n, func(m *Node) { c += len(m.Panes) })
+	return c
 }

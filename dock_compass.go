@@ -176,10 +176,11 @@ func (d *dockView) compass() {
 	c, st, t := d.c, d.st, d.t
 	cl := t.Colors
 	dr := st.tab
-	dragging := dr != nil && !dr.let
+	// out of the window, the tab is another window's to show
+	dragging := dr != nil && !dr.let && !dr.out && !dr.carry
 	cp := st.compass
 	ui.Overlay(c, func() {
-		host := ui.Box(c.Key("compass")).Absolute().Left(0).Top(0).Width(0).Height(0).PassThrough()
+		host := ui.Box(c.Key(d.over("compass", 0))).Absolute().Left(0).Top(0).Width(0).Height(0).PassThrough()
 		on := dragging && cp.area != ""
 		// in on a spring, out quicker on a curve
 		var show float32
@@ -211,7 +212,7 @@ func (d *dockView) compass() {
 			win := d.root.LayoutBounds()
 			for i, r := range edgeTargets(win) {
 				hot := dragging && z.edge && z.side == sides[i]
-				d.target(c.Key(edgeKey{"edge", i}), r, sides[i], true, true, hot, edges, cl)
+				d.target(c.Key(d.over("edge", i)), r, sides[i], true, true, hot, edges, cl)
 			}
 		}
 	})
@@ -225,7 +226,7 @@ func (d *dockView) plate(at ui.Point, on [5]bool, show float32, z dockZone) {
 	tileR := min(t.R(6), 8)
 	plateR := tileR + compassPad
 	s := 0.92 + 0.08*show
-	plate := ui.Box(c.Key("plate")).Absolute().Left(at.X-ext).Top(at.Y-ext).Width(2*ext).Height(2*ext).
+	plate := ui.Box(c.Key(d.over("plate", 0))).Absolute().Left(at.X-ext).Top(at.Y-ext).Width(2*ext).Height(2*ext).
 		PassThrough().Opacity(min(show, 1)).Scale(s, s)
 	shadow := t.Shadows.ShadowPop
 	plate.Draw(func(p *ui.Painter, r ui.Rect) {
@@ -369,3 +370,12 @@ func plusPath(cx, cy, arm, ext, out, in float32) *ui.Path {
 	path.Close()
 	return &path
 }
+
+// overKey keys what a Dock builds over the window, apart from another
+// Dock's there.
+type overKey struct {
+	window, part string
+	i            int
+}
+
+func (d *dockView) over(part string, i int) overKey { return overKey{d.w.ID, part, i} }

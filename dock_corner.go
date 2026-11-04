@@ -254,7 +254,7 @@ func (d *dockView) let() {
 			room = st.room[p.ID]
 		}
 		if n := d.l.splitArea(k.area, dir, first, keep, made, room); n != nil {
-			st.born[n.ID] = true
+			d.l.mark(n.ID, false)
 			d.changed()
 		}
 		g.line, g.snapped = pos, false
@@ -268,9 +268,14 @@ func (d *dockView) let() {
 	}
 }
 
+// changed tells the app the layout changed, and the other windows of the
+// layout to show it.
 func (d *dockView) changed() {
 	if d.o.OnChange != nil {
 		d.o.OnChange()
+	}
+	if h := d.o.Host; h != nil {
+		h.Sync()
 	}
 }
 

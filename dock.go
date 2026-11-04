@@ -26,6 +26,30 @@ type DockOptions struct {
 	OnChange func()
 	// MinSize is the least an area shrinks to, in DIPs: 96 by default.
 	MinSize float32
+	// Host connects the Dock to the windows of the app: given one, a tab
+	// dragged out of the window tears off into a window of its own, or
+	// docks into another window of the layout it is let go over, and the
+	// layout's windows open and close with it. mizan/dockwin makes one of
+	// MyGo's windows.
+	Host DockHost
+}
+
+// DockHost shows a layout's windows in the app's windows.
+type DockHost interface {
+	// Content is where the content of the layout's window id is on the
+	// screen; ok is false where the system doesn't say (Wayland), and a tab
+	// dragged out of a window then only tears off.
+	Content(window string) (r ui.Rect, ok bool)
+	// Sync opens a window for each of the layout's windows that has none,
+	// closes those of windows it no longer holds, and redraws them all.
+	Sync()
+	// Pointer is where the pointer is on the screen; ok is false where the
+	// system doesn't say, and a window is then moved by the system alone.
+	Pointer() (p ui.Point, ok bool)
+	// Move puts the content of window id at p on the screen, faded while
+	// it is carried over another window, so that what that window shows of
+	// where it would dock shows through.
+	Move(window string, p ui.Point, faded bool)
 }
 
 // DockKind is a kind of pane: what an area shows (a table, a chart, a
@@ -93,25 +117,34 @@ type dockState struct {
 	corner *dockCorner
 	guide  dockGuide
 	fold   *dockFold
-	born   map[string]bool // areas a split made, to fade in
-	ghosts []dockGhost     // areas gone from the tree, folding away where they were
+	ghosts []dockGhost // areas gone from the tree, folding away where they were
 	nghost int
 
 	tabs     map[string][]tabSlot // this frame's tabs of each area, as the last frame laid them out
 	tab      *tabDrag
 	tabLand  *tabLanding
 	tabApply func()                // the move a tab let go asked for, as the next frame starts
+	applyAt  time.Time             // when it was let go: the move applies after it
 	tabGen   int                   // counts the moves applied
 	zone     dockZone              // the last region shown, to fade where it was
 	compass  compassAt             // where the compass shows, from the last frame's aim
 	closing  map[string][]tabGhost // tabs closed, by area, closing their room
-	opening  map[string]bool       // areas a tab docked into, opening from nothing
 	settled  map[string]bool       // nodes a cut made, which show at once where they are
 
 	maxLast string // the area last maximized: it shrinks back after Max is cleared
 	focused string // the area holding the keyboard focus in this frame
 	hovered string // the area under the pointer in this frame
 	focusTo string // the area to give the focus to in this frame
+
+	layout  *Layout     // the layout shown: another one starts afresh
+	tokens  *Tokens     // the theme it was shown in, to redraw the other windows in another
+	windows string      // the layout's windows, to open and close the app's as they change
+	landed  *tabLanding // a tab another window let go here, landing as the next frame starts
+
+	// where a tab the system drags over the Dock would go, and its copy's
+	// place, kept for the drop, which comes once it left
+	nativeZone dockZone
+	nativeAt   ui.Point
 }
 
 // Dock shows window o.Window of l, its areas built by o.Kinds. Give it a
@@ -124,20 +157,26 @@ type dockState struct {
 func Dock(c *ui.Context, l *Layout, o DockOptions) ui.Element {
 	t := From(c)
 	root := ui.Box(c).MinWidth(0).MinHeight(0)
+	st := *ui.Local(root, "dock", func() *dockState {
+		return &dockState{closing: map[string][]tabGhost{}, settled: map[string]bool{}}
+	})
+	d := &dockView{t: t, c: c, l: l, o: o, st: st, root: root}
+	if o.Host != nil {
+		_, known := o.Host.Pointer()
+		d.native = !known
+	}
+	d.windows()
 	w := l.Window(or(o.Window, "main"))
 	if w == nil || w.Root == nil {
 		return root
 	}
-	st := *ui.Local(root, "dock", func() *dockState {
-		return &dockState{born: map[string]bool{}, closing: map[string][]tabGhost{}, opening: map[string]bool{}, settled: map[string]bool{}}
-	})
+	d.w = w
 	last := slices.Clone(st.edges)
 	st.edges = st.edges[:0]
 	prev := st.nodes
 	st.areas, st.room, st.tabs = map[string]ui.Rect{}, map[string]float32{}, map[string][]tabSlot{}
 	st.nodes = map[string]dockPlace{}
 	st.focused, st.hovered = "", ""
-	d := &dockView{t: t, c: c, l: l, o: o, st: st, root: root, w: w}
 	if d.o.MinSize <= 0 {
 		d.o.MinSize = 96
 	}
@@ -167,6 +206,9 @@ func Dock(c *ui.Context, l *Layout, o DockOptions) ui.Element {
 		}
 	}
 	d.applyTab()
+	d.arrive()
+	d.visit()
+	d.nativeTarget()
 	if w.Max == "" {
 		d.vanished(prev, folded)
 	}
@@ -186,9 +228,18 @@ func Dock(c *ui.Context, l *Layout, o DockOptions) ui.Element {
 		d.compass()
 	})
 	d.keys()
-	if dr := st.tab; dr != nil && !dr.let {
+	if dr := st.tab; dr != nil && !dr.let && dr.carry {
+		d.carry()
+	} else if dr != nil && !dr.let {
 		before := dr.zone
 		d.aimTab()
+		if dr.native {
+			d.st.nativeZone, d.st.nativeAt = dr.zone, ui.Point{X: dr.pos.X - dr.grab.X, Y: dr.pos.Y - dr.grab.Y}
+		} else if dr.remote {
+			d.offer()
+		} else {
+			d.follow()
+		}
 		if dr.zone != before {
 			c.AnimationFrame()
 		}
@@ -266,6 +317,9 @@ type dockView struct {
 	hoverAt ui.Point   // and the pointer
 	max     float32    // how far the area maximized has grown over the window
 	maxed   string     // the area shown maximized, growing or shrinking
+	// native: tabs are dragged by the system, where it doesn't say where
+	// windows are (Wayland)
+	native bool
 }
 
 // node builds n: an area, or a split of its children and the edges
@@ -328,10 +382,10 @@ func (d *dockView) node(n *Node) ui.Element {
 			delete(st.settled, ch.ID)
 			box.Jump("f:"+ch.ID, size)
 		}
-		if st := d.st; st.opening[ch.ID] {
+		if d.l.opening[ch.ID] {
 			// an area a tab docked into opens from nothing, its neighbors
 			// making room
-			delete(st.opening, ch.ID)
+			delete(d.l.opening, ch.ID)
 			box.Jump("f:"+ch.ID, 0)
 		}
 		switch {

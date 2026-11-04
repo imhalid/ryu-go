@@ -13,6 +13,54 @@ type workspacePage struct {
 	Layout *mz.Layout
 	Saved  []byte
 	Volume float64
+	// Host shows the layout's windows in the app's windows, when the gallery
+	// runs in one (cmd/gallery); OnChange runs when the layout changed.
+	Host     mz.DockHost
+	OnChange func()
+}
+
+// layout is the workspace's layout, made the first time.
+func (w *workspacePage) layout() *mz.Layout {
+	if w.Layout == nil {
+		w.Layout = newWorkspace()
+	}
+	return w.Layout
+}
+
+// Layout returns the workspace's layout, for a host of its windows.
+func (s *State) Layout() *mz.Layout { return s.Work.layout() }
+
+// WindowView builds window id of the workspace's layout, torn off into a
+// window of its own: a Dock of it, in the gallery's theme.
+func (s *State) WindowView(id string) func(*ui.Context) {
+	return func(c *ui.Context) {
+		t := mz.Root(c, mz.Options{Mode: s.Mode, Accent: s.Accent, Size: steps[s.Density], Corners: corners[s.Round]})
+		// the areas fill the window to its edges: their corners are its own
+		ui.Box(c).Fill().Background(t.Colors.Bg).Children(func() {
+			s.Work.dock(c, t, id).Fill()
+		})
+	}
+}
+
+// dock is the Dock of window id of the workspace.
+func (w *workspacePage) dock(c *ui.Context, t *mz.Tokens, id string) ui.Element {
+	return mz.Dock(c.Key("dock"), w.layout(), mz.DockOptions{Window: id, Kinds: w.kinds(t.Colors), Host: w.Host, OnChange: w.OnChange})
+}
+
+// kinds are what the workspace's areas show.
+func (w *workspacePage) kinds(cl mz.Colors) []mz.DockKind {
+	return []mz.DockKind{
+		{Kind: "files", Title: "Files", Icon: iconFolder, Build: lines(cl, []string{"cmd/", "docs/", "gallery/", "accent.go", "controls.go", "dock.go", "dock_layout.go", "forms.go", "table.go", "tokens.go"})},
+		{Kind: "editor", Title: "Editor", Icon: iconCode, Build: code(cl)},
+		{Kind: "console", Title: "Console", Icon: iconPrompt, Build: lines(cl, []string{"$ go test ./...", "ok   github.com/imhalid/mizan-go   0.4s", "ok   github.com/imhalid/mizan-go/gallery   61.2s", "$ go vet ./...", "$"})},
+		{Kind: "outline", Title: "Outline", Icon: iconList, Build: lines(cl, []string{"Layout", "DockWindow", "Node", "Pane", "Dock", "dockView.node", "dockView.edge", "dockView.lined", "dockView.move"})},
+		{Kind: "props", Title: "Properties", Icon: iconSliders, Build: func(c *ui.Context, p *mz.Pane) {
+			ui.Column(c).Padding(12).Gap(10).Children(func() {
+				mz.Slider(c.Key("vol"), &w.Volume, 0, 100, mz.SliderOptions{Label: "Opacity"})
+				mz.Switch(c.Key("snap"), new(bool), mz.SwitchOptions{Label: "Snap"})
+			})
+		}},
+	}
 }
 
 // The icons of the workspace's kinds.
@@ -41,9 +89,7 @@ func newWorkspace() *mz.Layout {
 }
 
 func (w *workspacePage) view(c *ui.Context, t *mz.Tokens) {
-	if w.Layout == nil {
-		w.Layout = newWorkspace()
-	}
+	w.layout()
 	cl := t.Colors
 	mz.Card(c, mz.CardOptions{Title: "Workspace", Subtitle: "Drag the gaps between areas; the edges lined up with one move along (Option: it alone). Where edges meet, drag both ways. A double click shares the room out. Drag an area's corner inward to split it, or into a neighbor to join them. Drag a tab within its stack, onto another area's tabs or middle, or onto one of its sides to dock it there.", Pad: true}, func() {
 		ui.Column(c).Gap(12).Children(func() {
@@ -54,34 +100,36 @@ func (w *workspacePage) view(c *ui.Context, t *mz.Tokens) {
 				if mz.Button(c.Key("restore"), "Restore", mz.ButtonOptions{Size: mz.Sm, Disabled: w.Saved == nil}).Clicked() {
 					if l, err := mz.ParseLayout(w.Saved); err == nil {
 						w.Layout = l
+						w.changed()
 					}
 				}
 				if mz.Button(c.Key("undo"), "Undo", mz.ButtonOptions{Size: mz.Sm, Disabled: !w.Layout.CanUndo()}).Clicked() {
 					w.Layout.Undo()
+					w.changed()
+				}
+				if mz.Button(c.Key("redo"), "Redo", mz.ButtonOptions{Size: mz.Sm, Disabled: !w.Layout.CanRedo()}).Clicked() {
+					w.Layout.Redo()
+					w.changed()
 				}
 				if mz.Button(c.Key("reset"), "Reset", mz.ButtonOptions{Size: mz.Sm}).Clicked() {
 					w.Layout = newWorkspace()
+					w.changed()
 				}
 				if w.Saved != nil {
 					ui.Text(c, fmt.Sprintf("Saved, %d bytes", len(w.Saved))).FontSize(mz.FsSm).TextColor(cl.Muted)
 				}
 			})
 			ui.Box(c).FillWidth().Height(560).Children(func() {
-				mz.Dock(c.Key("dock"), w.Layout, mz.DockOptions{Kinds: []mz.DockKind{
-					{Kind: "files", Title: "Files", Icon: iconFolder, Build: lines(cl, []string{"cmd/", "docs/", "gallery/", "accent.go", "controls.go", "dock.go", "dock_layout.go", "forms.go", "table.go", "tokens.go"})},
-					{Kind: "editor", Title: "Editor", Icon: iconCode, Build: code(cl)},
-					{Kind: "console", Title: "Console", Icon: iconPrompt, Build: lines(cl, []string{"$ go test ./...", "ok   github.com/imhalid/mizan-go   0.4s", "ok   github.com/imhalid/mizan-go/gallery   61.2s", "$ go vet ./...", "$"})},
-					{Kind: "outline", Title: "Outline", Icon: iconList, Build: lines(cl, []string{"Layout", "DockWindow", "Node", "Pane", "Dock", "dockView.node", "dockView.edge", "dockView.lined", "dockView.move"})},
-					{Kind: "props", Title: "Properties", Icon: iconSliders, Build: func(c *ui.Context, p *mz.Pane) {
-						ui.Column(c).Padding(12).Gap(10).Children(func() {
-							mz.Slider(c.Key("vol"), &w.Volume, 0, 100, mz.SliderOptions{Label: "Opacity"})
-							mz.Switch(c.Key("snap"), new(bool), mz.SwitchOptions{Label: "Snap"})
-						})
-					}},
-				}}).Fill()
+				w.dock(c, t, "main").Fill()
 			})
 		})
 	})
+}
+
+func (w *workspacePage) changed() {
+	if w.OnChange != nil {
+		w.OnChange()
+	}
 }
 
 // lines is a pane kind showing rows of text, scrolled where the pane is.
