@@ -11,6 +11,8 @@ type PaginationOptions struct {
 	// PageSize is how many items a page holds.
 	PageSize int
 	Size     Size
+	// Labels are its words, for an app in another language.
+	Labels PaginationLabels
 }
 
 // Pagination moves between the pages of total items, *page being the page
@@ -26,13 +28,14 @@ func Pagination(c *ui.Context, page *int, total int, o PaginationOptions) ui.Ele
 	t := sizedFrom(c, o.Size)
 	m := t.Metrics
 	cl := t.Colors
+	l := o.Labels.fill()
 	ps := max(o.PageSize, 1)
 	pages := max(1, (total+ps-1)/ps)
 	*page = min(max(*page, 0), pages-1)
 	from, to := *page*ps+1, min(total, (*page+1)*ps)
-	bar := ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(8).Role(ui.RoleGroup).Label("Pages")
+	bar := ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(8).Role(ui.RoleGroup).Label(l.Group)
 	bar.Children(func() {
-		ui.Text(c, strconv.Itoa(from)+"–"+strconv.Itoa(to)+" of "+grouped(float64(total), 0)).
+		ui.Text(c, strconv.Itoa(from)+"–"+strconv.Itoa(to)+" "+l.Of+" "+grouped(float64(total), 0)).
 			FontSize(FsSm).TextColor(cl.Muted).FontFeatures("tnum").NoWrap()
 		ui.Spacer(c)
 		step := func(key, label string, icon *ui.SVG, to int, off bool) {
@@ -42,7 +45,7 @@ func Pagination(c *ui.Context, page *int, total int, o PaginationOptions) ui.Ele
 				*page = to
 			}
 		}
-		step("prev", "Previous page", iconPrev, *page-1, *page == 0)
+		step("prev", l.Previous, iconPrev, *page-1, *page == 0)
 		slots := pageSlots(*page, pages)
 		track := ui.Row(c).AlignItems(ui.Center).Gap(2)
 		var at ui.Element
@@ -54,9 +57,9 @@ func Pagination(c *ui.Context, page *int, total int, o PaginationOptions) ui.Ele
 					})
 					continue
 				}
-				label := "Page " + strconv.Itoa(p+1)
+				label := l.Page + " " + strconv.Itoa(p+1)
 				if p == *page {
-					label += ", current"
+					label += ", " + l.Current
 				}
 				b := pageButton(c.Key(n), t, label, false)
 				color := cl.Muted
@@ -93,7 +96,7 @@ func Pagination(c *ui.Context, page *int, total int, o PaginationOptions) ui.Ele
 				})
 			}
 		}
-		step("next", "Next page", iconNext, *page+1, *page == pages-1)
+		step("next", l.Next, iconNext, *page+1, *page == pages-1)
 	})
 	return bar
 }

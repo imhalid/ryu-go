@@ -112,6 +112,16 @@ type TableOptions[R any] struct {
 	Retry   func()
 	Empty   EmptyStateOptions
 	Size    Size
+	// Open, if set, runs when a row is clicked or Enter is pressed on the row
+	// with the cursor: the app opens what the row is. Rows show a pointer then.
+	Open func(r R)
+	// Row, if set, is called with each row's element as it is built, for what the
+	// app adds to it: a context menu, a handler.
+	Row func(row ui.Element, r R)
+	// HideSelectionBar leaves the bar of the rows chosen to the app, which shows its own.
+	HideSelectionBar bool
+	// Labels are the table's words, for an app in another language.
+	Labels TableLabels
 }
 
 // tableRT is what a Table keeps for itself between frames.
@@ -201,6 +211,7 @@ type tableFrame[R any] struct {
 	all    []int              // the rows' indexes, sorted
 	idx    []int              // those on the page shown
 	keys   []any              // their keys
+	l      TableLabels        // the words, in English where the app gave none
 	chosen []any              // the keys chosen, in the order shown
 	focus  bool
 	now    time.Time
@@ -228,7 +239,7 @@ func Table[R any](c *ui.Context, s *TableState, cols []Column[R], rows []R, o Ta
 		panic("ryugo: Table needs a Key")
 	}
 	t := sizedFrom(c, or(s.Density, o.Size))
-	f := &tableFrame[R]{t: t, c: c, s: s, o: o, cols: cols, rows: rows, m: tableSizes(t.Size), now: c.Now(),
+	f := &tableFrame[R]{t: t, c: c, s: s, o: o, cols: cols, rows: rows, m: tableSizes(t.Size), now: c.Now(), l: o.Labels.fill(),
 		shift: map[string]float32{}}
 	f.outer = ui.Column(c).FillWidth().MinWidth(0).Gap(10)
 	if o.Height > 0 {
@@ -273,7 +284,7 @@ func Table[R any](c *ui.Context, s *TableState, cols []Column[R], rows []R, o Ta
 			}
 		})
 		if o.PageSize > 0 && len(f.all) > o.PageSize {
-			Pagination(c.Key("pages"), &s.Page, len(f.all), PaginationOptions{PageSize: o.PageSize, Size: t.Size})
+			Pagination(c.Key("pages"), &s.Page, len(f.all), PaginationOptions{PageSize: o.PageSize, Size: t.Size, Labels: f.l.Pagination})
 		}
 	})
 	if b := body.LayoutBounds(); b.W > 0 {
@@ -462,7 +473,7 @@ func (f *tableFrame[R]) bar() {
 	if n := len(f.chosen); n > 0 {
 		f.rt.count = n
 	}
-	p := clamp01(f.outer.AnimateTo("selbar", b2f(len(f.chosen) > 0), springSelBar))
+	p := clamp01(f.outer.AnimateTo("selbar", b2f(len(f.chosen) > 0 && !o.HideSelectionBar), springSelBar))
 	if !tools && p < 0.001 {
 		return
 	}
@@ -481,7 +492,7 @@ func (f *tableFrame[R]) bar() {
 			tb.Children(func() {
 				if o.Search {
 					ui.Box(c).Width(260).Shrink(1).MinWidth(140).Children(func() {
-						Input(c.Key("search"), &s.Query, InputOptions{Placeholder: "Search", PrefixIcon: iconSearch, Clearable: true, Label: "Search", Size: Sm})
+						Input(c.Key("search"), &s.Query, InputOptions{Placeholder: f.l.Search, PrefixIcon: iconSearch, Clearable: true, Label: f.l.Search, Size: Sm})
 					})
 				}
 				if o.Toolbar != nil {
@@ -501,8 +512,11 @@ func (f *tableFrame[R]) bar() {
 			Padding(0, 6, 0, 14).Radius(t.R(RadiusControl)).Opacity(in).Translate(0, 8*(1-p)).IgnoreInput(p < 0.5).
 			LinearGradient(t.controlGradient(cl.ControlTop, cl.ControlBottom)).Border(0.5, cl.ControlBorder)
 		t.Shadows.ControlShadow.Apply(sel)
+		if o.HideSelectionBar {
+			sel.Invisible()
+		}
 		sel.Children(func() {
-			ui.Text(c, strconv.Itoa(f.rt.count)+" selected").FontSize(FsMd).FontWeight(600).TextColor(cl.Text).FontFeatures("tnum").NoWrap()
+			ui.Text(c, f.l.selected(f.rt.count)).FontSize(FsMd).FontWeight(600).TextColor(cl.Text).FontFeatures("tnum").NoWrap()
 			if len(o.Actions) > 0 {
 				Separator(c, SeparatorOptions{Vertical: true})
 			}
@@ -512,7 +526,7 @@ func (f *tableFrame[R]) bar() {
 				}
 			}
 			ui.Spacer(c)
-			if Button(c.Key("clear"), "Clear", ButtonOptions{Size: Sm}).Clicked() {
+			if Button(c.Key("clear"), f.l.Clear, ButtonOptions{Size: Sm}).Clicked() {
 				s.Selected = nil
 			}
 		})
@@ -526,8 +540,8 @@ var springSelBar = ui.Animation{Spring: ui.SpringOptions{Duration: 320 * time.Mi
 // choosing the density.
 func (f *tableFrame[R]) viewMenu() {
 	s := f.s
-	MenuButton(f.c.Key("view"), "View", ButtonOptions{Icon: iconView, Size: Sm}, func(m *MenuList) {
-		m.Label("Columns")
+	MenuButton(f.c.Key("view"), f.l.View, ButtonOptions{Icon: iconView, Size: Sm}, func(m *MenuList) {
+		m.Label(f.l.Columns)
 		shown := len(f.order)
 		for i := range f.cols {
 			col := &f.cols[i]
@@ -542,11 +556,11 @@ func (f *tableFrame[R]) viewMenu() {
 			}
 		}
 		m.Separator()
-		m.Label("Density")
+		m.Label(f.l.Density)
 		for _, d := range []struct {
 			size Size
 			name string
-		}{{Sm, "Compact"}, {Md, "Default"}, {Lg, "Comfortable"}} {
+		}{{Sm, f.l.Compact}, {Md, f.l.Default}, {Lg, f.l.Comfortable}} {
 			if m.Item(d.name, ItemOptions{Checkable: true, Checked: f.t.Size == d.size}) {
 				s.Density = d.size
 			}
@@ -593,6 +607,8 @@ func (f *tableFrame[R]) keyboard(box ui.Element) {
 		k := f.keys[s.cursor]
 		f.choose(k, !s.Selected[k])
 		s.anchor = k
+	case box.Shortcut(0, ui.KeyEnter) && f.o.Open != nil:
+		f.o.Open(f.rows[f.idx[s.cursor]])
 	case box.Shortcut(0, ui.KeyEnter) && f.o.Expand != nil:
 		f.toggleOpen(f.keys[s.cursor])
 	}
@@ -750,7 +766,7 @@ func (f *tableFrame[R]) headLead() {
 		ui.Box(c).Width(selectW).Shrink(0).Center().Children(func() {
 			n := len(f.chosen)
 			all := n > 0 && n == len(f.all)
-			if f.t.tableCheck(c.Key("all"), all, n > 0 && !all, "Select all rows").Clicked() {
+			if f.t.tableCheck(c.Key("all"), all, n > 0 && !all, f.l.SelectAll).Clicked() {
 				if all {
 					s.Selected = nil
 				} else {
@@ -1007,8 +1023,8 @@ func (f *tableFrame[R]) body() {
 		f.placeholders(viewH)
 		return
 	case o.Error != "":
-		f.state(viewW, viewH, EmptyStateOptions{Icon: iconAlert, Title: "Couldn't load the rows", Description: o.Error, Action: func() {
-			if Button(c.Key("retry"), "Try again", ButtonOptions{}).Clicked() && o.Retry != nil {
+		f.state(viewW, viewH, EmptyStateOptions{Icon: iconAlert, Title: f.l.LoadError, Description: o.Error, Action: func() {
+			if Button(c.Key("retry"), f.l.TryAgain, ButtonOptions{}).Clicked() && o.Retry != nil {
 				o.Retry()
 			}
 		}})
@@ -1016,7 +1032,7 @@ func (f *tableFrame[R]) body() {
 	case len(f.keys) == 0:
 		e := o.Empty
 		if e.Title == "" {
-			e.Title = "No rows"
+			e.Title = f.l.NoRows
 		}
 		f.state(viewW, viewH, e)
 		f.forget()
@@ -1147,6 +1163,12 @@ func (f *tableFrame[R]) row(n int, y float32, moved bool, viewW, viewH float32) 
 	chosen := s.Selected[k]
 	wrap.Children(func() {
 		line := ui.Row(c).Width(f.total).Height(m.row).Shrink(0).AlignItems(ui.Stretch).Role(ui.RoleRow).Selected(chosen)
+		if o.Open != nil {
+			line.Cursor(ui.CursorPointer)
+		}
+		if o.Row != nil {
+			o.Row(line, r)
+		}
 		bg := f.rowBg(chosen, line.Hovered())
 		line.Background(bg).InsetShadow(0, -1, 0, 0, cl.Hairline)
 		if f.focus && n == s.cursor {
@@ -1154,6 +1176,9 @@ func (f *tableFrame[R]) row(n int, y float32, moved bool, viewW, viewH float32) 
 		}
 		if line.Clicked() {
 			s.cursor = n
+			if o.Open != nil {
+				o.Open(r)
+			}
 		}
 		line.Children(func() {
 			if f.pinned > 0 {
@@ -1187,7 +1212,7 @@ func (f *tableFrame[R]) rowLead(k any, n int, chosen bool, ep float32) {
 	cl := f.t.Colors
 	if f.o.Selectable {
 		ui.Box(c).Width(selectW).Shrink(0).Center().Children(func() {
-			b := f.t.tableCheck(c.Key("sel"), chosen, false, "Select row")
+			b := f.t.tableCheck(c.Key("sel"), chosen, false, f.l.SelectRow)
 			if b.Clicked() {
 				if b.ClickModifiers()&ui.Shift != 0 && s.anchor != nil {
 					f.chooseRange(s.anchor, k, !chosen)
@@ -1200,7 +1225,7 @@ func (f *tableFrame[R]) rowLead(k any, n int, chosen bool, ep float32) {
 	}
 	if f.o.Expand != nil {
 		ui.Box(c).Width(expandW).Shrink(0).Center().Children(func() {
-			b := ui.ButtonBase(c.Key("open")).Label("Details").Expanded(s.Expanded[k]).Size(24, 24).Radius(RadiusPill).
+			b := ui.ButtonBase(c.Key("open")).Label(f.l.Details).Expanded(s.Expanded[k]).Size(24, 24).Radius(RadiusPill).
 				Center().Cursor(ui.CursorPointer).FocusRing(false)
 			color := cl.Muted
 			if b.Hovered() {
