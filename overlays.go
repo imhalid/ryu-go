@@ -30,6 +30,12 @@ type DialogOptions struct {
 	// Fixed keeps a dialog where it opens: without it, its header drags
 	// it around the window.
 	Fixed bool
+	// Bare drops the header, the body's padding and scroll, and the footer:
+	// Bare builds the whole card, as columns running edge to edge, say. It
+	// is handed grip, to which it gives the element that drags the dialog
+	// (unless Fixed), and close, which closes it. Title, Description and
+	// Footer are not used.
+	Bare func(grip func(ui.Element), close func())
 }
 
 // The springs of the layers: they settle fast, with a hint of overshoot.
@@ -111,7 +117,7 @@ func Dialog(c *ui.Context, open *bool, o DialogOptions, body func()) ui.Element 
 		card, head := t.panelContent(c, open, o, body, false, t.R(RadiusLg))
 		s := 0.94 + 0.06*p
 		card.Translate(0, 10*(1-p)).Scale(s, s).Opacity(clamp01(p))
-		if !o.Fixed {
+		if !o.Fixed && head != (ui.Element{}) {
 			t.float(backdrop, panel, head)
 		}
 	})
@@ -209,6 +215,12 @@ func (t *Tokens) panelContent(c *ui.Context, open *bool, o DialogOptions, body f
 	cl := t.Colors
 	card = ui.Column(c).FillWidth().Grow(1).MinHeight(0)
 	t.layer(card, radius)
+	if o.Bare != nil {
+		card.Children(func() {
+			o.Bare(func(e ui.Element) { head = e }, func() { *open = false })
+		})
+		return card, head
+	}
 	sc := ui.Local(card, "scroll", func() ui.ScrollState { return ui.ScrollState{} })
 	card.Children(func() {
 		head = ui.Row(c).AlignItems(ui.Start).Gap(12).Padding(22, 22, 0, 22)
