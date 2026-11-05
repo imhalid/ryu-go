@@ -72,3 +72,37 @@ func TestTableOpenRowLabels(t *testing.T) {
 		t.Fatalf("no empty state in the app's words: %v", tt.Texts())
 	}
 }
+
+// A table wider than its room fades at the edge with more beyond it, so that
+// what is cut reads as going on: a red cell there is paler than one inside.
+func TestTableSideScrollFades(t *testing.T) {
+	type rec struct{ id int }
+	rows := []rec{{1}, {2}, {3}}
+	var cols []Column[rec]
+	for _, id := range []string{"a", "b", "c", "d", "e"} {
+		cols = append(cols, Column[rec]{ID: id, Title: id, Width: 220, Cell: func(c *ui.Context, r rec) {
+			ui.Box(c).FillWidth().Height(24).Background(ui.Hex("#ff0000"))
+		}})
+	}
+	st := &TableState{}
+	tt := ui.NewTester(func(c *ui.Context) {
+		Root(c, Options{})
+		ui.Column(c).Padding(20).Children(func() {
+			Table(c.Key("t"), st, cols, rows, TableOptions[rec]{Key: func(r rec) any { return r.id }, Height: 260})
+		})
+	}, 520, 360)
+	tt.Advance(600 * time.Millisecond)
+	if st.scroll.MaxX < 100 {
+		t.Fatalf("the table does not scroll sideways: %v", st.scroll.MaxX)
+	}
+	img := tt.Image()
+	y := 20 + 36 + 20 // the first row's middle: padding, header, half a row
+	edge := img.RGBAAt(520-20-4, y)
+	inner := img.RGBAAt(200, y)
+	if inner.R < 200 || inner.G > 40 {
+		t.Fatalf("inner cell %v is not red", inner)
+	}
+	if edge.G < inner.G+25 {
+		t.Fatalf("no fade at the right edge: edge %v, inside %v", edge, inner)
+	}
+}

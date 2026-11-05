@@ -147,6 +147,7 @@ type tableRT[R any] struct {
 	turn    float32 // a page turn: 1 forward, -1 back, 0 none
 	count   int     // the rows chosen the selection bar last showed
 	reveal  bool    // the cursor row moved by the keys: scroll it into view
+	fadeMax float32 // how far the table scrolled sideways when its edge fades were last worked out
 }
 
 // tableGhost is a row taken out, fading where it was.
@@ -260,9 +261,11 @@ func Table[R any](c *ui.Context, s *TableState, cols []Column[R], rows []R, o Ta
 		f.bar()
 		// the border is drawn over the header and rows: under them, their
 		// fills would cover it in the rounded corners
+		fadeL, fadeR := f.edgeFade()
 		box := ui.Column(c).FillWidth().Grow(1).MinHeight(0).Radius(t.R(RadiusControl)).Background(t.Colors.TableBg).
 			Clip().Role(ui.RoleTable).Focusable().FocusRing(false).
 			DrawOver(func(p *ui.Painter, r ui.Rect) {
+				f.paintEdgeFade(p, r, fadeL, fadeR)
 				p.Stroke(r, t.Colors.Hairline, t.R(RadiusControl), 1)
 			})
 		if o.Label != "" {
@@ -1447,4 +1450,40 @@ func tableWidths[R any](cols []Column[R], s *TableState, order []int, o TableOpt
 		total += widths[i]
 	}
 	return widths, lead, max(total, avail)
+}
+
+// tableFadeW is how wide the fade at a sideways-scrolling table's edge is.
+const tableFadeW = 40
+
+// edgeFade is how much each edge of a table that scrolls sideways shows its
+// fade: at the right while there is more to the right, at the left once it is
+// scrolled, each coming and going on a short curve.
+func (f *tableFrame[R]) edgeFade() (left, right float32) {
+	sc := &f.s.scroll
+	more := sc.MaxX > 1
+	if !f.rt.ready || sc.MaxX != f.rt.fadeMax { // a frame builds before it is laid out: the range is known in the next
+		f.rt.fadeMax = sc.MaxX
+		f.c.Invalidate()
+	}
+	left = f.outer.AnimateTo("fadeL", b2f(more && sc.X > 1), ui.Animation{Duration: 160 * time.Millisecond, Ease: ui.EaseOut})
+	right = f.outer.AnimateTo("fadeR", b2f(more && sc.X < sc.MaxX-1), ui.Animation{Duration: 160 * time.Millisecond, Ease: ui.EaseOut})
+	return left, right
+}
+
+// paintEdgeFade draws the fades over the table, so that rows cut at its edge read
+// as going on: the left one starts after the pinned column.
+func (f *tableFrame[R]) paintEdgeFade(p *ui.Painter, r ui.Rect, left, right float32) {
+	bg := f.t.Colors.TableBg
+	if left > 0.01 {
+		x := r.X
+		if f.pinned > 0 && len(f.order) > 0 {
+			x += f.lead + f.widths[f.order[0]]
+		}
+		p.FillGradient(ui.Rect{X: x, Y: r.Y, W: tableFadeW, H: r.H}, ui.LinearGradient{Angle: 90, Oklab: true,
+			Stops: []ui.GradientStop{{Color: bg.Alpha(left), At: 0}, {Color: bg.Alpha(0), At: 1}}}, 0)
+	}
+	if right > 0.01 {
+		p.FillGradient(ui.Rect{X: r.X + r.W - tableFadeW, Y: r.Y, W: tableFadeW, H: r.H}, ui.LinearGradient{Angle: 90, Oklab: true,
+			Stops: []ui.GradientStop{{Color: bg.Alpha(0), At: 0}, {Color: bg.Alpha(right), At: 1}}}, 0)
+	}
 }
