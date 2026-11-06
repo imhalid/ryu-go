@@ -119,14 +119,14 @@ func (t *Tokens) bar(c *ui.Context, label, value string, frac float32, fill ui.L
 				}
 			})
 		}
-		well = ui.Box(c).FillWidth().Height(h).Radius(RadiusPill).Background(cl.Well).Clip()
+		well = ui.Box(c).FillWidth().Height(h).Radius(t.Pill(h)).Background(cl.Well).Clip()
 		if label != "" {
 			well.Label(label)
 		}
 		describe(well)
 		t.Shadows.WellEdge.Apply(well)
 		well.Children(func() {
-			f := ui.Box(c).Absolute().Top(0).Bottom(0).Radius(RadiusPill).LinearGradient(fill)
+			f := ui.Box(c).Absolute().Top(0).Bottom(0).Radius(t.Pill(h)).LinearGradient(fill)
 			if frac < 0 {
 				// a third of the well, from past its start to past its end
 				p := f.Keyframes("sweep", []ui.Keyframe{{At: 0, Value: 0}, {At: 1400 * time.Millisecond, Value: 1, Ease: ui.EaseInOut}},

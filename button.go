@@ -48,7 +48,7 @@ func Button(c *ui.Context, label string, o ButtonOptions) ui.Element {
 	m := t.Metrics
 	cl := t.Colors
 
-	e := ui.ButtonBase(c).Label(label).Center().Height(m.BtnH).Gap(m.BtnGap).Radius(RadiusPill).Cursor(ui.CursorPointer)
+	e := ui.ButtonBase(c).Label(label).Center().Height(m.BtnH).Gap(m.BtnGap).Radius(t.Pill(m.BtnH)).Cursor(ui.CursorPointer)
 	if o.IconOnly {
 		e.Width(m.BtnH)
 	} else {
@@ -138,7 +138,7 @@ func CopyButton(c *ui.Context, text string, o CopyOptions) ui.Element {
 	m := t.Metrics
 	cl := t.Colors
 	label := or(o.Label, "Copy")
-	e := ui.ButtonBase(c).Center().Size(m.BtnH, m.BtnH).Radius(RadiusPill).Cursor(ui.CursorPointer).Disabled(o.Disabled)
+	e := ui.ButtonBase(c).Center().Size(m.BtnH, m.BtnH).Radius(t.Pill(m.BtnH)).Cursor(ui.CursorPointer).Disabled(o.Disabled)
 	t.raised(e, t.controlGradient(cl.ControlTop, cl.ControlBottom), cl.ControlBorder, t.Shadows.ControlShadow,
 		raisedState{hovered: e.Hovered() && !o.Disabled, pressed: e.Pressed() && !o.Disabled, focus: e.FocusVisible(), disabled: o.Disabled})
 	at := ui.Local(e, "copied", func() time.Time { return time.Time{} })

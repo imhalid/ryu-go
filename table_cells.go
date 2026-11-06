@@ -142,10 +142,10 @@ func (t *Tokens) cell(c *ui.Context, kind ColumnKind, v any, decimals int, unit 
 		}
 		f = math.Max(0, math.Min(1, f))
 		ui.Row(c).AlignItems(ui.Center).Gap(8).Children(func() {
-			well := ui.Box(c).Size(56, 6).Radius(RadiusPill).Background(cl.Well).Clip()
+			well := ui.Box(c).Size(56, 6).Radius(t.Pill(6)).Background(cl.Well).Clip()
 			t.Shadows.WellEdge.Apply(well)
 			well.Children(func() {
-				ui.Box(c).Absolute().Left(0).Top(0).Bottom(0).WidthPercent(float32(f * 100)).Radius(RadiusPill).LinearGradient(t.accentFill())
+				ui.Box(c).Absolute().Left(0).Top(0).Bottom(0).WidthPercent(float32(f * 100)).Radius(t.Pill(6)).LinearGradient(t.accentFill())
 			})
 			ui.Text(c, strconv.Itoa(int(f*100+0.5))+"%").FontSize(fs - 1).TextColor(cl.Text2).FontFeatures("tnum").NoWrap().MinWidth(32).TextAlign(ui.End)
 		})

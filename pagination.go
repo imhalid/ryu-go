@@ -92,7 +92,7 @@ func Pagination(c *ui.Context, page *int, total int, o PaginationOptions) ui.Ele
 				}
 				y, h := ab.Y-tb.Y, ab.H
 				track.Draw(func(p *ui.Painter, r ui.Rect) {
-					t.paintRaised(p, ui.Rect{X: r.X + x, Y: r.Y + y, W: w, H: h}, RadiusPill, t.Shadows.ShadowRaised)
+					t.paintRaised(p, ui.Rect{X: r.X + x, Y: r.Y + y, W: w, H: h}, t.Pill(h), t.Shadows.ShadowRaised)
 				})
 			}
 		}
@@ -106,7 +106,7 @@ func Pagination(c *ui.Context, page *int, total int, o PaginationOptions) ui.Ele
 // pressed.
 func pageButton(c *ui.Context, t *Tokens, label string, off bool) ui.Element {
 	h := t.Metrics.BtnH
-	b := ui.ButtonBase(c).Label(label).Center().MinWidth(h).Height(h).Padding(0, 6).Radius(RadiusPill).
+	b := ui.ButtonBase(c).Label(label).Center().MinWidth(h).Height(h).Padding(0, 6).Radius(t.Pill(h)).
 		Cursor(ui.CursorPointer).FocusRing(false).Disabled(off).TextColor(t.Colors.Text2)
 	if off {
 		b.Opacity(0.35).Cursor(ui.CursorDefault)

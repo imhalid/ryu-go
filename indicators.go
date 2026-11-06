@@ -48,7 +48,7 @@ func Badge(c *ui.Context, text string, tone Tone) ui.Element {
 	if tone == ToneNeutral {
 		bg = t.Colors.Fill
 	}
-	return ui.Box(c).Padding(2, 8).Radius(RadiusPill).Background(bg).Shrink(0).Children(func() {
+	return ui.Box(c).Padding(2, 8).Radius(t.Pill(20)).Background(bg).Shrink(0).Children(func() {
 		ui.Text(c, text).TextColor(color).FontSize(FsXs).FontWeight(600).NoWrap().FontFeatures("tnum")
 	})
 }
@@ -56,7 +56,7 @@ func Badge(c *ui.Context, text string, tone Tone) ui.Element {
 // Tag is the large neutral pill next to a page title.
 func Tag(c *ui.Context, text string) ui.Element {
 	t := From(c)
-	return ui.Box(c).Padding(6, 12).Radius(RadiusPill).Background(t.Colors.Fill).Shrink(0).Children(func() {
+	return ui.Box(c).Padding(6, 12).Radius(t.Pill(32)).Background(t.Colors.Fill).Shrink(0).Children(func() {
 		ui.Text(c, text).TextColor(t.Colors.Muted).FontSize(FsSm).FontWeight(500).NoWrap()
 	})
 }
