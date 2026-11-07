@@ -518,7 +518,7 @@ func Slider(c *ui.Context, value *float64, lo, hi float64, o SliderOptions) ui.E
 				t.Shadows.WellEdge.Apply(well)
 				ui.Box(c).Absolute().Left(-k / 2).RightPercent(100 * (1 - frac)).Top(y).Height(track).
 					Radius(t.Pill(float32(track))).LinearGradient(t.accentFill())
-				kn := ui.Box(c).Absolute().LeftPercent(100*frac).Top(3).Size(k, k).Radius(k/2).Translate(-k/2, 0)
+				kn := ui.Box(c).Absolute().LeftPercent(100*frac).Top(3).Size(k, k).Radius(t.Pill(k)).Translate(-k/2, 0)
 				t.knob(kn)
 				sh := t.Shadows.KnobShadowLg
 				if focus {
