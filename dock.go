@@ -35,6 +35,27 @@ type DockOptions struct {
 	// layout's windows open and close with it. ryu-go/dockwin makes one of
 	// MyGo's windows.
 	Host DockHost
+	// Drop is something the app drags over the Dock from outside it (a row of a list), nil while
+	// nothing is: while it is held, the Dock shows where it would go as it does for a tab, the
+	// compass over the area under the pointer, the window's edge targets and the region it would
+	// take. Let go over a place, the Dock puts Drop.Pane there and sets Placed.
+	Drop *DockDrop
+}
+
+// DockDrop is something dragged into a Dock from outside it: see DockOptions.Drop.
+type DockDrop struct {
+	// Pane is what goes in: a new pane (or one the layout has, which moves). Its Title shows in
+	// the strip of tabs it is over.
+	Pane *Pane
+	// At is the pointer, in the window.
+	At ui.Point
+	// Let is set by the app in the frame it is let go.
+	Let bool
+	// Placed is set by the Dock when it was let go over a place, and the pane went in; Where says
+	// how: "stack" (a tab of an area), "left", "right", "top" or "bottom" (beside an area, or
+	// along the window's edge).
+	Placed bool
+	Where  string
 }
 
 // DockHost shows a layout's windows in the app's windows.
@@ -232,7 +253,10 @@ func Dock(c *ui.Context, l *Layout, o DockOptions) ui.Element {
 		d.compass()
 	})
 	d.keys()
-	if dr := st.tab; dr != nil && !dr.let && dr.carry {
+	d.dropIn()
+	if dr := st.tab; dr != nil && dr.outer {
+		// dragged in from outside: aimed in dropIn
+	} else if dr != nil && !dr.let && dr.carry {
 		d.carry()
 	} else if dr != nil && !dr.let {
 		before := dr.zone

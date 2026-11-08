@@ -125,7 +125,7 @@ func (b *Board) dark() *Tokens {
 	if t == nil {
 		return tokensFor(true, Md, CornersMd, ui.Color{})
 	}
-	return tokensFor(true, t.Size, t.Corners, t.accent)
+	return tokensScaled(true, t.Size, t.Corners, t.accent, t.scale)
 }
 
 // floatView builds palette id in its own window.

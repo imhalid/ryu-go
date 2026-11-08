@@ -66,7 +66,7 @@ func Tabs(c *ui.Context, selected *int, tabs []Tab, o TabsOptions) ui.Element {
 				}
 				ui.Text(c, tb.Label).FontSize(m.TabFs).FontWeight(500).NoWrap()
 				if tb.Badge != "" {
-					ui.Box(c).Padding(0, 6).Radius(RadiusPill).Background(cl.Fill).Children(func() {
+					ui.Box(c).Padding(0, 6).Radius(t.Pill(16)).Background(cl.Fill).Children(func() {
 						ui.Text(c, tb.Badge).TextColor(cl.Muted).FontSize(Fs2xs).FontWeight(600).FontFeatures("tnum")
 					})
 				}

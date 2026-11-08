@@ -41,6 +41,12 @@ type Options struct {
 	Mode    Mode
 	Size    Size
 	Corners Corners
+	// CornerScale sets the corners as a measure of the design's own, in place
+	// of Corners' three steps: 1 is the design, 0.5 half as round, 2 twice. It
+	// also takes the pills (buttons, switches, badges) along: below 1 they
+	// round less, until square; at 1 and over they stay pills. Zero keeps
+	// Corners, and the pills as they are. For square, use a small value, 0.01.
+	CornerScale float32
 	// Accent is the brand color: the accent ramp, the selection fills and
 	// the rings take its hue and chroma, at Ryugo's lightness steps (so
 	// contrast holds in both themes). Zero keeps Ryugo's blue. Keep it to a
@@ -54,8 +60,10 @@ type Tokens struct {
 	Dark    bool
 	Size    Size
 	Corners Corners
-	// corner is the factor the radii take for Corners.
+	// corner is the factor the radii take for Corners (or CornerScale).
 	corner float32
+	// scale is CornerScale, 0 when unset; the pills follow it below 1.
+	scale float32
 	// accent is the brand color the scope was made with, zero for Ryugo's.
 	accent ui.Color
 
@@ -85,6 +93,7 @@ type scopeKey struct {
 	size    Size
 	corners Corners
 	accent  ui.Color
+	scale   float32
 }
 
 // cache holds the scopes made so far; registry finds the scope from the
@@ -95,7 +104,11 @@ var (
 )
 
 func tokensFor(dark bool, size Size, corners Corners, accent ui.Color) *Tokens {
-	key := scopeKey{dark, size, corners, accent}
+	return tokensScaled(dark, size, corners, accent, 0)
+}
+
+func tokensScaled(dark bool, size Size, corners Corners, accent ui.Color, scale float32) *Tokens {
+	key := scopeKey{dark, size, corners, accent, scale}
 	if t := cache[key]; t != nil {
 		return t
 	}
@@ -112,6 +125,10 @@ func tokensFor(dark bool, size Size, corners Corners, accent ui.Color) *Tokens {
 		Metrics: sizeMetrics[zi],
 		Corners: corners,
 		corner:  [...]float32{CornersSm: 0.5, CornersMd: 1, CornersLg: 1.5}[corners],
+		scale:   scale,
+	}
+	if scale > 0 {
+		t.corner = scale
 	}
 	// the fields' own radii go with the rest
 	for _, r := range []*float32{&t.Metrics.FieldR, &t.Metrics.ChipR, &t.Metrics.NumR} {
@@ -196,7 +213,7 @@ func Root(c *ui.Context, o Options) *Tokens {
 	case Dark:
 		dark = true
 	}
-	t := tokensFor(dark, or(o.Size, Md), or(o.Corners, CornersMd), o.Accent)
+	t := tokensScaled(dark, or(o.Size, Md), or(o.Corners, CornersMd), o.Accent, o.CornerScale)
 	c.SetTheme(t.theme)
 	return t
 }
@@ -222,7 +239,7 @@ func scoped(c *ui.Context, o Options) *Tokens {
 	case Dark:
 		dark = true
 	}
-	return tokensFor(dark, or(o.Size, p.Size), or(o.Corners, p.Corners), or(o.Accent, p.accent))
+	return tokensScaled(dark, or(o.Size, p.Size), or(o.Corners, p.Corners), or(o.Accent, p.accent), or(o.CornerScale, p.scale))
 }
 
 // Concentric is the radius of a surface inset pad DIPs inside one whose
@@ -241,6 +258,16 @@ func (t *Tokens) R(r float32) float32 {
 		return r
 	}
 	return r * t.corner
+}
+
+// Pill is the radius of a pill h high: a full pill, as a button is, until
+// CornerScale takes the corners below the design's own, when it narrows with
+// them, half the height at 1 and square at 0.
+func (t *Tokens) Pill(h float32) float32 {
+	if t.scale <= 0 || t.scale >= 1 {
+		return RadiusPill
+	}
+	return h / 2 * t.scale
 }
 
 func or[T comparable](v, d T) T {

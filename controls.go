@@ -261,7 +261,7 @@ func Switch(c *ui.Context, on *bool, o SwitchOptions) ui.Element {
 	}
 	pressed := e.Pressed() && !o.Disabled
 	t.choiceRow(c, e, o.Label, o.Description, o.Disabled, func() {
-		track := ui.Box(c).Size(38, 22).Radius(RadiusPill).Background(cl.WellStrong).Shrink(0)
+		track := ui.Box(c).Size(38, 22).Radius(t.Pill(22)).Background(cl.WellStrong).Shrink(0)
 		if e.FocusVisible() {
 			t.Shadows.FocusRing.Apply(track)
 		}
@@ -274,9 +274,9 @@ func Switch(c *ui.Context, on *bool, o SwitchOptions) ui.Element {
 		w := track.Spring("w", 18+stretch, spring)
 		x := track.Spring("x", 16*b2f(*on)-stretch*b2f(*on), spring)
 		track.Children(func() {
-			ui.Box(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).Radius(RadiusPill).
+			ui.Box(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).Radius(t.Pill(22)).
 				LinearGradient(t.accentFill()).Opacity(lit)
-			k := ui.Box(c).Absolute().Left(2).Top(2).Size(w, 18).Radius(RadiusPill).Translate(x, 0)
+			k := ui.Box(c).Absolute().Left(2).Top(2).Size(w, 18).Radius(t.Pill(18)).Translate(x, 0)
 			t.knob(k)
 			t.Shadows.KnobShadow.Apply(k)
 		})
@@ -505,7 +505,7 @@ func Slider(c *ui.Context, value *float64, lo, hi float64, o SliderOptions) ui.E
 				tw, _ := c.MeasureText(0, ui.Span{Text: label, Size: fs, Weight: 600})
 				w := tw + 14
 				ui.Box(c).Absolute().Left(x-w/2).Top(sb.Y-24+4*(1-tip)).Width(w).Height(20).Center().PassThrough().
-					Radius(RadiusPill).Background(cl.Text).Opacity(min(tip, 1)).Scale(0.9+0.1*tip, 0.9+0.1*tip).TransformOrigin(0.5, 1).
+					Radius(t.Pill(20)).Background(cl.Text).Opacity(min(tip, 1)).Scale(0.9+0.1*tip, 0.9+0.1*tip).TransformOrigin(0.5, 1).
 					Children(func() {
 						ui.Text(c, label).TextColor(cl.Bg).FontSize(fs).FontWeight(600).FontFeatures("tnum").NoWrap()
 					})
@@ -514,11 +514,11 @@ func Slider(c *ui.Context, value *float64, lo, hi float64, o SliderOptions) ui.E
 		s.Children(func() {
 			ui.Box(c).FillWidth().Height(28).Children(func() {
 				y := float32(28-track) / 2
-				well := ui.Box(c).Absolute().Left(-k / 2).Right(-k / 2).Top(y).Height(track).Radius(RadiusPill).Background(cl.Well)
+				well := ui.Box(c).Absolute().Left(-k / 2).Right(-k / 2).Top(y).Height(track).Radius(t.Pill(float32(track))).Background(cl.Well)
 				t.Shadows.WellEdge.Apply(well)
 				ui.Box(c).Absolute().Left(-k / 2).RightPercent(100 * (1 - frac)).Top(y).Height(track).
-					Radius(RadiusPill).LinearGradient(t.accentFill())
-				kn := ui.Box(c).Absolute().LeftPercent(100*frac).Top(3).Size(k, k).Radius(k/2).Translate(-k/2, 0)
+					Radius(t.Pill(float32(track))).LinearGradient(t.accentFill())
+				kn := ui.Box(c).Absolute().LeftPercent(100*frac).Top(3).Size(k, k).Radius(t.Pill(k)).Translate(-k/2, 0)
 				t.knob(kn)
 				sh := t.Shadows.KnobShadowLg
 				if focus {

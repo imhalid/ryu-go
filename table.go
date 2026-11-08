@@ -112,6 +112,16 @@ type TableOptions[R any] struct {
 	Retry   func()
 	Empty   EmptyStateOptions
 	Size    Size
+	// Open, if set, runs when a row is clicked or Enter is pressed on the row
+	// with the cursor: the app opens what the row is. Rows show a pointer then.
+	Open func(r R)
+	// Row, if set, is called with each row's element as it is built, for what the
+	// app adds to it: a context menu, a handler.
+	Row func(row ui.Element, r R)
+	// HideSelectionBar leaves the bar of the rows chosen to the app, which shows its own.
+	HideSelectionBar bool
+	// Labels are the table's words, for an app in another language.
+	Labels TableLabels
 }
 
 // tableRT is what a Table keeps for itself between frames.
@@ -137,6 +147,7 @@ type tableRT[R any] struct {
 	turn    float32 // a page turn: 1 forward, -1 back, 0 none
 	count   int     // the rows chosen the selection bar last showed
 	reveal  bool    // the cursor row moved by the keys: scroll it into view
+	fadeMax float32 // how far the table scrolled sideways when its edge fades were last worked out
 }
 
 // tableGhost is a row taken out, fading where it was.
@@ -201,6 +212,7 @@ type tableFrame[R any] struct {
 	all    []int              // the rows' indexes, sorted
 	idx    []int              // those on the page shown
 	keys   []any              // their keys
+	l      TableLabels        // the words, in English where the app gave none
 	chosen []any              // the keys chosen, in the order shown
 	focus  bool
 	now    time.Time
@@ -228,7 +240,7 @@ func Table[R any](c *ui.Context, s *TableState, cols []Column[R], rows []R, o Ta
 		panic("ryugo: Table needs a Key")
 	}
 	t := sizedFrom(c, or(s.Density, o.Size))
-	f := &tableFrame[R]{t: t, c: c, s: s, o: o, cols: cols, rows: rows, m: tableSizes(t.Size), now: c.Now(),
+	f := &tableFrame[R]{t: t, c: c, s: s, o: o, cols: cols, rows: rows, m: tableSizes(t.Size), now: c.Now(), l: o.Labels.fill(),
 		shift: map[string]float32{}}
 	f.outer = ui.Column(c).FillWidth().MinWidth(0).Gap(10)
 	if o.Height > 0 {
@@ -249,9 +261,11 @@ func Table[R any](c *ui.Context, s *TableState, cols []Column[R], rows []R, o Ta
 		f.bar()
 		// the border is drawn over the header and rows: under them, their
 		// fills would cover it in the rounded corners
+		fadeL, fadeR := f.edgeFade()
 		box := ui.Column(c).FillWidth().Grow(1).MinHeight(0).Radius(t.R(RadiusControl)).Background(t.Colors.TableBg).
 			Clip().Role(ui.RoleTable).Focusable().FocusRing(false).
 			DrawOver(func(p *ui.Painter, r ui.Rect) {
+				f.paintEdgeFade(p, r, fadeL, fadeR)
 				p.Stroke(r, t.Colors.Hairline, t.R(RadiusControl), 1)
 			})
 		if o.Label != "" {
@@ -273,7 +287,7 @@ func Table[R any](c *ui.Context, s *TableState, cols []Column[R], rows []R, o Ta
 			}
 		})
 		if o.PageSize > 0 && len(f.all) > o.PageSize {
-			Pagination(c.Key("pages"), &s.Page, len(f.all), PaginationOptions{PageSize: o.PageSize, Size: t.Size})
+			Pagination(c.Key("pages"), &s.Page, len(f.all), PaginationOptions{PageSize: o.PageSize, Size: t.Size, Labels: f.l.Pagination})
 		}
 	})
 	if b := body.LayoutBounds(); b.W > 0 {
@@ -462,7 +476,7 @@ func (f *tableFrame[R]) bar() {
 	if n := len(f.chosen); n > 0 {
 		f.rt.count = n
 	}
-	p := clamp01(f.outer.AnimateTo("selbar", b2f(len(f.chosen) > 0), springSelBar))
+	p := clamp01(f.outer.AnimateTo("selbar", b2f(len(f.chosen) > 0 && !o.HideSelectionBar), springSelBar))
 	if !tools && p < 0.001 {
 		return
 	}
@@ -481,7 +495,7 @@ func (f *tableFrame[R]) bar() {
 			tb.Children(func() {
 				if o.Search {
 					ui.Box(c).Width(260).Shrink(1).MinWidth(140).Children(func() {
-						Input(c.Key("search"), &s.Query, InputOptions{Placeholder: "Search", PrefixIcon: iconSearch, Clearable: true, Label: "Search", Size: Sm})
+						Input(c.Key("search"), &s.Query, InputOptions{Placeholder: f.l.Search, PrefixIcon: iconSearch, Clearable: true, Label: f.l.Search, Size: Sm})
 					})
 				}
 				if o.Toolbar != nil {
@@ -501,8 +515,11 @@ func (f *tableFrame[R]) bar() {
 			Padding(0, 6, 0, 14).Radius(t.R(RadiusControl)).Opacity(in).Translate(0, 8*(1-p)).IgnoreInput(p < 0.5).
 			LinearGradient(t.controlGradient(cl.ControlTop, cl.ControlBottom)).Border(0.5, cl.ControlBorder)
 		t.Shadows.ControlShadow.Apply(sel)
+		if o.HideSelectionBar {
+			sel.Invisible()
+		}
 		sel.Children(func() {
-			ui.Text(c, strconv.Itoa(f.rt.count)+" selected").FontSize(FsMd).FontWeight(600).TextColor(cl.Text).FontFeatures("tnum").NoWrap()
+			ui.Text(c, f.l.selected(f.rt.count)).FontSize(FsMd).FontWeight(600).TextColor(cl.Text).FontFeatures("tnum").NoWrap()
 			if len(o.Actions) > 0 {
 				Separator(c, SeparatorOptions{Vertical: true})
 			}
@@ -512,7 +529,7 @@ func (f *tableFrame[R]) bar() {
 				}
 			}
 			ui.Spacer(c)
-			if Button(c.Key("clear"), "Clear", ButtonOptions{Size: Sm}).Clicked() {
+			if Button(c.Key("clear"), f.l.Clear, ButtonOptions{Size: Sm}).Clicked() {
 				s.Selected = nil
 			}
 		})
@@ -526,8 +543,8 @@ var springSelBar = ui.Animation{Spring: ui.SpringOptions{Duration: 320 * time.Mi
 // choosing the density.
 func (f *tableFrame[R]) viewMenu() {
 	s := f.s
-	MenuButton(f.c.Key("view"), "View", ButtonOptions{Icon: iconView, Size: Sm}, func(m *MenuList) {
-		m.Label("Columns")
+	MenuButton(f.c.Key("view"), f.l.View, ButtonOptions{Icon: iconView, Size: Sm}, func(m *MenuList) {
+		m.Label(f.l.Columns)
 		shown := len(f.order)
 		for i := range f.cols {
 			col := &f.cols[i]
@@ -542,11 +559,11 @@ func (f *tableFrame[R]) viewMenu() {
 			}
 		}
 		m.Separator()
-		m.Label("Density")
+		m.Label(f.l.Density)
 		for _, d := range []struct {
 			size Size
 			name string
-		}{{Sm, "Compact"}, {Md, "Default"}, {Lg, "Comfortable"}} {
+		}{{Sm, f.l.Compact}, {Md, f.l.Default}, {Lg, f.l.Comfortable}} {
 			if m.Item(d.name, ItemOptions{Checkable: true, Checked: f.t.Size == d.size}) {
 				s.Density = d.size
 			}
@@ -593,6 +610,8 @@ func (f *tableFrame[R]) keyboard(box ui.Element) {
 		k := f.keys[s.cursor]
 		f.choose(k, !s.Selected[k])
 		s.anchor = k
+	case box.Shortcut(0, ui.KeyEnter) && f.o.Open != nil:
+		f.o.Open(f.rows[f.idx[s.cursor]])
 	case box.Shortcut(0, ui.KeyEnter) && f.o.Expand != nil:
 		f.toggleOpen(f.keys[s.cursor])
 	}
@@ -750,7 +769,7 @@ func (f *tableFrame[R]) headLead() {
 		ui.Box(c).Width(selectW).Shrink(0).Center().Children(func() {
 			n := len(f.chosen)
 			all := n > 0 && n == len(f.all)
-			if f.t.tableCheck(c.Key("all"), all, n > 0 && !all, "Select all rows").Clicked() {
+			if f.t.tableCheck(c.Key("all"), all, n > 0 && !all, f.l.SelectAll).Clicked() {
 				if all {
 					s.Selected = nil
 				} else {
@@ -1007,8 +1026,8 @@ func (f *tableFrame[R]) body() {
 		f.placeholders(viewH)
 		return
 	case o.Error != "":
-		f.state(viewW, viewH, EmptyStateOptions{Icon: iconAlert, Title: "Couldn't load the rows", Description: o.Error, Action: func() {
-			if Button(c.Key("retry"), "Try again", ButtonOptions{}).Clicked() && o.Retry != nil {
+		f.state(viewW, viewH, EmptyStateOptions{Icon: iconAlert, Title: f.l.LoadError, Description: o.Error, Action: func() {
+			if Button(c.Key("retry"), f.l.TryAgain, ButtonOptions{}).Clicked() && o.Retry != nil {
 				o.Retry()
 			}
 		}})
@@ -1016,7 +1035,7 @@ func (f *tableFrame[R]) body() {
 	case len(f.keys) == 0:
 		e := o.Empty
 		if e.Title == "" {
-			e.Title = "No rows"
+			e.Title = f.l.NoRows
 		}
 		f.state(viewW, viewH, e)
 		f.forget()
@@ -1147,6 +1166,12 @@ func (f *tableFrame[R]) row(n int, y float32, moved bool, viewW, viewH float32) 
 	chosen := s.Selected[k]
 	wrap.Children(func() {
 		line := ui.Row(c).Width(f.total).Height(m.row).Shrink(0).AlignItems(ui.Stretch).Role(ui.RoleRow).Selected(chosen)
+		if o.Open != nil {
+			line.Cursor(ui.CursorPointer)
+		}
+		if o.Row != nil {
+			o.Row(line, r)
+		}
 		bg := f.rowBg(chosen, line.Hovered())
 		line.Background(bg).InsetShadow(0, -1, 0, 0, cl.Hairline)
 		if f.focus && n == s.cursor {
@@ -1154,6 +1179,9 @@ func (f *tableFrame[R]) row(n int, y float32, moved bool, viewW, viewH float32) 
 		}
 		if line.Clicked() {
 			s.cursor = n
+			if o.Open != nil {
+				o.Open(r)
+			}
 		}
 		line.Children(func() {
 			if f.pinned > 0 {
@@ -1187,7 +1215,7 @@ func (f *tableFrame[R]) rowLead(k any, n int, chosen bool, ep float32) {
 	cl := f.t.Colors
 	if f.o.Selectable {
 		ui.Box(c).Width(selectW).Shrink(0).Center().Children(func() {
-			b := f.t.tableCheck(c.Key("sel"), chosen, false, "Select row")
+			b := f.t.tableCheck(c.Key("sel"), chosen, false, f.l.SelectRow)
 			if b.Clicked() {
 				if b.ClickModifiers()&ui.Shift != 0 && s.anchor != nil {
 					f.chooseRange(s.anchor, k, !chosen)
@@ -1200,7 +1228,7 @@ func (f *tableFrame[R]) rowLead(k any, n int, chosen bool, ep float32) {
 	}
 	if f.o.Expand != nil {
 		ui.Box(c).Width(expandW).Shrink(0).Center().Children(func() {
-			b := ui.ButtonBase(c.Key("open")).Label("Details").Expanded(s.Expanded[k]).Size(24, 24).Radius(RadiusPill).
+			b := ui.ButtonBase(c.Key("open")).Label(f.l.Details).Expanded(s.Expanded[k]).Size(24, 24).Radius(RadiusPill).
 				Center().Cursor(ui.CursorPointer).FocusRing(false)
 			color := cl.Muted
 			if b.Hovered() {
@@ -1422,4 +1450,40 @@ func tableWidths[R any](cols []Column[R], s *TableState, order []int, o TableOpt
 		total += widths[i]
 	}
 	return widths, lead, max(total, avail)
+}
+
+// tableFadeW is how wide the fade at a sideways-scrolling table's edge is.
+const tableFadeW = 40
+
+// edgeFade is how much each edge of a table that scrolls sideways shows its
+// fade: at the right while there is more to the right, at the left once it is
+// scrolled, each coming and going on a short curve.
+func (f *tableFrame[R]) edgeFade() (left, right float32) {
+	sc := &f.s.scroll
+	more := sc.MaxX > 1
+	if !f.rt.ready || sc.MaxX != f.rt.fadeMax { // a frame builds before it is laid out: the range is known in the next
+		f.rt.fadeMax = sc.MaxX
+		f.c.Invalidate()
+	}
+	left = f.outer.AnimateTo("fadeL", b2f(more && sc.X > 1), ui.Animation{Duration: 160 * time.Millisecond, Ease: ui.EaseOut})
+	right = f.outer.AnimateTo("fadeR", b2f(more && sc.X < sc.MaxX-1), ui.Animation{Duration: 160 * time.Millisecond, Ease: ui.EaseOut})
+	return left, right
+}
+
+// paintEdgeFade draws the fades over the table, so that rows cut at its edge read
+// as going on: the left one starts after the pinned column.
+func (f *tableFrame[R]) paintEdgeFade(p *ui.Painter, r ui.Rect, left, right float32) {
+	bg := f.t.Colors.TableBg
+	if left > 0.01 {
+		x := r.X
+		if f.pinned > 0 && len(f.order) > 0 {
+			x += f.lead + f.widths[f.order[0]]
+		}
+		p.FillGradient(ui.Rect{X: x, Y: r.Y, W: tableFadeW, H: r.H}, ui.LinearGradient{Angle: 90, Oklab: true,
+			Stops: []ui.GradientStop{{Color: bg.Alpha(left), At: 0}, {Color: bg.Alpha(0), At: 1}}}, 0)
+	}
+	if right > 0.01 {
+		p.FillGradient(ui.Rect{X: r.X + r.W - tableFadeW, Y: r.Y, W: tableFadeW, H: r.H}, ui.LinearGradient{Angle: 90, Oklab: true,
+			Stops: []ui.GradientStop{{Color: bg.Alpha(0), At: 0}, {Color: bg.Alpha(right), At: 1}}}, 0)
+	}
 }
