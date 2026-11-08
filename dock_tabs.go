@@ -71,6 +71,8 @@ type tabDrag struct {
 	anchor ui.Point
 	// native: the system drags it (Wayland), its copy its own
 	native bool
+	// outer: dragged in from outside the Dock (DockOptions.Drop); the app draws what is carried
+	outer bool
 }
 
 // tabLanding is a tab let go, flying from where its copy was to its place,
@@ -182,7 +184,7 @@ func (d *dockView) strip(n *Node, focused bool) {
 	sq := s.AnimateTo("squeeze", b2f(held), springSqueeze)
 	r := ui.Rect{X: px + 2*sq, Y: pill.Y + sq, W: pw - 4*sq, H: pill.H - 2*sq}
 	s.Draw(func(p *ui.Painter, b ui.Rect) {
-		t.paintRaised(p, ui.Rect{X: b.X + r.X, Y: b.Y + r.Y, W: r.W, H: r.H}, r.H/2, t.Shadows.ShadowRaised)
+		t.paintRaised(p, ui.Rect{X: b.X + r.X, Y: b.Y + r.Y, W: r.W, H: r.H}, min(r.H/2, t.Pill(r.H)), t.Shadows.ShadowRaised)
 	})
 }
 
@@ -248,7 +250,7 @@ func (d *dockView) tab(n *Node, i int, p *Pane, focused bool, shift float32, set
 	}
 	out := builtTab{e: e, x: x, lx: lx, ly: ly, hidden: picked || landing}
 	e.Children(func() {
-		body := ui.Row(c).Grow(1).MinWidth(0).AlignItems(ui.Center).Radius(RadiusPill).
+		body := ui.Row(c).Grow(1).MinWidth(0).AlignItems(ui.Center).Radius(t.Pill(headerH-8)).
 			Translate(lx, ly).Scale(1+0.03*lift, 1+0.03*lift).Rotate(tilt)
 		body.Children(func() {
 			b := ui.ButtonBase(c.Key("title")).Label(p.Title).Grow(1).MinWidth(0).Padding(0, 4, 0, 10).
@@ -299,7 +301,7 @@ func (d *dockView) tab(n *Node, i int, p *Pane, focused bool, shift float32, set
 func (d *dockView) closeButton(n *Node, i int, p *Pane, shown bool, w float32) {
 	c, st, t := d.c, d.st, d.t
 	b := ui.ButtonBase(c.Key("close")).Label("Close "+p.Title).Size(16, 16).Center().Margin(0, 3, 0, 0).
-		Radius(RadiusPill).Cursor(ui.CursorPointer).FocusRing(false).Shrink(0)
+		Radius(t.Pill(16)).Cursor(ui.CursorPointer).FocusRing(false).Shrink(0)
 	on := b.AnimateTo("shown", b2f(shown || b.FocusVisible()), ui.Animation{Duration: 140 * time.Millisecond, Ease: ui.EaseOut})
 	hot := b.AnimateTo("hot", b2f(b.Hovered()), ui.Animation{Duration: 120 * time.Millisecond, Ease: ui.EaseOut})
 	if hot > 0.01 {
@@ -561,7 +563,7 @@ func (d *dockView) applyTab() {
 func (d *dockView) tabCopy() {
 	c, st, t := d.c, d.st, d.t
 	dr, land := st.tab, st.tabLand
-	if dr == nil && land == nil || dr != nil && (dr.carry || dr.native) {
+	if dr == nil && land == nil || dr != nil && (dr.carry || dr.native || dr.outer) {
 		return
 	}
 	// the copy keeps the size the tab had when it was picked up

@@ -89,7 +89,9 @@ func (d *dockView) content(n *Node, a ui.Element, in float32, corners bool) {
 		h := ui.Row(c.Key("header")).Height(headerH).Padding(0, 4).Gap(2).AlignItems(ui.Center).Shrink(0).
 			InsetShadow(0, -1, 0, 0, cl.Hairline.Alpha(in)).Opacity(in)
 		h.Children(func() {
-			d.kindMenu(n, p, kind)
+			if len(d.o.Kinds) > 1 { // one kind alone has nothing to choose
+				d.kindMenu(n, p, kind)
+			}
 			d.strip(n, active)
 			d.maxButton(n, h.Hovered())
 			// a window torn off has no title bar: its top right area closes it
@@ -113,7 +115,7 @@ func (d *dockView) content(n *Node, a ui.Element, in float32, corners bool) {
 func (d *dockView) headerButton(b ui.Element) ui.Element {
 	t := d.t
 	cl := t.Colors
-	b.Height(headerH - 8).Radius(RadiusPill).Cursor(ui.CursorPointer).FocusRing(false).Shrink(0)
+	b.Height(headerH - 8).Radius(t.Pill(headerH - 8)).Cursor(ui.CursorPointer).FocusRing(false).Shrink(0)
 	t.raised(b, t.controlGradient(cl.ControlTop, cl.ControlBottom), cl.ControlBorder, t.Shadows.ControlShadow,
 		raisedState{hovered: b.Hovered(), pressed: b.Pressed(), focus: b.FocusVisible()})
 	return b
