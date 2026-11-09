@@ -281,6 +281,14 @@ func Table[R any](c *ui.Context, s *TableState, cols []Column[R], rows []R, o Ta
 			head.Children(f.header)
 			f.sortLight(head)
 			body.Children(f.body)
+			if f.hasFoot() {
+				// under the rows' view, so it stays at the bottom as they
+				// scroll, and goes sideways with them as the header does
+				foot := ui.Row(c).Height(f.m.head).Shrink(0).Role(ui.RoleRow).Clip().
+					Background(f.headBg()).InsetShadow(0, 1, 0, 0, t.Colors.Hairline)
+				foot.ScrollWith(body)
+				foot.Children(f.footer)
+			}
 			if b := head.LayoutBounds(); b.W > 0 {
 				f.rt.col.headTop = b.Y
 				f.rt.headX = b.X
@@ -679,6 +687,69 @@ func (f *tableFrame[R]) header() {
 			f.headCell(0, f.order[0])
 		})
 	}
+}
+
+// hasFoot is whether the table shows a footer: a column has a Foot, and
+// the rows are there to sum.
+func (f *tableFrame[R]) hasFoot() bool {
+	if f.o.Loading || f.o.Error != "" {
+		return false
+	}
+	for _, i := range f.order {
+		if f.cols[i].Foot != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// footer builds the footer row: each column's Foot under it, in the
+// column's place and width, muted, the pinned one held over the rest as
+// the header's is.
+func (f *tableFrame[R]) footer() {
+	c := f.c
+	row := ui.Row(c).Width(f.total).Height(f.m.head).AlignItems(ui.Stretch).Shrink(0)
+	row.Children(func() {
+		lead := f.lead
+		if f.pinned > 0 {
+			lead += f.widths[f.order[0]]
+		}
+		ui.Box(c).Width(lead).Shrink(0)
+		for k, i := range f.order {
+			if k >= f.pinned {
+				f.footCell(i)
+			}
+		}
+	})
+	if f.pinned > 0 {
+		pin := f.pinGroup(ui.Row(c), f.m.head, f.headBg(), false)
+		pin.Children(func() {
+			ui.Box(c).Width(f.lead).Shrink(0)
+			f.footCell(f.order[0])
+		})
+	}
+}
+
+// footCell is column i's cell in the footer: its Foot over every row,
+// aligned as its cells are, numbers tabular; it goes with the column
+// as the column moves.
+func (f *tableFrame[R]) footCell(i int) {
+	c := f.c
+	col := &f.cols[i]
+	id := col.id()
+	e := ui.Row(c.Key("f:"+id)).Width(f.widths[i]).Shrink(0).Padding(0, f.m.pad).AlignItems(ui.Center).Clip().Role(ui.RoleCell)
+	if col.align() == ui.End {
+		e.Justify(ui.End)
+	}
+	if d := &f.rt.col; d.active && d.id == id {
+		e.Opacity(0.45)
+	}
+	e.Translate(f.shift[id], 0).Children(func() {
+		if col.Foot != nil {
+			ui.Text(c, col.Foot(f.rows)).FontSize(f.m.fs).FontWeight(500).TextColor(f.t.Colors.Muted).
+				FontFeatures("tnum").SingleLine().Ellipsis("…")
+		}
+	})
 }
 
 // sortLight lights the top of the header of the column the rows sort by

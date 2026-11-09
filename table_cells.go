@@ -66,6 +66,13 @@ type Column[R any] struct {
 	// Fixed keeps the column where it is: the user neither moves nor
 	// resizes it.
 	Fixed bool
+	// Foot, if set, is the column's cell in the footer row under the
+	// rows, given every row the table was given, in that order: a sum, a
+	// count. A footer shows once any column has a Foot.
+	//
+	//	{Title: "Total", Kind: ryugo.KindNumber, Value: total,
+	//		Foot: func(rows []Order) string { return fmt.Sprintf("%.2f", sum(rows)) }}
+	Foot func(rows []R) string
 }
 
 func (col *Column[R]) id() string { return or(col.ID, col.Title) }

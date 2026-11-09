@@ -1,6 +1,7 @@
 package ryugo
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -104,5 +105,65 @@ func TestTableSideScrollFades(t *testing.T) {
 	}
 	if edge.G < inner.G+25 {
 		t.Fatalf("no fade at the right edge: edge %v, inside %v", edge, inner)
+	}
+}
+
+// A column with a Foot puts a footer under the rows: each cell under its
+// column's header, a number at the end as the column's cells are, and the
+// rows' view no taller than its room.
+func TestTableFooter(t *testing.T) {
+	type rec struct {
+		id    int
+		name  string
+		total float64
+	}
+	rows := []rec{{1, "Ada", 10}, {2, "Bora", 20.5}, {3, "Cem", 4}}
+	cols := []Column[rec]{
+		{Title: "Name", Value: func(r rec) any { return r.name }, Foot: func(rs []rec) string { return fmt.Sprintf("%d people", len(rs)) }},
+		{Title: "Note", Value: func(r rec) any { return "-" }},
+		{Title: "Total", Kind: KindNumber, Value: func(r rec) any { return r.total }, Decimals: 1,
+			Foot: func(rs []rec) string {
+				var sum float64
+				for _, r := range rs {
+					sum += r.total
+				}
+				return fmt.Sprintf("%.1f", sum)
+			}},
+	}
+	st := &TableState{}
+	tt := ui.NewTester(func(c *ui.Context) {
+		Root(c, Options{})
+		ui.Column(c).Padding(20).Children(func() {
+			Table(c.Key("t"), st, cols, rows, TableOptions[rec]{Key: func(r rec) any { return r.id }, Selectable: true, Height: 300})
+		})
+	}, 700, 400)
+	tt.Advance(500 * time.Millisecond)
+	pad := tableSizes(Md).pad
+	name, ok1 := tt.Find("Name")
+	total, ok2 := tt.Find("Total")
+	people, ok3 := tt.Find("3 people")
+	sum, ok4 := tt.Find("34.5")
+	if !ok1 || !ok2 || !ok3 || !ok4 {
+		t.Fatalf("missing header or footer cells: %v", tt.Texts())
+	}
+	if d := people.X - (name.X + pad); abs32(d) > 1 {
+		t.Fatalf("the Name footer starts at %v, its column's text at %v", people.X, name.X+pad)
+	}
+	if d := (sum.X + sum.W) - (total.X + total.W - pad); abs32(d) > 1 {
+		t.Fatalf("the Total footer ends at %v, its column's end at %v", sum.X+sum.W, total.X+total.W-pad)
+	}
+	// the footer sits at the table's bottom, inside its height
+	if bottom := float32(20 + 300); people.Y > bottom || people.Y < bottom-tableSizes(Md).head {
+		t.Fatalf("the footer is at %v, not in the table's last %v DIPs above %v", people.Y, tableSizes(Md).head, bottom)
+	}
+	// hidden, a column takes its footer cell with it
+	st.Hidden = map[string]bool{"Name": true}
+	tt.Frame()
+	tt.Advance(300 * time.Millisecond)
+	if tt.HasText("3 people") {
+		t.Fatal("a hidden column's footer still shows")
+	}
+	if !tt.HasText("34.5") {
+		t.Fatal("the shown column's footer went")
 	}
 }
