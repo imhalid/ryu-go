@@ -167,3 +167,115 @@ func TestTableFooter(t *testing.T) {
 		t.Fatal("the shown column's footer went")
 	}
 }
+
+// With Group, rows show under a heading per group, the groups in the order
+// they first come in the rows; a header's sort sorts within each group, and
+// a click on a heading folds it, taking its rows out, and opens it again.
+func TestTableGroups(t *testing.T) {
+	type rec struct {
+		id         int
+		name, team string
+	}
+	rows := []rec{{1, "Zeki", "Mobile"}, {2, "Bora", "Growth"}, {3, "Ada", "Mobile"}, {4, "Cem", "Growth"}, {5, "Eda", "Payments"}}
+	cols := []Column[rec]{{Title: "Name", Value: func(r rec) any { return r.name }, Sortable: true}}
+	st := &TableState{}
+	tt := ui.NewTester(func(c *ui.Context) {
+		Root(c, Options{})
+		ui.Column(c).Padding(20).Children(func() {
+			Table(c.Key("t"), st, cols, rows, TableOptions[rec]{
+				Key: func(r rec) any { return r.id }, Height: 460,
+				Group:      func(r rec) string { return r.team },
+				GroupLabel: func(g string, rs []rec) string { return "Team " + g },
+			})
+		})
+	}, 600, 520)
+	tt.Advance(500 * time.Millisecond)
+	ys := func(names ...string) []float32 {
+		t.Helper()
+		var out []float32
+		for _, n := range names {
+			r, ok := tt.Find(n)
+			if !ok {
+				t.Fatalf("no %q in %v", n, tt.Texts())
+			}
+			out = append(out, r.Y)
+		}
+		return out
+	}
+	inOrder := func(names ...string) {
+		t.Helper()
+		y := ys(names...)
+		for i := 1; i < len(y); i++ {
+			if y[i] <= y[i-1] {
+				t.Fatalf("%q (y %v) is not under %q (y %v)", names[i], y[i], names[i-1], y[i-1])
+			}
+		}
+	}
+	inOrder("Team Mobile", "Zeki", "Ada", "Team Growth", "Bora", "Cem", "Team Payments", "Eda")
+	// sorted by name: within the groups, which keep their order
+	tt.Click("Name")
+	tt.Advance(600 * time.Millisecond)
+	inOrder("Team Mobile", "Ada", "Zeki", "Team Growth", "Bora", "Cem", "Team Payments", "Eda")
+	// folded, a group keeps its heading and loses its rows
+	if err := tt.Click("Team Mobile"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Advance(600 * time.Millisecond)
+	if !st.Collapsed["Mobile"] {
+		t.Fatalf("Collapsed is %v after a click on Mobile's heading", st.Collapsed)
+	}
+	if tt.HasText("Ada") || tt.HasText("Zeki") {
+		t.Fatal("a folded group's rows still show")
+	}
+	inOrder("Team Mobile", "Team Growth", "Bora", "Cem", "Team Payments", "Eda")
+	// the keys go past the folded rows
+	tt.Click("Bora")
+	tt.Key(0, ui.KeyDown)
+	tt.Key(0, ui.KeyDown)
+	tt.Advance(100 * time.Millisecond)
+	if st.cursor != 2 {
+		t.Fatalf("the cursor is on row %d, want 2 (Eda)", st.cursor)
+	}
+	tt.Click("Team Mobile")
+	tt.Advance(600 * time.Millisecond)
+	inOrder("Team Mobile", "Ada", "Zeki", "Team Growth")
+}
+
+// With pages, a page counts the rows alone and shows the heading of each
+// group it has rows of.
+func TestTableGroupPages(t *testing.T) {
+	type rec struct {
+		id   int
+		team string
+	}
+	var rows []rec
+	for i := range 6 {
+		rows = append(rows, rec{i, []string{"A", "A", "A", "B", "B", "B"}[i]})
+	}
+	cols := []Column[rec]{{Title: "ID", Value: func(r rec) any { return fmt.Sprintf("row %d", r.id) }}}
+	st := &TableState{}
+	tt := ui.NewTester(func(c *ui.Context) {
+		Root(c, Options{})
+		ui.Column(c).Padding(20).Children(func() {
+			Table(c.Key("t"), st, cols, rows, TableOptions[rec]{
+				Key: func(r rec) any { return r.id }, Height: 400, PageSize: 4,
+				Group: func(r rec) string { return "group " + r.team },
+			})
+		})
+	}, 600, 520)
+	tt.Advance(500 * time.Millisecond)
+	for _, s := range []string{"group A", "row 0", "row 2", "group B", "row 3"} {
+		if !tt.HasText(s) {
+			t.Fatalf("page 1 lacks %q: %v", s, tt.Texts())
+		}
+	}
+	if tt.HasText("row 4") {
+		t.Fatal("page 1 shows a fifth row")
+	}
+	st.Page = 1
+	tt.Frame()
+	tt.Advance(500 * time.Millisecond)
+	if !tt.HasText("group B") || !tt.HasText("row 5") || tt.HasText("group A") {
+		t.Fatalf("page 2 shows %v", tt.Texts())
+	}
+}

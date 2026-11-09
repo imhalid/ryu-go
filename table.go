@@ -58,6 +58,8 @@ type TableState struct {
 	// Density, when set, is the size step the user chose in the view
 	// menu, over TableOptions.Size.
 	Density Size
+	// Collapsed holds the groups folded (TableOptions.Group), by key.
+	Collapsed map[string]bool
 
 	scroll ui.ScrollState
 	cursor int
@@ -120,6 +122,19 @@ type TableOptions[R any] struct {
 	Row func(row ui.Element, r R)
 	// HideSelectionBar leaves the bar of the rows chosen to the app, which shows its own.
 	HideSelectionBar bool
+	// Group, if set, puts each row in the group it names, under a heading
+	// row: the groups go in the order they first come in the rows given,
+	// and a header's sort sorts the rows within each group. A click on a
+	// heading folds the group, or opens it (TableState.Collapsed). With
+	// PageSize, pages count the rows alone, folded ones too: a page shows
+	// the heading of each group it has rows of, and a folded group's
+	// heading alone.
+	//
+	//	Group: func(o Order) string { return o.Region },
+	Group func(r R) string
+	// GroupLabel, if set, is a group's heading, given its key and its rows;
+	// the key by default.
+	GroupLabel func(key string, rows []R) string
 	// Labels are the table's words, for an app in another language.
 	Labels TableLabels
 }
@@ -171,6 +186,16 @@ type colDrag struct {
 	headTop float32
 }
 
+// tableLine is a line of a table's body: row n of the rows shown, or
+// with n < 0, the heading of group g.
+type tableLine struct {
+	n int
+	g string
+}
+
+// groupKey keys a group's heading apart from the rows.
+type groupKey struct{ g string }
+
 // tableMetrics are a table's sizes at a size step.
 type tableMetrics struct {
 	row, head, fs, pad float32
@@ -210,8 +235,10 @@ type tableFrame[R any] struct {
 	base   map[string]float32 // where each column starts, unmoved
 	shift  map[string]float32 // how far each column shows moved
 	all    []int              // the rows' indexes, sorted
-	idx    []int              // those on the page shown
+	idx    []int              // those on the page shown, and not folded
 	keys   []any              // their keys
+	lines  []tableLine        // the lines shown: the rows of idx, and the groups' headings
+	group  map[string][]int   // the rows of each group, by key, in the order of all
 	l      TableLabels        // the words, in English where the app gave none
 	chosen []any              // the keys chosen, in the order shown
 	focus  bool
@@ -221,7 +248,8 @@ type tableFrame[R any] struct {
 // Table shows rows of type R under a header of columns. It sorts the rows
 // by s.Sort itself; the app filters them (by s.Query with Search). See
 // TableOptions for selection, the selection bar, the toolbar, opened
-// rows, the pinned column, pages and the loading, error and empty states.
+// rows, the pinned column, groups, pages and the loading, error and empty
+// states, and Column.Foot for a footer row.
 // The user sorts by a click on a header (Shift-click adds a key), moves a
 // column by dragging its header, and resizes it by the header's end edge
 // (a double click there gives it back its width). With the keyboard focus
@@ -375,15 +403,45 @@ func (f *tableFrame[R]) sortRows() {
 			return 0
 		})
 	}
+	var groups []string // the group of each row, by index
+	if g := f.o.Group; g != nil {
+		// the groups in the order they first come in the rows given; the
+		// sort, stable, keeps its order within each
+		groups = make([]string, len(rows))
+		rank := map[string]int{}
+		f.group = map[string][]int{}
+		for i, r := range rows {
+			groups[i] = g(r)
+			if _, ok := rank[groups[i]]; !ok {
+				rank[groups[i]] = len(rank)
+			}
+		}
+		slices.SortStableFunc(idx, func(a, b int) int { return rank[groups[a]] - rank[groups[b]] })
+		for _, i := range idx {
+			f.group[groups[i]] = append(f.group[groups[i]], i)
+		}
+	}
 	f.all, f.idx = idx, idx
+	page := idx
 	if ps := f.o.PageSize; ps > 0 {
 		pages := max(1, (len(idx)+ps-1)/ps)
 		s.Page = min(max(s.Page, 0), pages-1)
-		f.idx = idx[s.Page*ps : min(len(idx), (s.Page+1)*ps)]
+		page = idx[s.Page*ps : min(len(idx), (s.Page+1)*ps)]
 	}
-	f.keys = make([]any, len(f.idx))
-	for n, i := range f.idx {
-		f.keys[n] = f.o.Key(rows[i])
+	f.idx, f.keys, f.lines = nil, nil, nil
+	for p, i := range page {
+		if groups != nil {
+			g := groups[i]
+			if p == 0 || groups[page[p-1]] != g {
+				f.lines = append(f.lines, tableLine{n: -1, g: g})
+			}
+			if s.Collapsed[g] {
+				continue
+			}
+		}
+		f.lines = append(f.lines, tableLine{n: len(f.idx)})
+		f.idx = append(f.idx, i)
+		f.keys = append(f.keys, f.o.Key(rows[i]))
 	}
 	f.chosen = nil
 	for _, i := range f.all {
@@ -722,7 +780,7 @@ func (f *tableFrame[R]) footer() {
 		}
 	})
 	if f.pinned > 0 {
-		pin := f.pinGroup(ui.Row(c), f.m.head, f.headBg(), false)
+		pin := f.pinGroup(ui.Row(c), f.m.head, f.headBg(), false).InsetShadow(0, 1, 0, 0, f.t.Colors.Hairline)
 		pin.Children(func() {
 			ui.Box(c).Width(f.lead).Shrink(0)
 			f.footCell(f.order[0])
@@ -1103,7 +1161,7 @@ func (f *tableFrame[R]) body() {
 			}
 		}})
 		return
-	case len(f.keys) == 0:
+	case len(f.lines) == 0:
 		e := o.Empty
 		if e.Title == "" {
 			e.Title = f.l.NoRows
@@ -1113,22 +1171,35 @@ func (f *tableFrame[R]) body() {
 		return
 	}
 
-	// where each row starts, its details as far as they are open
-	ys := make([]float32, len(f.keys)+1)
-	for n, k := range f.keys {
-		h := m.row
-		if o.Expand != nil {
-			p, ok := rt.detailP[k]
-			if !ok && s.Expanded[k] {
-				p = 1
+	// where each line starts: a row with its details as far as they are
+	// open, a group's heading
+	ys := make([]float32, len(f.lines)+1)
+	lineKeys := make([]any, len(f.lines))
+	at := 0 // the cursor row's line
+	for l, ln := range f.lines {
+		h := m.head
+		if ln.n < 0 {
+			lineKeys[l] = groupKey{ln.g}
+		} else {
+			k := f.keys[ln.n]
+			lineKeys[l] = k
+			if ln.n == s.cursor {
+				at = l
 			}
-			h += rt.detailH[k] * p
+			h = m.row
+			if o.Expand != nil {
+				p, ok := rt.detailP[k]
+				if !ok && s.Expanded[k] {
+					p = 1
+				}
+				h += rt.detailH[k] * p
+			}
 		}
-		ys[n+1] = ys[n] + h
+		ys[l+1] = ys[l] + h
 	}
 	if rt.reveal {
 		rt.reveal = false
-		y0, y1 := ys[s.cursor], ys[s.cursor]+m.row
+		y0, y1 := ys[at], ys[at]+m.row
 		switch {
 		case y0 < s.scroll.Y:
 			s.scroll.Y = y0
@@ -1137,14 +1208,14 @@ func (f *tableFrame[R]) body() {
 		}
 	}
 	over := 6 * m.row
-	first, last := 0, len(f.keys)
-	for first < len(f.keys) && ys[first+1] < s.scroll.Y-over {
+	first, last := 0, len(f.lines)
+	for first < len(f.lines) && ys[first+1] < s.scroll.Y-over {
 		first++
 	}
 	for last > first && ys[last-1] > s.scroll.Y+viewH+over {
 		last--
 	}
-	moved := rt.ready && !slices.Equal(f.keys, rt.prevKey)
+	moved := rt.ready && !slices.Equal(lineKeys, rt.prevKey)
 	rt.turn = 0
 	if rt.ready && o.PageSize > 0 && s.Page != rt.page {
 		rt.turn = 1
@@ -1157,20 +1228,24 @@ func (f *tableFrame[R]) body() {
 	content := ui.Column(c).Width(f.total).Shrink(0)
 	content.Children(func() {
 		ui.Box(c).Height(ys[first]).Shrink(0)
-		for n := first; n < last; n++ {
-			f.row(n, ys[n], moved, viewW, viewH)
+		for l := first; l < last; l++ {
+			if ln := f.lines[l]; ln.n < 0 {
+				f.heading(ln.g, ys[l], moved, viewW, viewH)
+			} else {
+				f.row(ln.n, ys[l], moved, viewW, viewH)
+			}
 		}
-		ui.Box(c).Height(ys[len(f.keys)] - ys[last]).Shrink(0)
-		f.ghosts(moved, ys, viewH)
+		ui.Box(c).Height(ys[len(f.lines)] - ys[last]).Shrink(0)
+		f.ghosts(moved, viewH)
 	})
 
 	rt.prevTop = s.scroll.Y
-	rt.prevY = make(map[any]float32, len(f.keys))
-	for n, k := range f.keys {
-		rt.prevY[k] = ys[n]
+	rt.prevY = make(map[any]float32, len(lineKeys))
+	for l, k := range lineKeys {
+		rt.prevY[k] = ys[l]
 		rt.known[k] = true
 	}
-	rt.prevKey = slices.Clone(f.keys)
+	rt.prevKey = lineKeys
 }
 
 // forget lets the rows go: the next rows shown come in as new.
@@ -1201,33 +1276,7 @@ func (f *tableFrame[R]) row(n int, y float32, moved bool, viewW, viewH float32) 
 	r := f.rows[f.idx[n]]
 	rt.last[k] = r
 	wrap := ui.Column(c.Key(k)).Width(f.total).Shrink(0)
-	if moved {
-		// a row that showed slides from where it was; one that comes
-		// from out of view fades in at its place instead of flying in;
-		// on a page turn, the new page comes in from its side
-		py, ok := rt.prevY[k]
-		switch {
-		case rt.turn != 0:
-			wrap.Jump("in", 0)
-			wrap.Jump("px", 28*rt.turn)
-		case ok && py > rt.prevTop-m.row && py < rt.prevTop+viewH:
-			if off := py - y; abs32(off) > 0.5 {
-				wrap.Jump("fy", off)
-			}
-		case !ok || abs32(py-y) > 0.5:
-			wrap.Jump("in", 0)
-		}
-	} else if rt.ready && !rt.known[k] {
-		wrap.Jump("in", 0)
-	}
-	in := wrap.AnimateTo("in", 1, ui.Animation{Duration: 240 * time.Millisecond, Ease: ui.EaseOut})
-	fy := wrap.AnimateTo("fy", 0, springShift)
-	px := wrap.AnimateTo("px", 0, springShift)
-	rise := float32(6)
-	if px != 0 {
-		rise = 0
-	}
-	wrap.Translate(px, fy-rise*(1-in)).Opacity(in)
+	f.arrive(wrap, k, y, moved, viewH)
 	open := s.Expanded[k]
 	ep := float32(0)
 	if o.Expand != nil {
@@ -1277,6 +1326,88 @@ func (f *tableFrame[R]) row(n int, y float32, moved bool, viewW, viewH float32) 
 		if o.Expand != nil && (open || ep > 0.001) {
 			f.details(k, r, ep, viewW)
 		}
+	})
+}
+
+// arrive moves wrap, the line of key k at y, from where it showed: a
+// line that showed slides from where it was; one that comes from out of
+// view fades in at its place instead of flying in; on a page turn, the
+// new page comes in from its side.
+func (f *tableFrame[R]) arrive(wrap ui.Element, k any, y float32, moved bool, viewH float32) {
+	rt := f.rt
+	if moved {
+		py, ok := rt.prevY[k]
+		switch {
+		case rt.turn != 0:
+			wrap.Jump("in", 0)
+			wrap.Jump("px", 28*rt.turn)
+		case ok && py > rt.prevTop-f.m.row && py < rt.prevTop+viewH:
+			if off := py - y; abs32(off) > 0.5 {
+				wrap.Jump("fy", off)
+			}
+		case !ok || abs32(py-y) > 0.5:
+			wrap.Jump("in", 0)
+		}
+	} else if rt.ready && !rt.known[k] {
+		wrap.Jump("in", 0)
+	}
+	in := wrap.AnimateTo("in", 1, ui.Animation{Duration: 240 * time.Millisecond, Ease: ui.EaseOut})
+	fy := wrap.AnimateTo("fy", 0, springShift)
+	px := wrap.AnimateTo("px", 0, springShift)
+	rise := float32(6)
+	if px != 0 {
+		rise = 0
+	}
+	wrap.Translate(px, fy-rise*(1-in)).Opacity(in)
+}
+
+// heading builds group g's heading at y: a band across the table with
+// a chevron, the group's name and its count, kept in view as the table
+// scrolls sideways. A click folds the group, or opens it.
+func (f *tableFrame[R]) heading(g string, y float32, moved bool, viewW, viewH float32) {
+	c, s, m := f.c, f.s, f.m
+	cl := f.t.Colors
+	wrap := ui.Column(c.Key(groupKey{g})).Width(f.total).Shrink(0)
+	f.arrive(wrap, groupKey{g}, y, moved, viewH)
+	label := g
+	if f.o.GroupLabel != nil {
+		rows := make([]R, len(f.group[g]))
+		for n, i := range f.group[g] {
+			rows[n] = f.rows[i]
+		}
+		label = f.o.GroupLabel(g, rows)
+	}
+	open := !s.Collapsed[g]
+	wrap.Children(func() {
+		b := ui.ButtonBase(c.Key("g")).Label(label).Expanded(open).Width(f.total).Height(m.head).Shrink(0).
+			Cursor(ui.CursorPointer).FocusRing(false)
+		bg := Mix(cl.TableBg, cl.Text, 0.025)
+		if b.Hovered() {
+			bg = Mix(cl.TableBg, cl.Text, 0.045)
+		}
+		b.Background(bg).InsetShadow(0, -1, 0, 0, cl.Hairline)
+		if b.FocusVisible() {
+			b.InsetShadow(0, 0, 0, 1.5, cl.ColorAccent500.Alpha(0.55))
+		}
+		if b.Clicked() {
+			if s.Collapsed == nil {
+				s.Collapsed = map[string]bool{}
+			}
+			if open {
+				s.Collapsed[g] = true
+			} else {
+				delete(s.Collapsed, g)
+			}
+		}
+		ep := b.AnimateTo("open", b2f(open), springOpen)
+		b.Children(func() {
+			ui.Row(c).Width(viewW).Height(m.head).AlignItems(ui.Center).Gap(8).Padding(0, m.pad).
+				Translate(s.scroll.X, 0).Children(func() {
+				ui.Icon(c, iconChevronEnd).Size(12, 12).TextColor(cl.Muted).Rotate(90 * ep).Shrink(0)
+				ui.Text(c, label).FontSize(FsSm).FontWeight(600).TextColor(cl.Text2).SingleLine().Ellipsis("…").Shrink(1).MinWidth(0)
+				ui.Text(c, strconv.Itoa(len(f.group[g]))).FontSize(FsSm).TextColor(cl.Muted).FontFeatures("tnum").NoWrap()
+			})
+		})
 	})
 }
 
@@ -1366,7 +1497,7 @@ var springOpen = ui.Animation{Spring: ui.SpringOptions{Duration: 320 * time.Mill
 
 // ghosts paints the rows just taken out, fading and settling where they
 // were, over the rows closing the room they left.
-func (f *tableFrame[R]) ghosts(moved bool, ys []float32, viewH float32) {
+func (f *tableFrame[R]) ghosts(moved bool, viewH float32) {
 	c, rt := f.c, f.rt
 	cl := f.t.Colors
 	if moved {
