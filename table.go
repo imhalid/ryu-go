@@ -58,6 +58,8 @@ type TableState struct {
 	// Density, when set, is the size step the user chose in the view
 	// menu, over TableOptions.Size.
 	Density Size
+	// Collapsed holds the groups folded (TableOptions.Group), by key.
+	Collapsed map[string]bool
 
 	scroll ui.ScrollState
 	cursor int
@@ -120,6 +122,33 @@ type TableOptions[R any] struct {
 	Row func(row ui.Element, r R)
 	// HideSelectionBar leaves the bar of the rows chosen to the app, which shows its own.
 	HideSelectionBar bool
+	// Group, if set, puts each row in the group it names, under a heading
+	// row: the groups go in the order they first come in the rows given,
+	// and a header's sort sorts the rows within each group. A click on a
+	// heading folds the group, or opens it (TableState.Collapsed). With
+	// PageSize, pages count the rows alone, folded ones too: a page shows
+	// the heading of each group it has rows of, and a folded group's
+	// heading alone.
+	//
+	//	Group: func(o Order) string { return o.Region },
+	Group func(r R) string
+	// GroupLabel, if set, is a group's heading, given its key and its rows;
+	// the key by default.
+	GroupLabel func(key string, rows []R) string
+	// Reorder, if set, lets the user move rows: by a grip at a row's start,
+	// dragged between other rows (of its group and page), or by Alt+Up and
+	// Alt+Down on the cursor row. It is called once the frame is built,
+	// with from and to indexes into the rows given: the app takes the row
+	// at from out and puts it back at to, in its own slice, and gives the
+	// rows in that order in the next frame. A manual order and a header's
+	// sort would fight: while the rows are sorted by a header, no grip
+	// shows and rows don't move.
+	//
+	//	Reorder: func(from, to int) {
+	//		t := app.tasks[from]
+	//		app.tasks = slices.Insert(slices.Delete(app.tasks, from, from+1), to, t)
+	//	},
+	Reorder func(from, to int)
 	// Labels are the table's words, for an app in another language.
 	Labels TableLabels
 }
@@ -148,6 +177,34 @@ type tableRT[R any] struct {
 	count   int     // the rows chosen the selection bar last showed
 	reveal  bool    // the cursor row moved by the keys: scroll it into view
 	fadeMax float32 // how far the table scrolled sideways when its edge fades were last worked out
+	frame   int     // counts the frames built
+	bodyX   float32 // where the rows' view starts in the window
+	row     rowDrag
+	rowGen  int             // counts rows dropped, for fresh shift channels
+	shown   map[any]float32 // how far each row showed moved for the one dragged
+	land    rowLand
+	reorder *[2]int // a move of a row, for Reorder once the frame is built
+}
+
+// rowDrag is a row being moved by its grip.
+type rowDrag struct {
+	key    any
+	active bool
+	start  ui.Point // the pointer when the row was picked up, in the window
+	pos    ui.Point // the pointer now
+	grab   float32  // how far down the row the pointer holds it
+	y0     float32  // the row's place in the body when picked up
+	top0   float32  // how far the body was scrolled then
+	h      float32  // the row's height, its details too
+	at     int      // where it would go among the other rows of its group
+}
+
+// rowLand is a row let go, gliding from where it was let go (y, in the
+// body) to its place, from the frame after frame.
+type rowLand struct {
+	key   any
+	y     float32
+	frame int
 }
 
 // tableGhost is a row taken out, fading where it was.
@@ -171,6 +228,16 @@ type colDrag struct {
 	headTop float32
 }
 
+// tableLine is a line of a table's body: row n of the rows shown, or
+// with n < 0, the heading of group g.
+type tableLine struct {
+	n int
+	g string
+}
+
+// groupKey keys a group's heading apart from the rows.
+type groupKey struct{ g string }
+
 // tableMetrics are a table's sizes at a size step.
 type tableMetrics struct {
 	row, head, fs, pad float32
@@ -189,6 +256,7 @@ func tableSizes(s Size) tableMetrics {
 const (
 	selectW = 44
 	expandW = 36
+	gripW   = 28
 )
 
 // tableFrame is a Table being built: what its parts share in a frame.
@@ -210,8 +278,15 @@ type tableFrame[R any] struct {
 	base   map[string]float32 // where each column starts, unmoved
 	shift  map[string]float32 // how far each column shows moved
 	all    []int              // the rows' indexes, sorted
-	idx    []int              // those on the page shown
+	idx    []int              // those on the page shown, and not folded
 	keys   []any              // their keys
+	lines  []tableLine        // the lines shown: the rows of idx, and the groups' headings
+	group  map[string][]int   // the rows of each group, by key, in the order of all
+	gOf    []string           // the group of each row shown
+	ys     []float32          // where each line starts
+	lineOf []int              // the line of each row shown
+	target map[any]float32    // how far each row moves for the one dragged
+	held   bool               // a row was held as the frame began
 	l      TableLabels        // the words, in English where the app gave none
 	chosen []any              // the keys chosen, in the order shown
 	focus  bool
@@ -221,7 +296,8 @@ type tableFrame[R any] struct {
 // Table shows rows of type R under a header of columns. It sorts the rows
 // by s.Sort itself; the app filters them (by s.Query with Search). See
 // TableOptions for selection, the selection bar, the toolbar, opened
-// rows, the pinned column, pages and the loading, error and empty states.
+// rows, the pinned column, groups, pages and the loading, error and empty
+// states, and Column.Foot for a footer row.
 // The user sorts by a click on a header (Shift-click adds a key), moves a
 // column by dragging its header, and resizes it by the header's end edge
 // (a double click there gives it back its width). With the keyboard focus
@@ -252,6 +328,7 @@ func Table[R any](c *ui.Context, s *TableState, cols []Column[R], rows []R, o Ta
 		return &tableRT[R]{prevY: map[any]float32{}, known: map[any]bool{}, last: map[any]R{},
 			detailH: map[any]float32{}, detailP: map[any]float32{}, shift: map[string]float32{}}
 	})
+	f.rt.frame++
 	f.placeColumns()
 	f.sortRows()
 	f.columnShifts()
@@ -281,6 +358,14 @@ func Table[R any](c *ui.Context, s *TableState, cols []Column[R], rows []R, o Ta
 			head.Children(f.header)
 			f.sortLight(head)
 			body.Children(f.body)
+			if f.hasFoot() {
+				// under the rows' view, so it stays at the bottom as they
+				// scroll, and goes sideways with them as the header does
+				foot := ui.Row(c).Height(f.m.head).Shrink(0).Role(ui.RoleRow).Clip().
+					Background(f.headBg()).InsetShadow(0, 1, 0, 0, t.Colors.Hairline)
+				foot.ScrollWith(body)
+				foot.Children(f.footer)
+			}
 			if b := head.LayoutBounds(); b.W > 0 {
 				f.rt.col.headTop = b.Y
 				f.rt.headX = b.X
@@ -291,9 +376,15 @@ func Table[R any](c *ui.Context, s *TableState, cols []Column[R], rows []R, o Ta
 		}
 	})
 	if b := body.LayoutBounds(); b.W > 0 {
-		f.rt.availW, f.rt.viewH = b.W, b.H
+		f.rt.availW, f.rt.viewH, f.rt.bodyX = b.W, b.H, b.X
 	}
 	f.rt.ready = true
+	if m := f.rt.reorder; m != nil {
+		// the app reorders its rows now that this frame built them all
+		f.rt.reorder = nil
+		o.Reorder(m[0], m[1])
+		c.AnimationFrame()
+	}
 	return f.outer
 }
 
@@ -367,15 +458,48 @@ func (f *tableFrame[R]) sortRows() {
 			return 0
 		})
 	}
+	var groups []string // the group of each row, by index
+	if g := f.o.Group; g != nil {
+		// the groups in the order they first come in the rows given; the
+		// sort, stable, keeps its order within each
+		groups = make([]string, len(rows))
+		rank := map[string]int{}
+		f.group = map[string][]int{}
+		for i, r := range rows {
+			groups[i] = g(r)
+			if _, ok := rank[groups[i]]; !ok {
+				rank[groups[i]] = len(rank)
+			}
+		}
+		slices.SortStableFunc(idx, func(a, b int) int { return rank[groups[a]] - rank[groups[b]] })
+		for _, i := range idx {
+			f.group[groups[i]] = append(f.group[groups[i]], i)
+		}
+	}
 	f.all, f.idx = idx, idx
+	page := idx
 	if ps := f.o.PageSize; ps > 0 {
 		pages := max(1, (len(idx)+ps-1)/ps)
 		s.Page = min(max(s.Page, 0), pages-1)
-		f.idx = idx[s.Page*ps : min(len(idx), (s.Page+1)*ps)]
+		page = idx[s.Page*ps : min(len(idx), (s.Page+1)*ps)]
 	}
-	f.keys = make([]any, len(f.idx))
-	for n, i := range f.idx {
-		f.keys[n] = f.o.Key(rows[i])
+	f.idx, f.keys, f.lines, f.gOf = nil, nil, nil, nil
+	for p, i := range page {
+		if groups != nil {
+			g := groups[i]
+			if p == 0 || groups[page[p-1]] != g {
+				f.lines = append(f.lines, tableLine{n: -1, g: g})
+			}
+			if s.Collapsed[g] {
+				continue
+			}
+		}
+		f.lines = append(f.lines, tableLine{n: len(f.idx)})
+		if groups != nil {
+			f.gOf = append(f.gOf, groups[i])
+		}
+		f.idx = append(f.idx, i)
+		f.keys = append(f.keys, f.o.Key(rows[i]))
 	}
 	f.chosen = nil
 	for _, i := range f.all {
@@ -590,6 +714,10 @@ func (f *tableFrame[R]) keyboard(box ui.Element) {
 		}
 	}
 	switch {
+	case f.reorders() && box.Shortcut(ui.Alt, ui.KeyDown):
+		f.nudge(1)
+	case f.reorders() && box.Shortcut(ui.Alt, ui.KeyUp):
+		f.nudge(-1)
 	case box.Shortcut(0, ui.KeyDown):
 		move(s.cursor+1, false)
 	case box.Shortcut(0, ui.KeyUp):
@@ -615,6 +743,50 @@ func (f *tableFrame[R]) keyboard(box ui.Element) {
 	case box.Shortcut(0, ui.KeyEnter) && f.o.Expand != nil:
 		f.toggleOpen(f.keys[s.cursor])
 	}
+}
+
+// reorders is whether rows can be moved now: the app takes moves, and
+// no header's sort stands in for its order.
+func (f *tableFrame[R]) reorders() bool {
+	return f.o.Reorder != nil && len(f.s.Sort) == 0 && !f.o.Loading && f.o.Error == ""
+}
+
+// nudge moves the cursor row a step up or down among the rows of its
+// group, the cursor going with it.
+func (f *tableFrame[R]) nudge(step int) {
+	s := f.s
+	n, j := s.cursor, s.cursor+step
+	if j < 0 || j >= len(f.keys) || (f.gOf != nil && f.gOf[j] != f.gOf[n]) {
+		return
+	}
+	from := f.idx[n]
+	f.rt.reorder = &[2]int{from, reorderTo(from, f.idx[j], step > 0)}
+	s.cursor = j
+	f.rt.reveal = true
+}
+
+// reorderTo is the index the row at from takes, out of the rows and back
+// in, to come just before the row now at b, or just after it.
+func reorderTo(from, b int, after bool) int {
+	to := b
+	if after {
+		to++
+	}
+	if to > from {
+		to--
+	}
+	return to
+}
+
+// run is the rows shown of row n's group, n among them, in order.
+func (f *tableFrame[R]) run(n int) []int {
+	var ns []int
+	for m := range f.keys {
+		if f.gOf == nil || f.gOf[m] == f.gOf[n] {
+			ns = append(ns, m)
+		}
+	}
+	return ns
 }
 
 func (f *tableFrame[R]) choose(k any, on bool) {
@@ -679,6 +851,69 @@ func (f *tableFrame[R]) header() {
 			f.headCell(0, f.order[0])
 		})
 	}
+}
+
+// hasFoot is whether the table shows a footer: a column has a Foot, and
+// the rows are there to sum.
+func (f *tableFrame[R]) hasFoot() bool {
+	if f.o.Loading || f.o.Error != "" {
+		return false
+	}
+	for _, i := range f.order {
+		if f.cols[i].Foot != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// footer builds the footer row: each column's Foot under it, in the
+// column's place and width, muted, the pinned one held over the rest as
+// the header's is.
+func (f *tableFrame[R]) footer() {
+	c := f.c
+	row := ui.Row(c).Width(f.total).Height(f.m.head).AlignItems(ui.Stretch).Shrink(0)
+	row.Children(func() {
+		lead := f.lead
+		if f.pinned > 0 {
+			lead += f.widths[f.order[0]]
+		}
+		ui.Box(c).Width(lead).Shrink(0)
+		for k, i := range f.order {
+			if k >= f.pinned {
+				f.footCell(i)
+			}
+		}
+	})
+	if f.pinned > 0 {
+		pin := f.pinGroup(ui.Row(c), f.m.head, f.headBg(), false).InsetShadow(0, 1, 0, 0, f.t.Colors.Hairline)
+		pin.Children(func() {
+			ui.Box(c).Width(f.lead).Shrink(0)
+			f.footCell(f.order[0])
+		})
+	}
+}
+
+// footCell is column i's cell in the footer: its Foot over every row,
+// aligned as its cells are, numbers tabular; it goes with the column
+// as the column moves.
+func (f *tableFrame[R]) footCell(i int) {
+	c := f.c
+	col := &f.cols[i]
+	id := col.id()
+	e := ui.Row(c.Key("f:"+id)).Width(f.widths[i]).Shrink(0).Padding(0, f.m.pad).AlignItems(ui.Center).Clip().Role(ui.RoleCell)
+	if col.align() == ui.End {
+		e.Justify(ui.End)
+	}
+	if d := &f.rt.col; d.active && d.id == id {
+		e.Opacity(0.45)
+	}
+	e.Translate(f.shift[id], 0).Children(func() {
+		if col.Foot != nil {
+			ui.Text(c, col.Foot(f.rows)).FontSize(f.m.fs).FontWeight(500).TextColor(f.t.Colors.Muted).
+				FontFeatures("tnum").SingleLine().Ellipsis("…")
+		}
+	})
 }
 
 // sortLight lights the top of the header of the column the rows sort by
@@ -765,6 +1000,9 @@ func (f *tableFrame[R]) pinGroup(e ui.Element, h float32, bg ui.Color, follow bo
 // the room over the chevrons.
 func (f *tableFrame[R]) headLead() {
 	c, s := f.c, f.s
+	if f.o.Reorder != nil {
+		ui.Box(c).Width(gripW).Shrink(0)
+	}
 	if f.o.Selectable {
 		ui.Box(c).Width(selectW).Shrink(0).Center().Children(func() {
 			n := len(f.chosen)
@@ -1032,7 +1270,7 @@ func (f *tableFrame[R]) body() {
 			}
 		}})
 		return
-	case len(f.keys) == 0:
+	case len(f.lines) == 0:
 		e := o.Empty
 		if e.Title == "" {
 			e.Title = f.l.NoRows
@@ -1042,22 +1280,43 @@ func (f *tableFrame[R]) body() {
 		return
 	}
 
-	// where each row starts, its details as far as they are open
-	ys := make([]float32, len(f.keys)+1)
-	for n, k := range f.keys {
-		h := m.row
-		if o.Expand != nil {
-			p, ok := rt.detailP[k]
-			if !ok && s.Expanded[k] {
-				p = 1
+	// where each line starts: a row with its details as far as they are
+	// open, a group's heading
+	ys := make([]float32, len(f.lines)+1)
+	lineKeys := make([]any, len(f.lines))
+	at := 0 // the cursor row's line
+	for l, ln := range f.lines {
+		h := m.head
+		if ln.n < 0 {
+			lineKeys[l] = groupKey{ln.g}
+		} else {
+			k := f.keys[ln.n]
+			lineKeys[l] = k
+			if ln.n == s.cursor {
+				at = l
 			}
-			h += rt.detailH[k] * p
+			h = m.row
+			if o.Expand != nil {
+				p, ok := rt.detailP[k]
+				if !ok && s.Expanded[k] {
+					p = 1
+				}
+				h += rt.detailH[k] * p
+			}
 		}
-		ys[n+1] = ys[n] + h
+		ys[l+1] = ys[l] + h
 	}
+	f.ys = ys
+	f.lineOf = make([]int, len(f.keys))
+	for l, ln := range f.lines {
+		if ln.n >= 0 {
+			f.lineOf[ln.n] = l
+		}
+	}
+	f.rowTargets()
 	if rt.reveal {
 		rt.reveal = false
-		y0, y1 := ys[s.cursor], ys[s.cursor]+m.row
+		y0, y1 := ys[at], ys[at]+m.row
 		switch {
 		case y0 < s.scroll.Y:
 			s.scroll.Y = y0
@@ -1066,14 +1325,27 @@ func (f *tableFrame[R]) body() {
 		}
 	}
 	over := 6 * m.row
-	first, last := 0, len(f.keys)
-	for first < len(f.keys) && ys[first+1] < s.scroll.Y-over {
+	first, last := 0, len(f.lines)
+	for first < len(f.lines) && ys[first+1] < s.scroll.Y-over {
 		first++
 	}
 	for last > first && ys[last-1] > s.scroll.Y+viewH+over {
 		last--
 	}
-	moved := rt.ready && !slices.Equal(f.keys, rt.prevKey)
+	if d := &rt.row; f.held {
+		// the row held stays built, wherever the view scrolls
+		if dn := slices.Index(f.keys, d.key); dn >= 0 {
+			first, last = min(first, f.lineOf[dn]), max(last, f.lineOf[dn]+1)
+		}
+	}
+	moved := rt.ready && !slices.Equal(lineKeys, rt.prevKey)
+	landing := rt.land.key != nil && rt.land.frame < rt.frame
+	if landing && moved {
+		// the rows take their new places: the shifts that made room give
+		// way to each row gliding from where it showed
+		rt.rowGen++
+	}
+	rt.shown = map[any]float32{}
 	rt.turn = 0
 	if rt.ready && o.PageSize > 0 && s.Page != rt.page {
 		rt.turn = 1
@@ -1086,20 +1358,170 @@ func (f *tableFrame[R]) body() {
 	content := ui.Column(c).Width(f.total).Shrink(0)
 	content.Children(func() {
 		ui.Box(c).Height(ys[first]).Shrink(0)
-		for n := first; n < last; n++ {
-			f.row(n, ys[n], moved, viewW, viewH)
+		for l := first; l < last; l++ {
+			if ln := f.lines[l]; ln.n < 0 {
+				f.heading(ln.g, ys[l], moved, viewW, viewH)
+			} else {
+				f.row(ln.n, ys[l], moved, viewW, viewH)
+			}
 		}
-		ui.Box(c).Height(ys[len(f.keys)] - ys[last]).Shrink(0)
-		f.ghosts(moved, ys, viewH)
+		ui.Box(c).Height(ys[len(f.lines)] - ys[last]).Shrink(0)
+		f.ghosts(moved, viewH)
+		if f.held {
+			f.rowGhost(viewW)
+		}
 	})
+	if landing {
+		rt.land.key = nil
+	}
 
 	rt.prevTop = s.scroll.Y
-	rt.prevY = make(map[any]float32, len(f.keys))
-	for n, k := range f.keys {
-		rt.prevY[k] = ys[n]
+	rt.prevY = make(map[any]float32, len(lineKeys))
+	for l, k := range lineKeys {
+		// where it showed, moved aside for a row held
+		rt.prevY[k] = ys[l] + rt.shown[k]
 		rt.known[k] = true
 	}
-	rt.prevKey = slices.Clone(f.keys)
+	if rt.land.key != nil {
+		rt.prevY[rt.land.key] = rt.land.y
+	}
+	rt.prevKey = lineKeys
+}
+
+// rowTargets works out where the rows go for the row being dragged: it
+// follows the pointer, and the other rows of its group slide apart where
+// it would go and close the room it left, as Sortable's cards do. It
+// reads the pointer as the last frame left it, so that every row of this
+// frame, the one let go too, takes the same places.
+func (f *tableFrame[R]) rowTargets() {
+	d := &f.rt.row
+	f.target = map[any]float32{}
+	if !d.active {
+		return
+	}
+	dn := slices.Index(f.keys, d.key)
+	if dn < 0 || !f.reorders() {
+		d.active = false
+		return
+	}
+	f.held = true
+	mid := d.y0 + (d.pos.Y - d.start.Y) + (f.s.scroll.Y - d.top0) + d.h/2
+	ns := f.run(dn)
+	d.at = 0
+	for _, n := range ns {
+		l := f.lineOf[n]
+		y := (f.ys[l] + f.ys[l+1]) / 2
+		if n > dn {
+			y -= d.h
+		}
+		if n != dn && y < mid {
+			d.at++
+		}
+	}
+	m := 0
+	for _, n := range ns {
+		if n == dn {
+			continue
+		}
+		var sh float32
+		if n > dn {
+			sh -= d.h
+		}
+		if m >= d.at {
+			sh += d.h
+		}
+		f.target[f.keys[n]] = sh
+		m++
+	}
+}
+
+// dragRow picks up row n by its grip e once the pointer pressing it moved
+// a few DIPs, follows the pointer, and lets the row go where the others
+// made room: the move goes to Reorder once the frame is built, and the row
+// glides there from where it was let go.
+func (f *tableFrame[R]) dragRow(e ui.Element, k any, n int) {
+	d, s := &f.rt.row, f.s
+	moved := ui.Local(e, "moved", func() float32 { return 0 })
+	dx, dy, pressed := e.Dragged()
+	// where the pointer is, read from the grip's place, not by adding up
+	// the moves
+	pointer := func() (ui.Point, float32) {
+		b := e.LayoutBounds()
+		px, py, _ := e.PointerPosition()
+		return ui.Point{X: b.X + px, Y: b.Y + py}, py
+	}
+	switch {
+	case pressed && d.active && d.key == k:
+		d.pos, _ = pointer()
+	case pressed && !d.active:
+		if *moved += abs32(dx) + abs32(dy); *moved > 4 {
+			at, py := pointer()
+			l := f.lineOf[n]
+			*d = rowDrag{key: k, active: true, start: at, pos: at, grab: py, y0: f.ys[l], top0: s.scroll.Y, h: f.ys[l+1] - f.ys[l]}
+			s.cursor = n
+			f.c.AnimationFrame()
+		}
+	case !pressed:
+		*moved = 0
+		if d.active && d.key == k {
+			d.active = false
+			f.dropRow(n)
+			f.c.AnimationFrame()
+		}
+	}
+}
+
+// dropRow lets row n go at the place the others made room for.
+func (f *tableFrame[R]) dropRow(n int) {
+	d, rt := &f.rt.row, f.rt
+	rt.land = rowLand{key: d.key, y: d.y0 + (d.pos.Y - d.start.Y) + (f.s.scroll.Y - d.top0), frame: rt.frame}
+	others := slices.DeleteFunc(f.run(n), func(m int) bool { return m == n })
+	if len(others) == 0 {
+		return
+	}
+	from := f.idx[n]
+	to := reorderTo(from, f.idx[others[len(others)-1]], true)
+	if d.at < len(others) {
+		to = reorderTo(from, f.idx[others[d.at]], false)
+	}
+	if to != from {
+		rt.reorder = &[2]int{from, to}
+		f.s.cursor = n + d.at - slices.Index(f.run(n), n)
+	}
+}
+
+// rowGhost is the row being moved, lifted off the table: it follows the
+// pointer up and down across the rows' view, a little larger, on the
+// raised skin, and stays where it was let go until the row takes over.
+func (f *tableFrame[R]) rowGhost(viewW float32) {
+	t, c, d, rt := f.t, f.c, &f.rt.row, f.rt
+	r, ok := rt.last[d.key]
+	if !ok {
+		return
+	}
+	ui.Overlay(c, func() {
+		g := ui.Column(c).Absolute().Left(rt.bodyX).Top(d.pos.Y - d.grab).Width(viewW).Height(f.m.row).
+			Radius(t.R(RadiusItem)).Background(f.rowBg(f.s.Selected[d.key], false)).PassThrough().Cursor(ui.CursorGrabbing)
+		t.Shadows.ShadowPop.Apply(g)
+		picked := ui.Local(g, "picked", func() bool { return false })
+		if !*picked {
+			*picked = true
+			g.Jump("lift", 0)
+		}
+		lift := g.AnimateTo("lift", 1, springLift)
+		sc := 1 + 0.015*lift
+		g.Scale(sc, sc).Children(func() {
+			ui.Box(c).Width(viewW).Height(f.m.row).Radius(t.R(RadiusItem)).Clip().Children(func() {
+				ui.Row(c).Width(f.total).Height(f.m.row).AlignItems(ui.Stretch).Translate(-f.s.scroll.X, 0).Children(func() {
+					ui.Box(c).Width(gripW).Shrink(0).Center().Children(func() { grip(c, t.Colors.Text2) })
+					ui.Box(c).Width(f.lead - gripW).Shrink(0)
+					for _, i := range f.order {
+						f.cell(i, r)
+					}
+				})
+			})
+		})
+	})
 }
 
 // forget lets the rows go: the next rows shown come in as new.
@@ -1130,33 +1552,25 @@ func (f *tableFrame[R]) row(n int, y float32, moved bool, viewW, viewH float32) 
 	r := f.rows[f.idx[n]]
 	rt.last[k] = r
 	wrap := ui.Column(c.Key(k)).Width(f.total).Shrink(0)
-	if moved {
-		// a row that showed slides from where it was; one that comes
-		// from out of view fades in at its place instead of flying in;
-		// on a page turn, the new page comes in from its side
-		py, ok := rt.prevY[k]
-		switch {
-		case rt.turn != 0:
-			wrap.Jump("in", 0)
-			wrap.Jump("px", 28*rt.turn)
-		case ok && py > rt.prevTop-m.row && py < rt.prevTop+viewH:
-			if off := py - y; abs32(off) > 0.5 {
-				wrap.Jump("fy", off)
-			}
-		case !ok || abs32(py-y) > 0.5:
-			wrap.Jump("in", 0)
-		}
-	} else if rt.ready && !rt.known[k] {
-		wrap.Jump("in", 0)
+	// moved aside for a row being dragged, on a channel new after each
+	// drop, at rest
+	sh := wrap.AnimateTo(fmt.Sprintf("rs%d", rt.rowGen), f.target[k], springShift)
+	rt.shown[k] = sh
+	if l := &rt.land; l.key == k && l.frame < rt.frame {
+		// let go: from where the copy was, a little lifted
+		wrap.Jump("fy", l.y-y)
+		wrap.Jump("lift", 1)
+		moved = false
 	}
-	in := wrap.AnimateTo("in", 1, ui.Animation{Duration: 240 * time.Millisecond, Ease: ui.EaseOut})
-	fy := wrap.AnimateTo("fy", 0, springShift)
-	px := wrap.AnimateTo("px", 0, springShift)
-	rise := float32(6)
-	if px != 0 {
-		rise = 0
+	f.arrive(wrap, k, y, sh, moved, viewH)
+	if lift := wrap.AnimateTo("lift", 0, springLand); lift > 0.001 {
+		sc := 1 + 0.015*lift
+		wrap.Scale(sc, sc)
 	}
-	wrap.Translate(px, fy-rise*(1-in)).Opacity(in)
+	if f.held && f.rt.row.key == k {
+		// its place stays empty while a copy is held
+		wrap.Opacity(0)
+	}
 	open := s.Expanded[k]
 	ep := float32(0)
 	if o.Expand != nil {
@@ -1209,10 +1623,105 @@ func (f *tableFrame[R]) row(n int, y float32, moved bool, viewW, viewH float32) 
 	})
 }
 
+// arrive moves wrap, the line of key k at y, from where it showed: a
+// line that showed slides from where it was; one that comes from out of
+// view fades in at its place instead of flying in; on a page turn, the
+// new page comes in from its side.
+func (f *tableFrame[R]) arrive(wrap ui.Element, k any, y, dy float32, moved bool, viewH float32) {
+	rt := f.rt
+	if moved {
+		py, ok := rt.prevY[k]
+		switch {
+		case rt.turn != 0:
+			wrap.Jump("in", 0)
+			wrap.Jump("px", 28*rt.turn)
+		case ok && py > rt.prevTop-f.m.row && py < rt.prevTop+viewH:
+			if off := py - y; abs32(off) > 0.5 {
+				wrap.Jump("fy", off)
+			}
+		case !ok || abs32(py-y) > 0.5:
+			wrap.Jump("in", 0)
+		}
+	} else if rt.ready && !rt.known[k] {
+		wrap.Jump("in", 0)
+	}
+	in := wrap.AnimateTo("in", 1, ui.Animation{Duration: 240 * time.Millisecond, Ease: ui.EaseOut})
+	fy := wrap.AnimateTo("fy", 0, springShift)
+	px := wrap.AnimateTo("px", 0, springShift)
+	rise := float32(6)
+	if px != 0 {
+		rise = 0
+	}
+	wrap.Translate(px, fy-rise*(1-in)+dy).Opacity(in)
+}
+
+// heading builds group g's heading at y: a band across the table with
+// a chevron, the group's name and its count, kept in view as the table
+// scrolls sideways. A click folds the group, or opens it.
+func (f *tableFrame[R]) heading(g string, y float32, moved bool, viewW, viewH float32) {
+	c, s, m := f.c, f.s, f.m
+	cl := f.t.Colors
+	wrap := ui.Column(c.Key(groupKey{g})).Width(f.total).Shrink(0)
+	f.arrive(wrap, groupKey{g}, y, 0, moved, viewH)
+	label := g
+	if f.o.GroupLabel != nil {
+		rows := make([]R, len(f.group[g]))
+		for n, i := range f.group[g] {
+			rows[n] = f.rows[i]
+		}
+		label = f.o.GroupLabel(g, rows)
+	}
+	open := !s.Collapsed[g]
+	wrap.Children(func() {
+		b := ui.ButtonBase(c.Key("g")).Label(label).Expanded(open).Width(f.total).Height(m.head).Shrink(0).
+			Cursor(ui.CursorPointer).FocusRing(false)
+		bg := Mix(cl.TableBg, cl.Text, 0.025)
+		if b.Hovered() {
+			bg = Mix(cl.TableBg, cl.Text, 0.045)
+		}
+		b.Background(bg).InsetShadow(0, -1, 0, 0, cl.Hairline)
+		if b.FocusVisible() {
+			b.InsetShadow(0, 0, 0, 1.5, cl.ColorAccent500.Alpha(0.55))
+		}
+		if b.Clicked() {
+			if s.Collapsed == nil {
+				s.Collapsed = map[string]bool{}
+			}
+			if open {
+				s.Collapsed[g] = true
+			} else {
+				delete(s.Collapsed, g)
+			}
+		}
+		ep := b.AnimateTo("open", b2f(open), springOpen)
+		b.Children(func() {
+			ui.Row(c).Width(viewW).Height(m.head).AlignItems(ui.Center).Gap(8).Padding(0, m.pad).
+				Translate(s.scroll.X, 0).Children(func() {
+				ui.Icon(c, iconChevronEnd).Size(12, 12).TextColor(cl.Muted).Rotate(90 * ep).Shrink(0)
+				ui.Text(c, label).FontSize(FsSm).FontWeight(600).TextColor(cl.Text2).SingleLine().Ellipsis("…").Shrink(1).MinWidth(0)
+				ui.Text(c, strconv.Itoa(len(f.group[g]))).FontSize(FsSm).TextColor(cl.Muted).FontFeatures("tnum").NoWrap()
+			})
+		})
+	})
+}
+
 // rowLead is a row's leading cells: its checkbox and its chevron.
 func (f *tableFrame[R]) rowLead(k any, n int, chosen bool, ep float32) {
 	c, s := f.c, f.s
 	cl := f.t.Colors
+	if f.o.Reorder != nil {
+		// the slot stays while sorted, empty, so the columns don't shift
+		e := ui.Box(c.Key("grip")).Width(gripW).Shrink(0).Center()
+		if f.reorders() {
+			held := f.held && f.rt.row.key == k
+			color := cl.Muted
+			if e.Hovered() || held {
+				color = cl.Text2
+			}
+			e.Label(f.l.Move).Cursor(ui.CursorGrab).Children(func() { grip(c, color) })
+			f.dragRow(e, k, n)
+		}
+	}
 	if f.o.Selectable {
 		ui.Box(c).Width(selectW).Shrink(0).Center().Children(func() {
 			b := f.t.tableCheck(c.Key("sel"), chosen, false, f.l.SelectRow)
@@ -1295,7 +1804,7 @@ var springOpen = ui.Animation{Spring: ui.SpringOptions{Duration: 320 * time.Mill
 
 // ghosts paints the rows just taken out, fading and settling where they
 // were, over the rows closing the room they left.
-func (f *tableFrame[R]) ghosts(moved bool, ys []float32, viewH float32) {
+func (f *tableFrame[R]) ghosts(moved bool, viewH float32) {
 	c, rt := f.c, f.rt
 	cl := f.t.Colors
 	if moved {
@@ -1348,6 +1857,9 @@ func (f *tableFrame[R]) placeholders(viewH float32) {
 	ui.Column(c).Width(f.total).Shrink(0).Children(func() {
 		for r := range n {
 			ui.Row(c.Key(r)).Width(f.total).Height(m.row).Shrink(0).AlignItems(ui.Center).InsetShadow(0, -1, 0, 0, cl.Hairline).Children(func() {
+				if f.o.Reorder != nil {
+					ui.Box(c).Width(gripW).Shrink(0)
+				}
 				if f.o.Selectable {
 					ui.Box(c).Width(selectW).Shrink(0).Center().Children(func() { Skeleton(c, 16, 16).Radius(min(f.t.R(5), 6)) })
 				}
@@ -1412,6 +1924,9 @@ func fullOrder[R any](cols []Column[R], s *TableState) []string {
 // returns them by column index, the leading cells' width, and the rows'.
 func tableWidths[R any](cols []Column[R], s *TableState, order []int, o TableOptions[R], avail float32) (map[int]float32, float32, float32) {
 	var lead float32
+	if o.Reorder != nil {
+		lead += gripW
+	}
 	if o.Selectable {
 		lead += selectW
 	}

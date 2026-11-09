@@ -204,3 +204,31 @@ func TestTableSearchAndHide(t *testing.T) {
 		t.Fatalf("hidden %v", s.Tables.Orders2.Hidden)
 	}
 }
+
+// The backlog shows its stages as groups with a footer, and Alt+Down moves
+// the cursor row within its stage.
+func TestTableBacklog(t *testing.T) {
+	s := New()
+	s.Mode, s.Page = mz.Light, 5
+	// tall enough for the third table
+	tt := ui.NewTester(s.View, 1180, 2100)
+	tt.Advance(400 * time.Millisecond)
+	for _, w := range []string{"Doing", "To do", "Done", "7 tasks", "24"} {
+		if !tt.HasText(w) {
+			t.Fatalf("no %q on the table page", w)
+		}
+	}
+	tt.Click("Ship the footer row")
+	tt.Key(ui.Alt, ui.KeyDown)
+	tt.Advance(300 * time.Millisecond)
+	if s.Tables.Tasks[0].Title != "Sort within groups" || s.Tables.Tasks[1].Title != "Ship the footer row" {
+		t.Fatalf("Alt+Down left the tasks %v", s.Tables.Tasks[:2])
+	}
+	// the heading over the stage's first row ("Done" names other things too)
+	x, y := center(t, tt, "Pinned first column")
+	tt.ClickAt(x, y-20-18)
+	tt.Advance(400 * time.Millisecond)
+	if tt.HasText("Pinned first column") {
+		t.Fatal("the Done stage did not fold")
+	}
+}

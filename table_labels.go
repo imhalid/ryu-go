@@ -21,8 +21,8 @@ type TableLabels struct {
 	// of rows chosen; Clear empties the selection.
 	Selected, Clear string
 	// SelectRow and SelectAll name the checkboxes; Details, the chevron
-	// that opens a row.
-	SelectRow, SelectAll, Details string
+	// that opens a row; Move, the grip that moves it (TableOptions.Reorder).
+	SelectRow, SelectAll, Details, Move string
 	// NoRows is an empty table's title; LoadError, the title of a table whose
 	// rows did not load, with TryAgain its button.
 	NoRows, LoadError, TryAgain string
@@ -39,7 +39,7 @@ func (l TableLabels) fill() TableLabels {
 		{&l.Search, "Search"}, {&l.View, "View"}, {&l.Columns, "Columns"}, {&l.Density, "Density"},
 		{&l.Compact, "Compact"}, {&l.Default, "Default"}, {&l.Comfortable, "Comfortable"},
 		{&l.Selected, "%d selected"}, {&l.Clear, "Clear"},
-		{&l.SelectRow, "Select row"}, {&l.SelectAll, "Select all rows"}, {&l.Details, "Details"},
+		{&l.SelectRow, "Select row"}, {&l.SelectAll, "Select all rows"}, {&l.Details, "Details"}, {&l.Move, "Move row"},
 		{&l.NoRows, "No rows"}, {&l.LoadError, "Couldn't load the rows"}, {&l.TryAgain, "Try again"},
 	} {
 		if *d.to == "" {
