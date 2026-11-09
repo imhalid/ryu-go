@@ -47,6 +47,8 @@ Small feedback and animation matter a great deal to the user. An interaction isn
 - Moving a column is moving a card: a copy of the header lifts, the column's cells go along with it, faded, the neighbors make room on a spring, the new order applies in the next frame, and every column glides from where it showed.
 - The column sorted first has a thin accent line along the top of its header and a glow fading down under it; in the dark theme the line goes toward white. When the sort moves to another column, the light slides there on a spring, as Tabs' underline does.
 - No resize edge at the end of the last column (the table's edge).
+- Moving a row (`Reorder`) is moving a card too: a copy lifts off its grip and follows the pointer up and down, the rows of its group slide apart, and let go it glides from where the copy was. The app reorders its own slice, called once the frame is built; the frame after, the rows' shift channels start fresh (`rowGen`) and every row glides from where it showed. No grip while a header sorts: the two orders would fight.
+- Groups keep the order they come in; the table never reorders groups or rows itself beyond a header's sort within each group. A folded group's rows leave as removed rows do.
 - The selection bar springs in over the toolbar; the two never cross but hand over (one is mostly gone before the other is much there).
 
 ### Tuned springs (reuse them)
@@ -148,7 +150,7 @@ Delete items as they're done; add a gap or an idea here as it comes up.
 
 Verified frame by frame in the tester, not yet confirmed by the user in the real window:
 
-- Table (moving columns, the pinned column, opening rows, page turns, the sorted header's light).
+- Table (moving columns, the pinned column, opening rows, page turns, the sorted header's light, moving rows by their grip, folding groups).
 - The toast's two-light beam, swiping away, loading → result.
 - `Corners` S/M/L and concentric corners.
 - Dock: tabs (picking up, reordering, closing), docking with the region preview, the compass and the window's edge targets, an emptied area folding away, the split line settling with its light, an undone split folding away, an edge cut with Option, edges settling onto lined-up edges; tabs torn off into windows and docked from one window into another (only with a fake host in the tester), windows closed giving their panes back, the layout saved and opened with its windows; on Wayland, tabs dragged by the system between windows (not testable in the tester at all).

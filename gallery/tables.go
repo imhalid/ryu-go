@@ -29,6 +29,12 @@ type member struct {
 	Load             float64
 }
 
+// task is a row of the backlog table.
+type task struct {
+	Title, Stage string
+	Points       int
+}
+
 // tablePage is the state of the table page.
 type tablePage struct {
 	ready         bool
@@ -36,6 +42,8 @@ type tablePage struct {
 	Orders2       mz.TableState
 	Team          []member
 	TeamState     mz.TableState
+	Tasks         []task
+	TaskState     mz.TableState
 	Loading, Fail bool
 	loadAt        time.Time
 	next          int
@@ -73,6 +81,11 @@ func (p *tablePage) init() {
 	teams := []string{"Payments", "Growth", "Platform", "Mobile"}
 	for i, n := range customers {
 		p.Team = append(p.Team, member{Name: n, Role: roles[i%len(roles)], Team: teams[rnd(len(teams))], Load: float64(rnd(101)) / 100})
+	}
+	p.Tasks = []task{
+		{"Ship the footer row", "Doing", 3}, {"Sort within groups", "Doing", 2}, {"Rows that fold", "To do", 5},
+		{"Drag a row by its grip", "To do", 8}, {"Alt+Up and Alt+Down", "To do", 2}, {"Pinned first column", "Done", 3},
+		{"Fade at the table's edge", "Done", 1},
 	}
 }
 
@@ -138,6 +151,27 @@ func (p *tablePage) view(c *ui.Context, t *mz.Tokens) {
 				{Title: "Load", Kind: mz.KindBar, Value: func(m member) any { return m.Load }, Sortable: true, Width: 140},
 			}, p.Team, mz.TableOptions[member]{
 				Key: func(m member) any { return m.Name }, Label: "Team", PageSize: 5, Height: 300, Size: mz.Sm,
+			})
+		})
+		mz.Card(c, mz.CardOptions{Title: "Backlog", Subtitle: "Grouped by stage; drag a row by its grip, or Alt+Up and Alt+Down; a click on a stage folds it.", Pad: true}, func() {
+			mz.Table(c.Key("tasks"), &p.TaskState, []mz.Column[task]{
+				{Title: "Task", Value: func(t task) any { return t.Title }, Sortable: true, MinWidth: 220,
+					Foot: func(ts []task) string { return fmt.Sprintf("%d tasks", len(ts)) }},
+				{Title: "Points", Kind: mz.KindNumber, Value: func(t task) any { return t.Points }, Sortable: true, Width: 120,
+					Foot: func(ts []task) string {
+						sum := 0
+						for _, t := range ts {
+							sum += t.Points
+						}
+						return fmt.Sprint(sum)
+					}},
+			}, p.Tasks, mz.TableOptions[task]{
+				Key: func(t task) any { return t.Title }, Label: "Backlog", Height: 480,
+				Group: func(t task) string { return t.Stage },
+				Reorder: func(from, to int) {
+					t := p.Tasks[from]
+					p.Tasks = slices.Insert(slices.Delete(p.Tasks, from, from+1), to, t)
+				},
 			})
 		})
 	})

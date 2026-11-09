@@ -2,6 +2,7 @@ package ryugo
 
 import (
 	"fmt"
+	"slices"
 	"testing"
 	"time"
 
@@ -277,5 +278,150 @@ func TestTableGroupPages(t *testing.T) {
 	tt.Advance(500 * time.Millisecond)
 	if !tt.HasText("group B") || !tt.HasText("row 5") || tt.HasText("group A") {
 		t.Fatalf("page 2 shows %v", tt.Texts())
+	}
+}
+
+// reorderTester is a table of five rows the user can move, which the
+// test's Reorder moves in its slice as an app would.
+func reorderTester(t *testing.T, group bool) (*TableState, *[]string, *[][2]int, *ui.Tester) {
+	t.Helper()
+	rows := []string{"Ada", "Bora", "Cem", "Defne", "Eda"}
+	cols := []Column[string]{{Title: "Name", Value: func(r string) any { return r }, Sortable: true}}
+	st := &TableState{}
+	var calls [][2]int
+	o := TableOptions[string]{
+		Key: func(r string) any { return r }, Height: 400, Selectable: true,
+		Reorder: func(from, to int) {
+			calls = append(calls, [2]int{from, to})
+			r := rows[from]
+			rows = slices.Insert(slices.Delete(rows, from, from+1), to, r)
+		},
+	}
+	if group {
+		o.Group = func(r string) string {
+			if r < "C" {
+				return "AB"
+			}
+			return "CDE"
+		}
+	}
+	tt := ui.NewTester(func(c *ui.Context) {
+		Root(c, Options{})
+		ui.Column(c).Padding(20).Children(func() {
+			Table(c.Key("t"), st, cols, rows, o)
+		})
+	}, 600, 480)
+	tt.Advance(500 * time.Millisecond)
+	return st, &rows, &calls, tt
+}
+
+// gripAt is where the grip of the row showing name is.
+func gripAt(t *testing.T, tt *ui.Tester, name string) (float32, float32) {
+	t.Helper()
+	r, ok := tt.Find(name)
+	if !ok {
+		t.Fatalf("no row %q: %v", name, tt.Texts())
+	}
+	return 20 + gripW/2, r.Y + r.H/2
+}
+
+// dragBy drags from (x, y) down by dy, in steps, and lets go.
+func dragBy(tt *ui.Tester, x, y, dy float32) {
+	tt.Press(x, y)
+	for i := 1; i <= 12; i++ {
+		tt.Move(x, y+dy*float32(i)/12)
+		tt.Advance(16 * time.Millisecond)
+	}
+	tt.Release(x, y+dy)
+	tt.Advance(500 * time.Millisecond)
+}
+
+// A row dragged by its grip past two others goes there: Reorder gets the
+// indexes into the rows given, and the rows show in their new order.
+func TestTableReorderDrag(t *testing.T) {
+	_, rows, calls, tt := reorderTester(t, false)
+	if !tt.HasText("Move row") {
+		t.Fatal("no grip")
+	}
+	x, y := gripAt(t, tt, "Bora")
+	dragBy(tt, x, y, 2*tableSizes(Md).row+4)
+	if len(*calls) != 1 || (*calls)[0] != [2]int{1, 3} {
+		t.Fatalf("Reorder got %v, want [[1 3]]", *calls)
+	}
+	if want := []string{"Ada", "Cem", "Defne", "Bora", "Eda"}; !slices.Equal(*rows, want) {
+		t.Fatalf("rows %v, want %v", *rows, want)
+	}
+	tt.Advance(600 * time.Millisecond)
+	d, _ := tt.Find("Defne")
+	b, _ := tt.Find("Bora")
+	if b.Y <= d.Y {
+		t.Fatalf("Bora (y %v) does not show under Defne (y %v)", b.Y, d.Y)
+	}
+	// up, to the top
+	x, y = gripAt(t, tt, "Eda")
+	dragBy(tt, x, y, -5*tableSizes(Md).row)
+	if want := []string{"Eda", "Ada", "Cem", "Defne", "Bora"}; !slices.Equal(*rows, want) {
+		t.Fatalf("rows %v, want %v (calls %v)", *rows, want, *calls)
+	}
+}
+
+// Alt+Down and Alt+Up move the cursor row, the cursor going with it.
+func TestTableReorderKeys(t *testing.T) {
+	st, rows, calls, tt := reorderTester(t, false)
+	tt.Click("Ada")
+	tt.Key(ui.Alt, ui.KeyDown)
+	tt.Advance(100 * time.Millisecond)
+	if len(*calls) != 1 || (*calls)[0] != [2]int{0, 1} {
+		t.Fatalf("Alt+Down: Reorder got %v, want [[0 1]]", *calls)
+	}
+	tt.Key(ui.Alt, ui.KeyDown)
+	tt.Advance(100 * time.Millisecond)
+	if want := []string{"Bora", "Cem", "Ada", "Defne", "Eda"}; !slices.Equal(*rows, want) || st.cursor != 2 {
+		t.Fatalf("rows %v, cursor %d; want %v, 2", *rows, st.cursor, want)
+	}
+	tt.Key(ui.Alt, ui.KeyUp)
+	tt.Advance(100 * time.Millisecond)
+	if want := []string{"Bora", "Ada", "Cem", "Defne", "Eda"}; !slices.Equal(*rows, want) {
+		t.Fatalf("Alt+Up: rows %v, want %v", *rows, want)
+	}
+}
+
+// Sorted by a header, rows show no grip and don't move, by the pointer or
+// the keys.
+func TestTableReorderSorted(t *testing.T) {
+	st, _, calls, tt := reorderTester(t, false)
+	tt.Click("Name")
+	tt.Advance(400 * time.Millisecond)
+	if len(st.Sort) != 1 {
+		t.Fatalf("sort %v", st.Sort)
+	}
+	if tt.HasText("Move row") {
+		t.Fatal("a grip shows while sorted")
+	}
+	x, y := gripAt(t, tt, "Bora")
+	dragBy(tt, x, y, 2*tableSizes(Md).row)
+	tt.Click("Ada")
+	tt.Key(ui.Alt, ui.KeyDown)
+	tt.Advance(100 * time.Millisecond)
+	if len(*calls) != 0 {
+		t.Fatalf("rows moved while sorted: %v", *calls)
+	}
+}
+
+// In groups, a row moves among its group's rows only.
+func TestTableReorderGroups(t *testing.T) {
+	_, rows, calls, tt := reorderTester(t, true)
+	// Bora, last of its group, can't go down into the next
+	tt.Click("Bora")
+	tt.Key(ui.Alt, ui.KeyDown)
+	tt.Advance(100 * time.Millisecond)
+	if len(*calls) != 0 {
+		t.Fatalf("Alt+Down crossed groups: %v", *calls)
+	}
+	// dragged far down, Ada goes to its group's end
+	x, y := gripAt(t, tt, "Ada")
+	dragBy(tt, x, y, 4*tableSizes(Md).row)
+	if want := []string{"Bora", "Ada", "Cem", "Defne", "Eda"}; !slices.Equal(*rows, want) {
+		t.Fatalf("rows %v, want %v (calls %v)", *rows, want, *calls)
 	}
 }
