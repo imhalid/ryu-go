@@ -470,23 +470,28 @@ func Tooltip(c *ui.Context, anchor ui.Element, text string) ui.Element {
 	trail := ui.Local(c.Root(), "ryugo-tip", func() *tipTrail { return &tipTrail{} })
 	tr := *trail
 	me := ui.Local(anchor, "ryugo-tip", func() tipOwn { return tipOwn{} })
-	if anchor.Pressed() && now.Sub(me.seen) < tipLinger {
+	if anchor.Pressed() && (me.live || now.Sub(me.seen) < tipLinger) {
 		// a press hides it, as MyGo's does: at once, without lingering
-		me.seen = now.Add(-tipLinger)
+		me.seen, me.live = now.Add(-tipLinger), false
 	}
 	tip := ui.TooltipBase(c, anchor, func(tip ui.Element) {
+		// its own key, not its place among what the overlay layer holds: the
+		// last one's lingering copy leaving that layer, or anything else
+		// coming or going there, would make it a new element for a frame,
+		// unplaced, and so drawn invisible
+		tip.Key(tipKey{me})
 		tip.Margin(0, 0, 8, 0)
 		t.tipLook(tip)
 		if tr.owner != me {
 			// the last one holds where it is until this one is placed, if it
 			// still shows: one gone stays gone
 			tr.from = nil
-			if now.Sub(tr.at) < tipHeld {
+			if tr.owner != nil && tr.owner.live || now.Sub(tr.at) < tipHeld {
 				tr.from = tr.owner
 			}
 			tr.owner, tr.placed = me, false
 		}
-		me.seen = now
+		me.seen, me.live = now, true
 		tb := tip.LayoutBounds()
 		if tb.W == 0 {
 			// placed in the next frame
@@ -539,6 +544,16 @@ func Tooltip(c *ui.Context, anchor ui.Element, text string) ui.Element {
 		}
 		t.tipText(c, tip, text)
 	})
+	if tip == (ui.Element{}) && me.live {
+		// it showed until this frame, however long ago the last one was: it
+		// lingers from now
+		me.seen, me.live = now, false
+		if px, py, ok := c.Root().PointerPosition(); ok && px >= me.r.X && px < me.r.X+me.r.W && py >= me.r.Y && py < me.r.Y+me.r.H {
+			// left for the tooltip itself: it goes now, as the ghost below
+			// does when the pointer comes onto it
+			me.seen = now.Add(-tipLinger)
+		}
+	}
 	if tip != (ui.Element{}) || me.r.W == 0 {
 		return tip
 	}
@@ -605,10 +620,17 @@ type tipTrail struct {
 	placed      bool
 }
 
-// tipOwn is where an element's tooltip last showed, and when.
+// tipKey is the key of an element's tooltip in the overlay layer, apart
+// from that of its lingering copy (keyed by the tipOwn itself).
+type tipKey struct{ own *tipOwn }
+
+// tipOwn is where an element's tooltip last showed, and when; live while
+// it shows as itself, not lingering. A tooltip at rest draws no frames, so
+// seen can be long past while it still shows.
 type tipOwn struct {
 	r    ui.Rect
 	seen time.Time
+	live bool
 }
 
 const (
@@ -619,8 +641,9 @@ const (
 	// tipSlideWithin is how soon after the last tooltip showed a new one
 	// slides from it, rather than coming in where it is.
 	tipSlideWithin = 900 * time.Millisecond
-	// tipHeld is how lately a tooltip must have shown to hold where it is
-	// while the next one is placed: a frame or two.
+	// tipHeld is how lately a lingering tooltip must have shown to hold
+	// where it is while the next one is placed: a frame or two. One that
+	// shows as itself holds however long ago its last frame was.
 	tipHeld = 50 * time.Millisecond
 )
 
