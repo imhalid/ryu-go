@@ -73,18 +73,24 @@ type rippleState struct {
 // ripple sends a wave through e as it is pressed, pressed being whether the
 // pointer holds it now and clicked whether it was clicked this frame (a click
 // with no press before it came from the keyboard). Call it as the element is
-// built; with nothing moving it sets no effect.
-func ripple(c *ui.Context, e ui.Element, pressed, clicked bool) {
+// built; with nothing moving it sets no effect. It returns where a press
+// began this frame, across the button, x < 0 for the keyboard's, and ok
+// false when none did (with Reduce Motion too: the press is still heard).
+func ripple(c *ui.Context, e ui.Element, pressed, clicked bool) (x, w float32, ok bool) {
 	st := ui.Local(e, "ripple", func() rippleState { return rippleState{} })
 	now := c.Now()
 	still := c.Preferences().ReduceMotion
-	if !still {
-		switch {
-		case pressed && !st.held:
-			x, y, _ := e.PointerPosition()
-			st.add(rippleFront{x, y, now})
-		case clicked && !st.held:
-			b := e.LayoutBounds()
+	b := e.LayoutBounds()
+	switch {
+	case pressed && !st.held:
+		px, py, _ := e.PointerPosition()
+		x, w, ok = px, b.W, true
+		if !still {
+			st.add(rippleFront{px, py, now})
+		}
+	case clicked && !st.held:
+		x, w, ok = -1, b.W, true
+		if !still {
 			st.add(rippleFront{b.W / 2, b.H / 2, now})
 		}
 	}
@@ -95,7 +101,6 @@ func ripple(c *ui.Context, e ui.Element, pressed, clicked bool) {
 
 	// a front is done once it has crossed to the farthest corner and the
 	// last point it reached has settled
-	b := e.LayoutBounds()
 	live := st.fronts[:0]
 	for _, f := range st.fronts {
 		far := math.Hypot(float64(max(f.x, b.W-f.x)), float64(max(f.y, b.H-f.y)))
@@ -127,6 +132,7 @@ func ripple(c *ui.Context, e ui.Element, pressed, clicked bool) {
 		MaxSampleOffset: ui.Point{X: rippleMargin, Y: rippleMargin},
 	}))
 	c.AnimationFrame()
+	return
 }
 
 func (st *rippleState) add(f rippleFront) {

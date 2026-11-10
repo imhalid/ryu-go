@@ -52,6 +52,13 @@ type Options struct {
 	// contrast holds in both themes). Zero keeps Ryugo's blue. Keep it to a
 	// few colors: every one is cached for the life of the program.
 	Accent ui.Color
+	// Sounds makes presses heard: a Button pressed plays a short drop, the
+	// wave it sends through itself made audible, from the side it was
+	// pressed on. Off by default; a Scope inside a scope with sounds keeps
+	// them.
+	//
+	//	ryugo.Root(c, ryugo.Options{Sounds: app.prefs.sounds})
+	Sounds bool
 }
 
 // Tokens are the resolved values of a scope: colors, shadows and the size
@@ -66,6 +73,8 @@ type Tokens struct {
 	scale float32
 	// accent is the brand color the scope was made with, zero for Ryugo's.
 	accent ui.Color
+	// sounds is Options.Sounds: presses are heard.
+	sounds bool
 
 	Colors  Colors
 	Shadows Shadows
@@ -94,6 +103,7 @@ type scopeKey struct {
 	corners Corners
 	accent  ui.Color
 	scale   float32
+	sounds  bool
 }
 
 // cache holds the scopes made so far; registry finds the scope from the
@@ -108,7 +118,11 @@ func tokensFor(dark bool, size Size, corners Corners, accent ui.Color) *Tokens {
 }
 
 func tokensScaled(dark bool, size Size, corners Corners, accent ui.Color, scale float32) *Tokens {
-	key := scopeKey{dark, size, corners, accent, scale}
+	return tokensOf(scopeKey{dark, size, corners, accent, scale, false})
+}
+
+func tokensOf(key scopeKey) *Tokens {
+	dark, size, corners, accent, scale := key.dark, key.size, key.corners, key.accent, key.scale
 	if t := cache[key]; t != nil {
 		return t
 	}
@@ -126,6 +140,7 @@ func tokensScaled(dark bool, size Size, corners Corners, accent ui.Color, scale 
 		Corners: corners,
 		corner:  [...]float32{CornersSm: 0.5, CornersMd: 1, CornersLg: 1.5}[corners],
 		scale:   scale,
+		sounds:  key.sounds,
 	}
 	if scale > 0 {
 		t.corner = scale
@@ -213,7 +228,7 @@ func Root(c *ui.Context, o Options) *Tokens {
 	case Dark:
 		dark = true
 	}
-	t := tokensScaled(dark, or(o.Size, Md), or(o.Corners, CornersMd), o.Accent, o.CornerScale)
+	t := tokensOf(scopeKey{dark, or(o.Size, Md), or(o.Corners, CornersMd), o.Accent, o.CornerScale, o.Sounds})
 	c.SetTheme(t.theme)
 	return t
 }
@@ -239,7 +254,7 @@ func scoped(c *ui.Context, o Options) *Tokens {
 	case Dark:
 		dark = true
 	}
-	return tokensScaled(dark, or(o.Size, p.Size), or(o.Corners, p.Corners), or(o.Accent, p.accent), or(o.CornerScale, p.scale))
+	return tokensOf(scopeKey{dark, or(o.Size, p.Size), or(o.Corners, p.Corners), or(o.Accent, p.accent), or(o.CornerScale, p.scale), o.Sounds || p.sounds})
 }
 
 // Concentric is the radius of a surface inset pad DIPs inside one whose

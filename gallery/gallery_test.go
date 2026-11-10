@@ -688,3 +688,20 @@ func TestTooltipHandsOverAcrossItself(t *testing.T) {
 		t.Fatalf("over Bold, the hint's tooltip shows %v, Bold's %v", tt.HasText(long), tt.HasText("Bold  ⌘B"))
 	}
 }
+
+// The Button card's switch turns the press sounds off and on.
+func TestPressSoundsSwitch(t *testing.T) {
+	s := New()
+	tt := ui.NewTester(s.View, 1180, 1000)
+	tt.Advance(100 * time.Millisecond)
+	if !s.Sounds {
+		t.Fatal("the gallery starts with sounds off")
+	}
+	if err := tt.Click("Press sounds"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Advance(100 * time.Millisecond)
+	if s.Sounds {
+		t.Fatal("the switch didn't turn the sounds off")
+	}
+}

@@ -89,7 +89,16 @@ func Button(c *ui.Context, label string, o ButtonOptions) ui.Element {
 	if o.Loading {
 		e.Cursor(ui.CursorDefault)
 	}
-	ripple(c, e, s.pressed, e.Clicked() && !off)
+	if x, w, ok := ripple(c, e, s.pressed, e.Clicked() && !off); ok && t.sounds {
+		k := tonePlain
+		switch {
+		case o.Danger && o.Color == (ui.Color{}):
+			k = toneDanger
+		case solid:
+			k = toneSolid
+		}
+		pressSound(k, x, w)
+	}
 
 	e.TextColor(text).FontSize(m.BtnFs).FontWeight(600).LetterSpacing(-0.01 * m.BtnFs)
 	e.Children(func() {
