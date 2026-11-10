@@ -229,3 +229,46 @@ func TestTooltipHoldsAfterRest(t *testing.T) {
 		t.Fatalf("back: no tooltip for %d frames", blank)
 	}
 }
+
+// A tooltip asked for without a key of its own, as most are, keeps its
+// element while the last one's lingering copy leaves the layer they share:
+// going from one button onto the next, the new one, once placed, never
+// comes back unplaced, which drew it invisible for a frame.
+func TestTooltipKeepsItsElement(t *testing.T) {
+	watch, placed, lost := false, false, 0
+	tt := ui.NewTester(func(c *ui.Context) {
+		Root(c, Options{})
+		ui.Row(c).Padding(80, 40).Children(func() {
+			for _, n := range []string{"One", "Two"} {
+				b := Button(c.Key(n), n, ButtonOptions{})
+				tip := Tooltip(c, b, n+" tip")
+				if !watch || n != "Two" {
+					continue
+				}
+				switch {
+				case tip == (ui.Element{}):
+					if placed {
+						lost++
+					}
+				case tip.LayoutBounds().W > 0:
+					placed = true
+				case placed:
+					lost++ // placed, then a new element: unplaced again
+				}
+			}
+		})
+	}, 600, 300)
+	tt.Advance(100 * time.Millisecond)
+	one, _ := tt.Find("One")
+	two, _ := tt.Find("Two")
+	tt.Move(one.X+one.W/2, one.Y+one.H/2)
+	tt.Advance(2 * time.Second)
+	watch = true
+	tt.Move(two.X+two.W/2, two.Y+two.H/2)
+	for k := 0; k < 60; k++ {
+		tt.Advance(16 * time.Millisecond)
+	}
+	if !placed || lost > 0 {
+		t.Fatalf("placed %v, lost for %d frames", placed, lost)
+	}
+}

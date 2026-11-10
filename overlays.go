@@ -475,6 +475,11 @@ func Tooltip(c *ui.Context, anchor ui.Element, text string) ui.Element {
 		me.seen, me.live = now.Add(-tipLinger), false
 	}
 	tip := ui.TooltipBase(c, anchor, func(tip ui.Element) {
+		// its own key, not its place among what the overlay layer holds: the
+		// last one's lingering copy leaving that layer, or anything else
+		// coming or going there, would make it a new element for a frame,
+		// unplaced, and so drawn invisible
+		tip.Key(tipKey{me})
 		tip.Margin(0, 0, 8, 0)
 		t.tipLook(tip)
 		if tr.owner != me {
@@ -614,6 +619,10 @@ type tipTrail struct {
 	owner, from *tipOwn
 	placed      bool
 }
+
+// tipKey is the key of an element's tooltip in the overlay layer, apart
+// from that of its lingering copy (keyed by the tipOwn itself).
+type tipKey struct{ own *tipOwn }
 
 // tipOwn is where an element's tooltip last showed, and when; live while
 // it shows as itself, not lingering. A tooltip at rest draws no frames, so
