@@ -94,6 +94,7 @@ The tokens are Go values in [tokens.go](tokens.go), written in OKLCH.
 
 Layers move on quick springs: they spring in, and leave faster than they came.
 
+- **Buttons:** a press sends a wave through the button from where it landed: the surface, its outline and its label swing out and back as a sine that dies away, a shader distorting what the button draws (a press by keyboard sends it from the middle). Nothing changes color, and with Reduce Motion no wave goes.
 - **Dialogs** drag by their header: they lean into the motion, glide on when thrown and spring back inside the window.
 - **Dialogs and sheets** come in over a soft scrim that fades in with them: a dialog rises from 94%, a sheet slides in from the edge, tilted a little. Closing, they fade or slide out, and let the pointer through to the page at once.
 - **Scroll edges:** content scrolling inside a dialog or sheet fades into its header and footer.

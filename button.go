@@ -89,6 +89,7 @@ func Button(c *ui.Context, label string, o ButtonOptions) ui.Element {
 	if o.Loading {
 		e.Cursor(ui.CursorDefault)
 	}
+	ripple(c, e, s.pressed, e.Clicked() && !off)
 
 	e.TextColor(text).FontSize(m.BtnFs).FontWeight(600).LetterSpacing(-0.01 * m.BtnFs)
 	e.Children(func() {
