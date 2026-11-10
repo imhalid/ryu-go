@@ -13,14 +13,17 @@ import (
 // leaves the pointer at rippleSpeed and, as it reaches a point, the point
 // swings out and back along the line from the press, a sine dying away
 // (sin(f·t)·e^(−d·t), t counted from when the front came by). The surface,
-// its outline and its label ripple together, and nothing changes color: the
-// feedback is motion alone. A press by keyboard sends it from the middle.
+// its outline and its label ripple together. Where the wave swells out, a
+// very faint white light catches the bump (rippleGlow), as a light from
+// above would; the troughs stay as they are, so the button never darkens.
+// A press by keyboard sends it from the middle.
 const (
 	rippleSpeed = 240 // DIPs a second
 	rippleFreq  = 42  // rad/s: ~36 DIPs from crest to crest
 	rippleDecay = 7   // 1/s: e^−5 left after rippleTail
 	rippleAmp   = 1.8 // DIPs, at most
 	rippleMax   = 4   // fronts at once; a fifth press takes the oldest's place
+	rippleGlow  = 0.1 // white mixed in at a crest's top, at most: barely there
 )
 
 // rippleTail is how long a point keeps swinging once the front has passed.
@@ -42,9 +45,11 @@ var Speed float
 var Freq float
 var Decay float
 var Amp float
+var Glow float
 
-func DistortionEffect(pos vec2) vec2 {
+func LayerEffect(pos vec2) vec4 {
 	d := vec2(0)
+	light := 0.0
 	for i := 0; i < 4; i++ {
 		f := Fronts[i]
 		v := pos - f.xy
@@ -54,8 +59,14 @@ func DistortionEffect(pos vec2) vec2 {
 		// the point under the press has no direction to swing in: it holds still
 		calm := smoothstep(0.0, 8.0, dist)
 		d += Amp * swell * calm * f.w * v / max(dist, 0.001)
+		// only the bumps catch the light, softest at their feet
+		crest := max(swell, 0.0)
+		light += crest * crest * calm * f.w
 	}
-	return pos - d
+	c := layerSample(pos - d)
+	// premultiplied: the white goes only where the button is, as much as it is
+	c.rgb = mix(c.rgb, vec3(c.a), Glow*min(light, 1.0))
+	return c
 }
 `)
 
@@ -131,6 +142,7 @@ func ripple(c *ui.Context, e ui.Element, pressed, clicked bool) (x, w float32, o
 			"Freq":   rippleFreq,
 			"Decay":  rippleDecay,
 			"Amp":    rippleAmp,
+			"Glow":   rippleGlow,
 		},
 		MaxSampleOffset: ui.Point{X: rippleMargin, Y: rippleMargin},
 	}))

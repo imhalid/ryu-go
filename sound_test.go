@@ -19,11 +19,12 @@ func crossings(s []float32, from, to float64) int {
 	return n
 }
 
-// Each drop starts and ends at silence, stays in range, and rises in pitch.
+// Each tap starts and ends at silence, stays in range, is short, and never
+// rises in pitch.
 func TestDropSamples(t *testing.T) {
 	for k, d := range drops {
 		s := d.samples()
-		if len(s) == 0 || len(s) > soundRate/4 {
+		if len(s) == 0 || len(s) > soundRate/8 {
 			t.Fatalf("tone %d: %d samples", k, len(s))
 		}
 		for i, v := range s {
@@ -34,8 +35,8 @@ func TestDropSamples(t *testing.T) {
 		if a, z := math.Abs(float64(s[0])), math.Abs(float64(s[len(s)-1])); a > 0.01 || z > 0.001 {
 			t.Errorf("tone %d: starts at %v, ends at %v: it would click", k, a, z)
 		}
-		if early, late := crossings(s, 0, 0.01), crossings(s, 0.05, 0.06); late <= early {
-			t.Errorf("tone %d: %d crossings early, %d late: the pitch doesn't rise", k, early, late)
+		if early, late := crossings(s, 0.005, 0.025), crossings(s, 0.04, 0.06); late > early+1 { // one either way is counting
+			t.Errorf("tone %d: %d crossings early, %d late: the pitch rises", k, early, late)
 		}
 	}
 }

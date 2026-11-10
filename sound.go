@@ -9,11 +9,13 @@ import (
 	"github.com/egoist/mygo/audio"
 )
 
-// A press heard: the wave's sine made audible, a drop's "plip". Its pitch
-// rises a little as it sounds (a falling drop's cavity closing), and it dies
-// away in ~120 ms. It comes from the side of the button that was pressed,
-// a few percent higher or lower each time, so quick presses don't sound
-// alike. The sounds are made once, in Go: no files.
+// A press heard: a muted tap, as a fingertip on a firm key. A soft knock
+// of noise for the touch, under it a short low tone for the body, settling
+// a little in pitch as it sounds (a struck thing does: it never rises,
+// which reads as a toy), the highs taken off so nothing rings. It is over
+// in ~80 ms. It comes from the side of the button that was pressed, a few
+// percent higher or lower each time, so quick presses don't sound alike.
+// The sounds are made once, in Go: no files.
 //
 // Sounds are off unless the app asks for them (Options.Sounds): desktop
 // buttons are silent, and sounds an app makes on every press tire quickly.
@@ -23,45 +25,57 @@ import (
 type tone uint8
 
 const (
-	tonePlain  tone = iota // a raised button: light and high
+	tonePlain  tone = iota // a raised button: light
 	toneSolid              // a solid fill: lower, fuller
-	toneDanger             // a destructive action: low and short
+	toneDanger             // a destructive action: lowest and shortest
 )
 
 // drop describes a press sound.
 type drop struct {
-	from, to float64 // Hz, at the start and as it settles
-	rise     float64 // s: how quickly it goes from `from` to `to`
-	decay    float64 // 1/s
-	body     float64 // the octave under it, as a share of the tone
-	volume   float64
+	pitch  float64 // Hz, where the body settles
+	sag    float64 // how far above pitch it starts, as a share (0.06: 6%)
+	decay  float64 // 1/s, the body's
+	knock  float64 // the touch's noise, as a share of the body
+	cutoff float64 // Hz: what is above is taken off, gently
+	volume float64
 }
 
 var drops = [...]drop{
-	tonePlain:  {from: 1000, to: 1400, rise: 0.025, decay: 48, body: 0, volume: 0.13},
-	toneSolid:  {from: 760, to: 1060, rise: 0.03, decay: 40, body: 0.3, volume: 0.15},
-	toneDanger: {from: 560, to: 680, rise: 0.02, decay: 60, body: 0.35, volume: 0.15},
+	tonePlain:  {pitch: 430, sag: 0.06, decay: 70, knock: 0.35, cutoff: 2400, volume: 0.3},
+	toneSolid:  {pitch: 330, sag: 0.07, decay: 62, knock: 0.3, cutoff: 2000, volume: 0.32},
+	toneDanger: {pitch: 240, sag: 0.08, decay: 80, knock: 0.3, cutoff: 1700, volume: 0.32},
 }
 
 const soundRate = 48000
 
-// samples makes the drop's sound: 2 ms of attack (no click), then the
-// sine dying as e^(−decay·t), its pitch gliding from `from` to `to`.
+// samples makes the tap: 1.5 ms of attack (no click), the body's sine dying
+// as e^(−decay·t) with a faint wooden partial over it, the knock a few ms of
+// noise, all through two gentle low-pass poles.
 func (d drop) samples() []float32 {
 	n := int(math.Ceil(6 / d.decay * soundRate)) // to e^−6
 	out := make([]float32, n)
-	var phase float64
-	for i := range out {
+	noise := rand.New(rand.NewPCG(1, 2)) // the same knock every time
+	lp := 1 - math.Exp(-2*math.Pi*d.cutoff/soundRate)
+	var phase, a, b, peak float64
+	raw := make([]float64, n)
+	for i := range raw {
 		t := float64(i) / soundRate
-		f := d.to + (d.from-d.to)*math.Exp(-t/d.rise)
+		f := d.pitch * (1 + d.sag*math.Exp(-t/0.012))
 		phase += 2 * math.Pi * f / soundRate
-		env := math.Exp(-d.decay*t) * min(t/0.002, 1)
+		body := math.Exp(-d.decay*t) * (math.Sin(phase) + 0.12*math.Exp(-3*d.decay*t)*math.Sin(2.7*phase))
+		knock := d.knock * math.Exp(-t/0.0025) * (2*noise.Float64() - 1)
+		v := (body + knock) * min(t/0.0015, 1)
 		// the last 5 ms fade to nothing
 		if tail := float64(n-i) / soundRate; tail < 0.005 {
-			env *= tail / 0.005
+			v *= tail / 0.005
 		}
-		v := math.Sin(phase) + d.body*math.Sin(phase/2)
-		out[i] = float32(env * v / (1 + d.body))
+		a += lp * (v - a)
+		b += lp * (a - b)
+		raw[i] = b
+		peak = max(peak, math.Abs(b))
+	}
+	for i, v := range raw {
+		out[i] = float32(v / peak)
 	}
 	return out
 }
