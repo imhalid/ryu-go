@@ -14,6 +14,9 @@ type State struct {
 	Mode mz.Mode
 	// Sounds makes presses heard (the Button card's switch); on in the gallery.
 	Sounds bool
+	// Waves sends a wave through a button pressed (the Button card's other
+	// switch); on in the gallery.
+	Waves bool
 	// Accent is the brand color picked in the header, zero for Ryugo's blue.
 	Accent ui.Color
 	// Density and Round are the size step and the corners picked in the
@@ -77,7 +80,7 @@ type file struct{ Name, Size string }
 // New returns a showcase state with sample values.
 func New() *State {
 	return &State{
-		Density: 1, Round: 1, Sounds: true,
+		Density: 1, Round: 1, Sounds: true, Waves: true,
 		Range: 30, Email: "ada@", Pass: "secret",
 		Mail: true, Plan: "week", Tier: "pro", Sync: true, Volume: 64, Zoom: 1.25,
 		Msgs: []mz.ChatMessage{
@@ -109,7 +112,7 @@ var (
 )
 
 func (s *State) View(c *ui.Context) {
-	t := mz.Root(c, mz.Options{Mode: s.Mode, Accent: s.Accent, Sounds: s.Sounds, Size: steps[s.Density], Corners: corners[s.Round]})
+	t := mz.Root(c, mz.Options{Mode: s.Mode, Accent: s.Accent, Sounds: s.Sounds, Waves: s.Waves, Size: steps[s.Density], Corners: corners[s.Round]})
 	ui.Scroll(c).Fill().Children(func() { s.page(c, t) })
 	mz.Toaster(c)
 }
@@ -223,6 +226,7 @@ func (s *State) buttons(c *ui.Context, t *mz.Tokens) {
 				mz.Text(c, "Default button presses: "+itoa(s.Count), mz.TCaption).TextColor(cl.Muted)
 				// Default, Export and Delete are the three press sounds: plain, solid, danger
 				mz.Switch(c.Key("sounds"), &s.Sounds, mz.SwitchOptions{Label: "Press sounds"})
+				mz.Switch(c.Key("waves"), &s.Waves, mz.SwitchOptions{Label: "Press waves"})
 			})
 		})
 	})
