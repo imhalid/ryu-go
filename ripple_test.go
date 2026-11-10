@@ -23,14 +23,15 @@ func changed(a, b *image.RGBA, r image.Rectangle) int {
 
 // A press sends a wave through the button, which then settles back exactly
 // as it was and stops asking for frames; a press by keyboard sends one too,
-// and with less motion none goes.
+// and with less motion, or without Options.Waves, none goes.
 func TestButtonRipple(t *testing.T) {
 	rippleDraws = true
 	defer func() { rippleDraws = false }()
 
+	waves := true
 	run := func(t *testing.T, reduce, focus bool, press func(tt *ui.Tester, r ui.Rect)) (moved, after int) {
 		tt := ui.NewTester(func(c *ui.Context) {
-			Root(c, Options{})
+			Root(c, Options{Waves: waves})
 			ui.Column(c).Padding(20).Children(func() { Button(c.Key("b"), "Save changes", ButtonOptions{}) })
 		}, 240, 80)
 		tt.SetPreferences(ui.Preferences{ReduceMotion: reduce})
@@ -86,6 +87,14 @@ func TestButtonRipple(t *testing.T) {
 		moved, after := run(t, true, false, pointer)
 		if moved != 0 || after != 0 {
 			t.Errorf("with less motion %d pixels moved, %d after", moved, after)
+		}
+	})
+	t.Run("waves off", func(t *testing.T) {
+		waves = false
+		defer func() { waves = true }()
+		moved, after := run(t, false, false, pointer)
+		if moved != 0 || after != 0 {
+			t.Errorf("without Options.Waves %d pixels moved, %d after", moved, after)
 		}
 	})
 }

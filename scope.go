@@ -59,6 +59,13 @@ type Options struct {
 	//
 	//	ryugo.Root(c, ryugo.Options{Sounds: app.prefs.sounds})
 	Sounds bool
+	// Waves sends a wave through a Button pressed, from where it was pressed
+	// (ripple.go): the press seen as motion. Off by default, as Sounds; a
+	// Scope inside a scope with waves keeps them, and less motion in the
+	// system's settings stops them whatever this is.
+	//
+	//	ryugo.Root(c, ryugo.Options{Waves: app.prefs.waves})
+	Waves bool
 }
 
 // Tokens are the resolved values of a scope: colors, shadows and the size
@@ -75,6 +82,8 @@ type Tokens struct {
 	accent ui.Color
 	// sounds is Options.Sounds: presses are heard.
 	sounds bool
+	// waves is Options.Waves: presses send a wave through the button.
+	waves bool
 
 	Colors  Colors
 	Shadows Shadows
@@ -104,6 +113,7 @@ type scopeKey struct {
 	accent  ui.Color
 	scale   float32
 	sounds  bool
+	waves   bool
 }
 
 // cache holds the scopes made so far; registry finds the scope from the
@@ -118,7 +128,7 @@ func tokensFor(dark bool, size Size, corners Corners, accent ui.Color) *Tokens {
 }
 
 func tokensScaled(dark bool, size Size, corners Corners, accent ui.Color, scale float32) *Tokens {
-	return tokensOf(scopeKey{dark, size, corners, accent, scale, false})
+	return tokensOf(scopeKey{dark, size, corners, accent, scale, false, false})
 }
 
 func tokensOf(key scopeKey) *Tokens {
@@ -141,6 +151,7 @@ func tokensOf(key scopeKey) *Tokens {
 		corner:  [...]float32{CornersSm: 0.5, CornersMd: 1, CornersLg: 1.5}[corners],
 		scale:   scale,
 		sounds:  key.sounds,
+		waves:   key.waves,
 	}
 	if scale > 0 {
 		t.corner = scale
@@ -228,7 +239,7 @@ func Root(c *ui.Context, o Options) *Tokens {
 	case Dark:
 		dark = true
 	}
-	t := tokensOf(scopeKey{dark, or(o.Size, Md), or(o.Corners, CornersMd), o.Accent, o.CornerScale, o.Sounds})
+	t := tokensOf(scopeKey{dark, or(o.Size, Md), or(o.Corners, CornersMd), o.Accent, o.CornerScale, o.Sounds, o.Waves})
 	c.SetTheme(t.theme)
 	return t
 }
@@ -254,7 +265,7 @@ func scoped(c *ui.Context, o Options) *Tokens {
 	case Dark:
 		dark = true
 	}
-	return tokensOf(scopeKey{dark, or(o.Size, p.Size), or(o.Corners, p.Corners), or(o.Accent, p.accent), or(o.CornerScale, p.scale), o.Sounds || p.sounds})
+	return tokensOf(scopeKey{dark, or(o.Size, p.Size), or(o.Corners, p.Corners), or(o.Accent, p.accent), or(o.CornerScale, p.scale), o.Sounds || p.sounds, o.Waves || p.waves})
 }
 
 // Concentric is the radius of a surface inset pad DIPs inside one whose

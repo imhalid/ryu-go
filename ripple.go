@@ -75,11 +75,14 @@ type rippleState struct {
 // with no press before it came from the keyboard). Call it as the element is
 // built; with nothing moving it sets no effect. It returns where a press
 // began this frame, across the button, x < 0 for the keyboard's, and ok
-// false when none did (with Reduce Motion too: the press is still heard).
+// false when none did (with Reduce Motion or without Options.Waves too: the
+// press is still heard).
 func ripple(c *ui.Context, e ui.Element, pressed, clicked bool) (x, w float32, ok bool) {
 	st := ui.Local(e, "ripple", func() rippleState { return rippleState{} })
 	now := c.Now()
-	still := c.Preferences().ReduceMotion
+	// no wave without Options.Waves, nor with less motion: the press is
+	// still reported, and heard with Options.Sounds
+	still := c.Preferences().ReduceMotion || !From(c).waves
 	b := e.LayoutBounds()
 	switch {
 	case pressed && !st.held:

@@ -689,7 +689,7 @@ func TestTooltipHandsOverAcrossItself(t *testing.T) {
 	}
 }
 
-// The Button card's switch turns the press sounds off and on.
+// The Button card's switches turn the press sounds and waves off and on.
 func TestPressSoundsSwitch(t *testing.T) {
 	s := New()
 	tt := ui.NewTester(s.View, 1180, 1000)
@@ -703,5 +703,22 @@ func TestPressSoundsSwitch(t *testing.T) {
 	tt.Advance(100 * time.Millisecond)
 	if s.Sounds {
 		t.Fatal("the switch didn't turn the sounds off")
+	}
+}
+
+// The Button card's other switch turns the press waves off.
+func TestPressWavesSwitch(t *testing.T) {
+	s := New()
+	tt := ui.NewTester(s.View, 1180, 1000)
+	tt.Advance(100 * time.Millisecond)
+	if !s.Waves {
+		t.Fatal("the gallery starts with waves off")
+	}
+	if err := tt.Click("Press waves"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Advance(100 * time.Millisecond)
+	if s.Waves {
+		t.Fatal("the switch didn't turn the waves off")
 	}
 }
