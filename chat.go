@@ -362,6 +362,7 @@ func Chat(c *ui.Context, msgs []ChatMessage, o ChatOptions) ui.Element {
 	}
 	// the messages that came since the last frame
 	fresh := 0
+	was := st.started
 	if st.started {
 		old := map[any]bool{}
 		for _, k := range st.keys {
@@ -410,11 +411,21 @@ func Chat(c *ui.Context, msgs []ChatMessage, o ChatOptions) ui.Element {
 					// a new message grows from its tail's corner, the list
 					// making room for it
 					row := ui.Box(c.Key(keys[i])).FillWidth().Transition(enter)
+					tail := float32(0)
 					if m.Mine {
-						row.TransformOrigin(1, 1)
-					} else {
-						row.TransformOrigin(0, 1)
+						tail = 1
 					}
+					row.TransformOrigin(tail, 1)
+					// and a small wave runs out from that corner as it grows;
+					// the messages there as the chat first shows don't send one
+					wave := ui.Local(row, "wave", func() chatWave { return chatWave{} })
+					if !wave.born {
+						wave.born = true
+						if was {
+							wave.send(c, tail, 1)
+						}
+					}
+					wave.run(c, row, waveBubble)
 					row.Children(func() { Message(c, m, GroupOf(msgs, i)) })
 				}
 				if o.Typing != "" {
@@ -462,3 +473,9 @@ type (
 	chatSep    struct{ key any }
 	chatTyping struct{}
 )
+
+// chatWave is a message row's wave, and whether the row was built before.
+type chatWave struct {
+	waveState
+	born bool
+}

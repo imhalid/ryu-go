@@ -60,7 +60,11 @@ type Options struct {
 	//	ryugo.Root(c, ryugo.Options{Sounds: app.prefs.sounds})
 	Sounds bool
 	// Waves sends a wave through a Button pressed, from where it was pressed
-	// (ripple.go): the press seen as motion. Off by default, as Sounds; a
+	// (ripple.go): the press seen as motion. Other things send one as
+	// something lands in them: a Dialog or a Sheet settling, a dropped card,
+	// files dropped on a DropZone, a new Chat message, a Switch turned, a
+	// Segmented choice. A Dialog closed by its Danger button burns away in
+	// the accent's blue fire (burn.go). Off by default, as Sounds; a
 	// Scope inside a scope with waves keeps them, and less motion in the
 	// system's settings stops them whatever this is.
 	//
@@ -82,7 +86,7 @@ type Tokens struct {
 	accent ui.Color
 	// sounds is Options.Sounds: presses are heard.
 	sounds bool
-	// waves is Options.Waves: presses send a wave through the button.
+	// waves is Options.Waves: presses and landings send a wave.
 	waves bool
 
 	Colors  Colors

@@ -137,8 +137,13 @@ func (t *Tokens) dragSource(c *ui.Context, e ui.Element, value any, look func(e 
 
 	// the card on its way from where it was let go to its place
 	landing := !drag.active && drag.landing == value
+	wave := ui.Local(e, "wave", func() waveState { return waveState{} })
 	if landing && c.Now().After(drag.settled) && drag.pending == nil {
 		b := e.LayoutBounds()
+		// it lands with a wave from where it was held
+		if b.W > 0 && b.H > 0 {
+			wave.send(c, drag.grab.X/b.W, drag.grab.Y/b.H)
+		}
 		e.Jump("lx", drag.land.X-b.X)
 		e.Jump("ly", drag.land.Y-b.Y)
 		e.Jump("lift", 1)
@@ -155,6 +160,7 @@ func (t *Tokens) dragSource(c *ui.Context, e ui.Element, value any, look func(e 
 	e.Children(func() {
 		in := ui.Column(c).FillWidth().MinWidth(0).Translate(x, y).Scale(s, s).Rotate(tilt)
 		look(in, lift > 0.01)
+		wave.run(c, in, waveLand)
 	})
 	if landing {
 		c.AnimationFrame()
@@ -650,6 +656,17 @@ func DropZone(c *ui.Context, o DropZoneOptions) []string {
 	if !o.Disabled {
 		files = e.DroppedFiles()
 	}
+	// files dropped send a wave through the well from where they fell
+	wave := ui.Local(e, "wave", func() waveState { return waveState{} })
+	if files != nil {
+		b := e.LayoutBounds()
+		fx, fy := float32(0.5), float32(0.5)
+		if px, py, ok := e.PointerPosition(); ok && b.W > 0 && b.H > 0 {
+			fx, fy = clamp01(px/b.W), clamp01(py/b.H)
+		}
+		wave.send(c, fx, fy)
+	}
+	wave.run(c, e, wavePress)
 	switch {
 	case over:
 		e.Background(Mix(cl.Well, cl.ColorAccent500, 0.08)).Border(1, cl.ColorAccent500)

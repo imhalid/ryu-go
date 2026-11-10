@@ -273,6 +273,14 @@ func Switch(c *ui.Context, on *bool, o SwitchOptions) ui.Element {
 		stretch := 4 * b2f(pressed)
 		w := track.Spring("w", 18+stretch, spring)
 		x := track.Spring("x", 16*b2f(*on)-stretch*b2f(*on), spring)
+		// as it turns, a small wave runs out through the track from where
+		// the knob goes
+		wave := ui.Local(track, "wave", func() toggleWave { return toggleWave{last: *on} })
+		if wave.last != *on {
+			wave.last = *on
+			wave.send(c, (2+9+16*b2f(*on))/38, 0.5)
+		}
+		wave.run(c, track, waveSmall)
 		track.Children(func() {
 			ui.Box(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).Radius(t.Pill(22)).
 				LinearGradient(t.accentFill()).Opacity(lit)
@@ -368,6 +376,15 @@ func Segmented(c *ui.Context, selected *int, labels []string, o SegmentedOptions
 		return tr
 	}
 	sb, tb := segs[sel].LayoutBounds(), tr.LayoutBounds()
+	// a new choice sends a small wave through the track from where the pill goes
+	wave := ui.Local(tr, "wave", func() toggleWave { return toggleWave{at: sel} })
+	if wave.at != sel {
+		wave.at = sel
+		if tb.W > 0 && tb.H > 0 {
+			wave.send(c, (sb.X-tb.X+sb.W/2)/tb.W, 0.5)
+		}
+	}
+	wave.run(c, tr, waveSmall)
 	if sb.W == 0 || tb.W == 0 {
 		segs[sel].LinearGradient(t.controlGradient(cl.ControlTop, cl.ControlBottom)).Border(0.5, cl.ControlBorder)
 		t.Shadows.ShadowRaised.Apply(segs[sel])
@@ -396,6 +413,14 @@ func Segmented(c *ui.Context, selected *int, labels []string, o SegmentedOptions
 		t.paintRaised(p, pr, inner, t.Shadows.ShadowRaised)
 	})
 	return tr
+}
+
+// toggleWave is a Switch's or a Segmented's wave, and the choice it last
+// showed: a change sends one.
+type toggleWave struct {
+	waveState
+	last bool
+	at   int
 }
 
 // springPill is how Segmented's pill slides: quick, with a hint of

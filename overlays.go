@@ -59,7 +59,14 @@ var (
 // by hand. A click on the scrim or Escape sets *open to false. The state
 // lives on a host element that takes no room.
 func presence(c *ui.Context, open *bool, enter, exit ui.Animation, build func(backdrop, panel ui.Element, p float32)) ui.Element {
+	return presenceWith(c, open, enter, func(ui.Element) ui.Animation { return exit }, build)
+}
+
+// presenceWith is presence with the exit chosen each frame by exitOf, from
+// state on the host (a Dialog burning away closes slower).
+func presenceWith(c *ui.Context, open *bool, enter ui.Animation, exitOf func(host ui.Element) ui.Animation, build func(backdrop, panel ui.Element, p float32)) ui.Element {
 	host := ui.Box(c).Absolute().Size(0, 0).PassThrough()
+	exit := exitOf(host)
 	shown := ui.Local(host, "shown", func() bool { return false })
 	if *open && !*shown {
 		*shown = true
@@ -111,12 +118,37 @@ func presence(c *ui.Context, open *bool, enter, exit ui.Animation, build func(ba
 //	}, func() { ui.Text(c, "This cannot be undone.") })
 func Dialog(c *ui.Context, open *bool, o DialogOptions, body func()) ui.Element {
 	t := From(c)
-	return presence(c, open, *springPanel, exitPanel, func(backdrop, panel ui.Element, p float32) {
-		backdrop.Padding(24, 16).Background(t.Colors.Scrim.Alpha(clamp01(p)))
+	var burn *burnState
+	exitOf := func(host ui.Element) ui.Animation {
+		burn = ui.Local(host, "burn", func() burnState { return burnState{} })
+		burn.closing(c, *open)
+		if burn.burning {
+			return ui.Animation{Duration: burnFor, Ease: ui.Linear}
+		}
+		return exitPanel
+	}
+	return presenceWith(c, open, *springPanel, exitOf, func(backdrop, panel ui.Element, p float32) {
+		scrim := clamp01(p)
+		if burn.burning {
+			// the scrim goes as the fire takes the card, not at once
+			scrim = clamp01((p - 0.3) / 0.7)
+		}
+		backdrop.Padding(24, 16).Background(t.Colors.Scrim.Alpha(scrim))
 		panel.Width(or(o.Width, 480)).MaxWidthPercent(100).MaxHeight(720)
+		// a Danger button pressed inside it arms its burn
+		prev := burnArm
+		burnArm = burn
 		card, head := t.panelContent(c, open, o, body, false, t.R(RadiusLg))
-		s := 0.94 + 0.06*p
-		card.Translate(0, 10*(1-p)).Scale(s, s).Opacity(clamp01(p))
+		burnArm = prev
+		if !burn.burning {
+			s := 0.94 + 0.06*p
+			card.Translate(0, 10*(1-p)).Scale(s, s).Opacity(clamp01(p))
+		}
+		// as it settles, one wide swell runs out from its middle
+		landWave(c, panel, card, open, 200*time.Millisecond, 0.5, 0.5)
+		if burn.burning {
+			burn.draw(c, t, card, time.Duration((1-p)*float32(burnFor)))
+		}
 		if !o.Fixed && head != (ui.Element{}) {
 			t.float(backdrop, panel, head)
 		}
@@ -200,7 +232,38 @@ func Sheet(c *ui.Context, open *bool, o DialogOptions, body func()) ui.Element {
 		panel.Width(w).MaxWidthPercent(100).FillHeight()
 		card, _ := t.panelContent(c, open, o, body, true, 0)
 		card.TransformOrigin(0, 0.5).Translate((w+24)*(1-p), 0).Rotate(2 * (1 - p))
+		// as it lands, one wide swell runs on from the edge that came in first
+		landWave(c, panel, card, open, 260*time.Millisecond, 0, 0.5)
 	})
+}
+
+// panelWave is when a Dialog's or a Sheet's panel opened, and whether it
+// has sent its wave.
+type panelWave struct {
+	waveState
+	opened time.Time
+	sent   bool
+}
+
+// landWave sends one wavePanel wave through card from (fx, fy), shares of
+// its box, after it has been open for `after`: as its spring settles, not
+// as it starts. The state lives on panel, which is built while the panel
+// shows; a panel opened again as it closes waves again.
+func landWave(c *ui.Context, panel, card ui.Element, open *bool, after time.Duration, fx, fy float32) {
+	st := ui.Local(panel, "wave", func() panelWave { return panelWave{} })
+	switch {
+	case !*open:
+		st.opened, st.sent = time.Time{}, false
+	case st.opened.IsZero():
+		st.opened = c.Now()
+		c.After(after)
+	case !st.sent && c.Now().Sub(st.opened) >= after:
+		st.sent = true
+		st.send(c, fx, fy)
+	case !st.sent:
+		c.After(after - c.Now().Sub(st.opened))
+	}
+	st.run(c, card, wavePanel)
 }
 
 // layer paints a floating panel: the card surface, the pop shadow.

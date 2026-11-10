@@ -89,6 +89,15 @@ func Button(c *ui.Context, label string, o ButtonOptions) ui.Element {
 	if o.Loading {
 		e.Cursor(ui.CursorDefault)
 	}
+	// a Danger button closing a Dialog burns it away from where it was pressed
+	if burnArm != nil && o.Danger && o.Color == (ui.Color{}) && e.Clicked() && !off {
+		b := e.LayoutBounds()
+		x, y := b.X+b.W/2, b.Y+b.H/2
+		if px, py, ok := e.PointerPosition(); ok && e.Hovered() {
+			x, y = b.X+px, b.Y+py
+		}
+		burnArm.arm(c, x, y)
+	}
 	if x, w, ok := ripple(c, e, s.pressed, e.Clicked() && !off); ok && t.sounds {
 		k := tonePlain
 		switch {
