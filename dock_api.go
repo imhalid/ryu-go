@@ -63,3 +63,66 @@ func (l *Layout) RemovePane(id string) bool {
 	}
 	return true
 }
+
+// DockTab is a pane as a tab, for an app that shows a Dock's tabs itself (DockOptions.NoHeaders): the pane, the
+// area it is in, and whether it is the one that area shows.
+type DockTab struct {
+	Pane  *Pane
+	Area  string
+	Shown bool
+}
+
+// Tabs are window's panes as tabs, its areas in order and each area's tabs in theirs; window "" is "main".
+//
+//	for _, tab := range layout.Tabs("") {
+//		if Button(c.Key(tab.Pane.ID), tab.Pane.Title, ButtonOptions{}).Clicked() {
+//			layout.ShowPane(tab.Pane.ID)
+//		}
+//	}
+func (l *Layout) Tabs(window string) []DockTab {
+	if window == "" {
+		window = "main"
+	}
+	var tabs []DockTab
+	for _, w := range l.Windows {
+		if w.ID != window {
+			continue
+		}
+		walk(w.Root, func(n *Node) {
+			for i, p := range n.Panes {
+				tabs = append(tabs, DockTab{Pane: p, Area: n.ID, Shown: i == n.Active})
+			}
+		})
+	}
+	return tabs
+}
+
+// ShowPane makes pane id the one its area shows, and gives that area the keyboard focus in the next frame of
+// the Dock that shows it, as a click on its tab does. It reports whether the layout has the pane. Not a step of
+// Undo, as choosing a tab is not.
+func (l *Layout) ShowPane(id string) bool {
+	a, i := l.paneAt(id)
+	if a == nil {
+		return false
+	}
+	a.Active = i
+	l.focusArea = a.ID
+	return true
+}
+
+// ClosePane closes pane id as its tab's close button does: a step of Undo, and an area it leaves without panes
+// folds away, its neighbor taking its room (a window's last area stays, empty). It reports whether the layout had
+// the pane. The Dock's OnChange does not run for it: the app that closed it saves the layout itself.
+func (l *Layout) ClosePane(id string) bool {
+	if !l.closePane(id) {
+		return false
+	}
+	for _, w := range l.Windows {
+		walk(w.Root, func(n *Node) {
+			if n.IsArea() && len(n.Panes) == 0 && n != w.Root {
+				defer l.removeArea(n.ID)
+			}
+		})
+	}
+	return true
+}

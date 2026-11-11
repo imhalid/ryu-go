@@ -31,6 +31,8 @@ type Layout struct {
 	travel  *dockTravel
 	opening map[string]bool
 	born    map[string]bool
+	// focusArea is the area ShowPane asks the Dock to give the focus to.
+	focusArea string
 }
 
 // dockTravel is a tab dragged out of its window: where the pointer is on
