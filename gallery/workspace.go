@@ -17,6 +17,8 @@ type workspacePage struct {
 	// runs in one (cmd/gallery); OnChange runs when the layout changed.
 	Host     mz.DockHost
 	OnChange func()
+	// Outside shows the tabs above the Dock, its areas without their headers (DockOptions.NoHeaders).
+	Outside bool
 }
 
 // layout is the workspace's layout, made the first time.
@@ -44,7 +46,7 @@ func (s *State) WindowView(id string) func(*ui.Context) {
 
 // dock is the Dock of window id of the workspace.
 func (w *workspacePage) dock(c *ui.Context, t *mz.Tokens, id string) ui.Element {
-	return mz.Dock(c.Key("dock"), w.layout(), mz.DockOptions{Window: id, Kinds: w.kinds(t.Colors), Host: w.Host, OnChange: w.OnChange})
+	return mz.Dock(c.Key("dock"), w.layout(), mz.DockOptions{Window: id, Kinds: w.kinds(t.Colors), Host: w.Host, OnChange: w.OnChange, NoHeaders: w.Outside})
 }
 
 // kinds are what the workspace's areas show.
@@ -121,7 +123,12 @@ func (w *workspacePage) view(c *ui.Context, t *mz.Tokens) {
 				if w.Saved != nil {
 					ui.Text(c, fmt.Sprintf("Saved, %d bytes", len(w.Saved))).FontSize(mz.FsSm).TextColor(cl.Muted)
 				}
+				ui.Box(c).Grow(1)
+				mz.Switch(c.Key("outside"), &w.Outside, mz.SwitchOptions{Label: "Tabs outside"})
 			})
+			if w.Outside {
+				w.outsideTabs(c, t)
+			}
 			ui.Box(c).FillWidth().Height(560).Children(func() {
 				w.dock(c, t, "main").Fill()
 			})
@@ -171,4 +178,30 @@ func code(cl mz.Colors) func(*ui.Context, *mz.Pane) {
 			})
 		})
 	}
+}
+
+// iconCloseTab is an outside tab's close button's icon.
+var iconCloseTab = mz.Svg(16, 14, "M4.5 4.5l7 7M11.5 4.5l-7 7")
+
+// outsideTabs are the main window's tabs, shown above the Dock rather than in its areas' headers: a click shows
+// the pane (Layout.ShowPane), its × closes it (Layout.ClosePane).
+func (w *workspacePage) outsideTabs(c *ui.Context, t *mz.Tokens) {
+	ui.Row(c.Key("outside-tabs")).Gap(6).AlignItems(ui.Center).Children(func() {
+		for _, tab := range w.Layout.Tabs("") {
+			p := tab.Pane
+			ui.Row(c.Key("tab:" + p.ID)).Gap(2).AlignItems(ui.Center).Children(func() {
+				o := mz.ButtonOptions{Size: mz.Sm}
+				if tab.Shown {
+					o.Color, o.Variant = t.Colors.Accent, mz.Soft
+				}
+				if mz.Button(c.Key("show"), p.Title, o).Clicked() {
+					w.Layout.ShowPane(p.ID)
+				}
+				if mz.Button(c.Key("close"), "Close "+p.Title, mz.ButtonOptions{Size: mz.Sm, Icon: iconCloseTab, IconOnly: true}).Clicked() {
+					w.Layout.ClosePane(p.ID)
+					w.changed()
+				}
+			})
+		}
+	})
 }

@@ -450,3 +450,41 @@ func TestDockEdgeSnap(t *testing.T) {
 		t.Fatalf("the left edge did not settle onto the right one: %v and %v (from %v, to %v, c %v)", left.Sizes, right.Sizes, y, want, c.Y)
 	}
 }
+
+// With the tabs outside, the areas have no headers; a tab above the Dock shows its pane, and its × closes it.
+func TestDockTabsOutside(t *testing.T) {
+	s, tt := workspaceTester()
+	editor := s.Work.Layout.Windows[0].Root.Children[1].Children[0]
+	if err := tt.Click("Tabs outside"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Advance(400 * time.Millisecond)
+	if !s.Work.Outside {
+		t.Fatal("the switch did not turn the tabs outside")
+	}
+	if _, ok := tt.Find("Close window"); ok {
+		t.Fatal("a header in the main window")
+	}
+	if _, ok := tt.Find("Maximize"); ok {
+		t.Fatal("the maximize button of a header in the main window")
+	}
+	if err := tt.Click("theme.go"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Advance(300 * time.Millisecond)
+	if editor.Active != 2 {
+		t.Fatalf("active %d, want theme.go (2)", editor.Active)
+	}
+	if err := tt.Click("Close theme.go"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Advance(300 * time.Millisecond)
+	if s.Work.Layout.FindPane(editor.Panes[min(editor.Active, len(editor.Panes)-1)].ID) == nil || len(editor.Panes) != 2 {
+		t.Fatalf("theme.go not closed: %d panes", len(editor.Panes))
+	}
+	for _, p := range editor.Panes {
+		if p.Title == "theme.go" {
+			t.Fatal("theme.go still there")
+		}
+	}
+}

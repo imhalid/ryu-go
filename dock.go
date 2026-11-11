@@ -35,6 +35,10 @@ type DockOptions struct {
 	// layout's windows open and close with it. ryu-go/dockwin makes one of
 	// MyGo's windows.
 	Host DockHost
+	// NoHeaders leaves the main window's areas without their headers (the kind's menu, the tabs, the maximize
+	// button): the pane fills its area, for an app that shows the tabs elsewhere, with Layout.Tabs, ShowPane and
+	// ClosePane. A window torn off keeps its headers: it has no other title bar. Ctrl+Space still maximizes.
+	NoHeaders bool
 	// Drop is something the app drags over the Dock from outside it (a row of a list), nil while
 	// nothing is: while it is held, the Dock shows where it would go as it does for a tab, the
 	// compass over the area under the pointer, the window's edge targets and the region it would

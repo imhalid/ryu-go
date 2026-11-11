@@ -62,10 +62,10 @@ func (d *dockView) surface(a ui.Element) ui.Element {
 // content builds what area n shows into a: its header and its pane, at in
 // (fading in); corners puts the corners that split and join on it.
 func (d *dockView) content(n *Node, a ui.Element, in float32, corners bool) {
-	c, st, t := d.c, d.st, d.t
-	cl := t.Colors
-	if st.focusTo == n.ID {
+	c, st := d.c, d.st
+	if st.focusTo == n.ID || d.l.focusArea == n.ID { // a step of the keys, or the app's ShowPane
 		st.focusTo = ""
+		d.l.focusArea = ""
 		a.Focus()
 	}
 	active := a.FocusWithin()
@@ -86,19 +86,9 @@ func (d *dockView) content(n *Node, a ui.Element, in float32, corners bool) {
 		}
 		p := n.Panes[min(n.Active, len(n.Panes)-1)]
 		kind := d.o.kind(p.Kind)
-		h := ui.Row(c.Key("header")).Height(headerH).Padding(0, 4).Gap(2).AlignItems(ui.Center).Shrink(0).
-			InsetShadow(0, -1, 0, 0, cl.Hairline.Alpha(in)).Opacity(in)
-		h.Children(func() {
-			if len(d.o.Kinds) > 1 { // one kind alone has nothing to choose
-				d.kindMenu(n, p, kind)
-			}
-			d.strip(n, active)
-			d.maxButton(n, h.Hovered())
-			// a window torn off has no title bar: its top right area closes it
-			if d.w.ID != "main" && d.o.Host != nil && topRight(d.w.Root) == n {
-				d.closeWindow()
-			}
-		})
+		if !d.o.NoHeaders || d.w.ID != "main" {
+			d.header(n, p, kind, active, in)
+		}
 		// another tab chosen, its pane fades in
 		body := ui.Column(c.Key(p.ID)).Grow(1).MinHeight(0).MinWidth(0).Opacity(in).
 			Transition(ui.ElementTransition{Duration: 160 * time.Millisecond, Ease: ui.EaseOut, Enter: &ui.Motion{}})
@@ -107,6 +97,24 @@ func (d *dockView) content(n *Node, a ui.Element, in float32, corners bool) {
 				kind.Build(c, p)
 			}
 		})
+	})
+}
+
+// header is area n's header, over pane p: the kind's menu, the tabs, the maximize button.
+func (d *dockView) header(n *Node, p *Pane, kind *DockKind, active bool, in float32) {
+	c, cl := d.c, d.t.Colors
+	h := ui.Row(c.Key("header")).Height(headerH).Padding(0, 4).Gap(2).AlignItems(ui.Center).Shrink(0).
+		InsetShadow(0, -1, 0, 0, cl.Hairline.Alpha(in)).Opacity(in)
+	h.Children(func() {
+		if len(d.o.Kinds) > 1 { // one kind alone has nothing to choose
+			d.kindMenu(n, p, kind)
+		}
+		d.strip(n, active)
+		d.maxButton(n, h.Hovered())
+		// a window torn off has no title bar: its top right area closes it
+		if d.w.ID != "main" && d.o.Host != nil && topRight(d.w.Root) == n {
+			d.closeWindow()
+		}
 	})
 }
 

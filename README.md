@@ -129,6 +129,12 @@ its holder, so it goes anywhere without losing what it shows.
   say where it would dock, and a region shows it. A right click splits the
   area with it, sends it to a window of its own, or closes it; a double
   click maximizes the area (Ctrl+Space too).
+- **Tabs elsewhere:** `DockOptions.NoHeaders` leaves the main window's
+  areas without their headers, and the app shows the tabs where it likes:
+  `Layout.Tabs` lists them (the area each is in, and whether it is the one
+  shown), `ShowPane` shows one and focuses its area, `ClosePane` closes one
+  as its × does (a step of Undo; an area left empty folds away). Windows
+  torn off keep their headers.
 - **Windows:** with a `DockHost` (`dockwin.New`, on MyGo's windows), a tab
   dragged out of the window tears off into a window of its own where it is
   let go, and docks into another window it is let go over. Windows torn
