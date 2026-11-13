@@ -929,12 +929,17 @@ func (f *tableFrame[R]) sortLight(head ui.Element) {
 	cl := f.t.Colors
 	var x, w float32
 	on := false
+	clipFrom := float32(0) // where the light may start: a scrolled column's goes under the pinned ones, not over them
+	scroll := float32(0)   // how far the column has scrolled: taken off after the slide, so the light follows the scroll at once
 	if len(f.s.Sort) > 0 {
 		if k := f.colIndex(f.s.Sort[0].Column); k >= 0 {
 			id := f.s.Sort[0].Column
 			x, w, on = f.base[id]+f.shift[id], f.widths[f.order[k]], true
 			if k >= f.pinned {
-				x -= f.s.scroll.X
+				scroll = f.s.scroll.X
+				if f.pinned > 0 {
+					clipFrom = f.lead + f.widths[f.order[0]]
+				}
 			}
 		}
 	}
@@ -954,6 +959,7 @@ func (f *tableFrame[R]) sortLight(head ui.Element) {
 	} else {
 		x, w = head.AnimateTo("light-x", x, springPill), head.AnimateTo("light-w", w, springPill)
 	}
+	x -= scroll
 	tone := cl.ColorAccent500
 	core := tone
 	if f.t.Dark {
@@ -972,14 +978,16 @@ func (f *tableFrame[R]) sortLight(head ui.Element) {
 	head.DrawOver(func(p *ui.Painter, r ui.Rect) {
 		// under the table's border, which is drawn over the header
 		x0, y0 := r.X+x, r.Y+1
-		// the glow: strips fading and narrowing as they go down
-		const strips, step = 9, 2
-		for i := range strips {
-			k := float32(i) / strips
-			inset := w * (0.1 + 0.2*k)
-			p.FillGradient(ui.Rect{X: x0 + inset, Y: y0 + float32(i*step), W: w - 2*inset, H: step}, band(tone, glow*a*(1-k)*(1-k)), 0)
-		}
-		p.FillGradient(ui.Rect{X: x0 + 8, Y: y0, W: w - 16, H: 1.5}, band(core, a), 0)
+		p.Clip(ui.Rect{X: r.X + clipFrom, Y: r.Y, W: max(0, r.W-clipFrom), H: r.H}, 0, func() {
+			// the glow: strips fading and narrowing as they go down
+			const strips, step = 9, 2
+			for i := range strips {
+				k := float32(i) / strips
+				inset := w * (0.1 + 0.2*k)
+				p.FillGradient(ui.Rect{X: x0 + inset, Y: y0 + float32(i*step), W: w - 2*inset, H: step}, band(tone, glow*a*(1-k)*(1-k)), 0)
+			}
+			p.FillGradient(ui.Rect{X: x0 + 8, Y: y0, W: w - 16, H: 1.5}, band(core, a), 0)
+		})
 	})
 }
 
