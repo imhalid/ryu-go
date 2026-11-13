@@ -316,7 +316,7 @@ func Segmented(c *ui.Context, selected *int, labels []string, o SegmentedOptions
 	parts := ui.SegmentedBase(c, selected, len(labels))
 	// the pill sits 3px inside the track, on the track's corners' centers
 	inner := Concentric(t.R(RadiusControl), 3)
-	tr := parts.Track.Height(m.ControlH).Padding(3).Radius(t.R(RadiusControl)).Background(cl.Well).AlignItems(ui.Stretch).Disabled(o.Disabled)
+	tr := parts.Track.Height(m.ControlH).Padding(3).Radius(t.R(RadiusControl)).Background(cl.Well).Border(1, segEdge(cl)).AlignItems(ui.Stretch).Disabled(o.Disabled)
 	if o.Label != "" {
 		tr.Label(o.Label)
 	}
@@ -386,7 +386,7 @@ func Segmented(c *ui.Context, selected *int, labels []string, o SegmentedOptions
 	}
 	wave.run(c, tr, waveSmall)
 	if sb.W == 0 || tb.W == 0 {
-		segs[sel].LinearGradient(t.controlGradient(cl.ControlTop, cl.ControlBottom)).Border(1, segEdge(cl))
+		segs[sel].LinearGradient(t.controlGradient(cl.ControlTop, cl.ControlBottom)).Border(0.5, cl.ControlBorder)
 		t.Shadows.ShadowRaised.Apply(segs[sel])
 		return tr
 	}
@@ -411,9 +411,6 @@ func Segmented(c *ui.Context, selected *int, labels []string, o SegmentedOptions
 	tr.Draw(func(p *ui.Painter, r ui.Rect) {
 		pr := ui.Rect{X: r.X + pill.X, Y: r.Y + pill.Y, W: pill.W, H: pill.H}
 		t.paintRaised(p, pr, inner, t.Shadows.ShadowRaised)
-		// a firmer edge than the raised material's hairline, so the choice stands apart
-		// from the track in every theme
-		p.Stroke(pr, segEdge(cl), inner, 1)
 	})
 	return tr
 }
@@ -574,8 +571,9 @@ func Slider(c *ui.Context, value *float64, lo, hi float64, o SliderOptions) ui.E
 	return s
 }
 
-// segEdge is the edge of Segmented's chosen pill: the control's border, drawn
-// toward the text so it shows on the track in light and dark themes alike.
+// segEdge is the edge around Segmented's track: the control's border, drawn
+// toward the text, so the group reads as one control on any ground, in light
+// and dark themes alike.
 func segEdge(cl Colors) ui.Color {
 	return Mix(cl.ControlBorder, cl.Text, 0.2)
 }
