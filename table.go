@@ -149,6 +149,9 @@ type TableOptions[R any] struct {
 	//		app.tasks = slices.Insert(slices.Delete(app.tasks, from, from+1), to, t)
 	//	},
 	Reorder func(from, to int)
+	// Striped tints every other row a little, so a long row is followed across
+	// the table more easily.
+	Striped bool
 	// Labels are the table's words, for an app in another language.
 	Labels TableLabels
 }
@@ -1587,6 +1590,9 @@ func (f *tableFrame[R]) row(n int, y float32, moved bool, viewW, viewH float32) 
 			o.Row(line, r)
 		}
 		bg := f.rowBg(chosen, line.Hovered())
+		if o.Striped && n%2 == 1 {
+			bg = Mix(bg, cl.Text, 0.035)
+		}
 		line.Background(bg).InsetShadow(0, -1, 0, 0, cl.Hairline)
 		if f.focus && n == s.cursor {
 			line.InsetShadow(0, 0, 0, 1.5, cl.ColorAccent500.Alpha(0.55))

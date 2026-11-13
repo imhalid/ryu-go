@@ -386,7 +386,7 @@ func Segmented(c *ui.Context, selected *int, labels []string, o SegmentedOptions
 	}
 	wave.run(c, tr, waveSmall)
 	if sb.W == 0 || tb.W == 0 {
-		segs[sel].LinearGradient(t.controlGradient(cl.ControlTop, cl.ControlBottom)).Border(0.5, cl.ControlBorder)
+		segs[sel].LinearGradient(t.controlGradient(cl.ControlTop, cl.ControlBottom)).Border(1, segEdge(cl))
 		t.Shadows.ShadowRaised.Apply(segs[sel])
 		return tr
 	}
@@ -411,6 +411,9 @@ func Segmented(c *ui.Context, selected *int, labels []string, o SegmentedOptions
 	tr.Draw(func(p *ui.Painter, r ui.Rect) {
 		pr := ui.Rect{X: r.X + pill.X, Y: r.Y + pill.Y, W: pill.W, H: pill.H}
 		t.paintRaised(p, pr, inner, t.Shadows.ShadowRaised)
+		// a firmer edge than the raised material's hairline, so the choice stands apart
+		// from the track in every theme
+		p.Stroke(pr, segEdge(cl), inner, 1)
 	})
 	return tr
 }
@@ -569,4 +572,10 @@ func Slider(c *ui.Context, value *float64, lo, hi float64, o SliderOptions) ui.E
 			TextAlign(ui.End).Width(w).Shrink(0)
 	})
 	return s
+}
+
+// segEdge is the edge of Segmented's chosen pill: the control's border, drawn
+// toward the text so it shows on the track in light and dark themes alike.
+func segEdge(cl Colors) ui.Color {
+	return Mix(cl.ControlBorder, cl.Text, 0.2)
 }
