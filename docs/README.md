@@ -57,6 +57,7 @@ happened (`Clicked`, `Changed`). Give repeated components keys with
 
 - [Button](button.md): one kind of raised pill, in any color, fill and size.
 - [Copy button](copy-button.md): a round button that copies text, a check drawing itself in reply.
+- [Split button](split-button.md): an action joined to an arrow that opens a menu of its variants.
 - [Input](input.md): the inset text field, with icons, affixes, clearing and passwords.
 - [Select](select.md): a choice from a list on glass, without search.
 - [Field](field.md): a label, a control and its help or error, shaking when asked.

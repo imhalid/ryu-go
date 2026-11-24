@@ -71,7 +71,7 @@ The tokens are Go values in [tokens.go](tokens.go), written in OKLCH.
 
 | Group | Components |
 | --- | --- |
-| Controls | `Button`, `CopyButton`, `Input`, `Select`, `Field`, `Card` |
+| Controls | `Button`, `CopyButton`, `SplitButton`, `Input`, `Select`, `Field`, `Card` |
 | Selection | `Checkbox`, `Radio`, `Choice`, `Switch`, `Segmented`, `Slider` |
 | Forms | `Textarea`, `NumberInput`, `Combobox`, `DatePicker`, `TagInput` |
 | Navigation | `Tabs`, `TabPanel`, `Link` |

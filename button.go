@@ -46,7 +46,6 @@ type ButtonOptions struct {
 func Button(c *ui.Context, label string, o ButtonOptions) ui.Element {
 	t := sizedFrom(c, o.Size)
 	m := t.Metrics
-	cl := t.Colors
 
 	e := ui.ButtonBase(c).Label(label).Center().Height(m.BtnH).Gap(m.BtnGap).Radius(t.Pill(m.BtnH)).Cursor(ui.CursorPointer)
 	if o.IconOnly {
@@ -61,31 +60,7 @@ func Button(c *ui.Context, label string, o ButtonOptions) ui.Element {
 	e.Disabled(o.Disabled)
 	s := raisedState{hovered: e.Hovered() && !off, pressed: e.Pressed() && !off, focus: e.FocusVisible(), disabled: o.Disabled}
 
-	tint := o.Color
-	solid := o.Variant == Solid
-	if tint == (ui.Color{}) && o.Danger {
-		tint = cl.Up
-		solid = o.Variant != Soft
-	}
-	text := cl.Text
-	switch {
-	case tint == (ui.Color{}):
-		t.raised(e, t.controlGradient(cl.ControlTop, cl.ControlBottom), cl.ControlBorder, t.Shadows.ControlShadow, s)
-	case solid:
-		// the fill's lightness is capped in OKLCH (top 0.52, bottom 0.46): hue
-		// and chroma stay, and white text reads at ≥ 4.5:1
-		top := capLightness(tint, 0.52)
-		bottom := capLightness(lighten(tint, -0.06), 0.46)
-		g := ui.LinearGradient{Angle: 180, Oklab: true, From: top, To: bottom}
-		sh := t.Shadows.Sheen.With(ShadowLayer{Y: 1, Blur: 2, Color: Mix(tint, ui.Color{}, 0.55)})
-		t.raised(e, g, Mix(bottom, oklch(0, 0, 0, 1), 0.2), sh, s)
-		text = cl.OnAccent
-	default:
-		g := t.controlGradient(Mix(cl.ControlTop, tint, 0.1), Mix(cl.ControlBottom, tint, 0.2))
-		t.raised(e, g, Mix(cl.ControlBorder, tint, 0.32), t.Shadows.ControlShadow, s)
-		// half the color, half the text color: ≥ 4.5:1 in both themes
-		text = Mix(cl.Text, tint, 0.5)
-	}
+	text, solid := t.buttonFace(e, o.Color, o.Variant, o.Danger, s)
 	if o.Loading {
 		e.Cursor(ui.CursorDefault)
 	}
@@ -127,6 +102,37 @@ func Button(c *ui.Context, label string, o ButtonOptions) ui.Element {
 // sizedFrom gives the scope's tokens at the component's own size step (the
 // component's Size overrides the inherited one). It builds no wrapper
 // element: c's key (c.Key) stays with the component's own element.
+// buttonFace paints e as a button of color tint and variant (Danger, with no tint: in the Up color, Solid by
+// default), in state s, and gives the color of its label and whether it is solid.
+func (t *Tokens) buttonFace(e ui.Element, tint ui.Color, variant Variant, danger bool, s raisedState) (text ui.Color, solid bool) {
+	cl := t.Colors
+	solid = variant == Solid
+	if tint == (ui.Color{}) && danger {
+		tint = cl.Up
+		solid = variant != Soft
+	}
+	text = cl.Text
+	switch {
+	case tint == (ui.Color{}):
+		t.raised(e, t.controlGradient(cl.ControlTop, cl.ControlBottom), cl.ControlBorder, t.Shadows.ControlShadow, s)
+	case solid:
+		// the fill's lightness is capped in OKLCH (top 0.52, bottom 0.46): hue
+		// and chroma stay, and white text reads at ≥ 4.5:1
+		top := capLightness(tint, 0.52)
+		bottom := capLightness(lighten(tint, -0.06), 0.46)
+		g := ui.LinearGradient{Angle: 180, Oklab: true, From: top, To: bottom}
+		sh := t.Shadows.Sheen.With(ShadowLayer{Y: 1, Blur: 2, Color: Mix(tint, ui.Color{}, 0.55)})
+		t.raised(e, g, Mix(bottom, oklch(0, 0, 0, 1), 0.2), sh, s)
+		text = cl.OnAccent
+	default:
+		g := t.controlGradient(Mix(cl.ControlTop, tint, 0.1), Mix(cl.ControlBottom, tint, 0.2))
+		t.raised(e, g, Mix(cl.ControlBorder, tint, 0.32), t.Shadows.ControlShadow, s)
+		// half the color, half the text color: ≥ 4.5:1 in both themes
+		text = Mix(cl.Text, tint, 0.5)
+	}
+	return text, solid
+}
+
 func sizedFrom(c *ui.Context, s Size) *Tokens {
 	if s == SizeInherit {
 		return From(c)

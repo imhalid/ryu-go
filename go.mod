@@ -2,7 +2,7 @@ module github.com/imhalid/ryu-go
 
 go 1.27.3
 
-require github.com/egoist/mygo v0.7.4
+require github.com/egoist/mygo v0.10.1-0.20261124041827-c16fc5b6d8ed
 
 require (
 	github.com/ebitengine/purego v0.11.1 // indirect
