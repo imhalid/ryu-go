@@ -50,6 +50,13 @@ func init() {
 		})
 	})
 
+	demo("split-button", func(c *ui.Context, t *mz.Tokens) {
+		ui.Row(c).Gap(mz.GapControl).AlignItems(ui.Center).Children(func() {
+			mz.SplitButton(c.Key("new"), "New page", mz.SplitButtonOptions{Color: t.Colors.Accent, MenuLabel: "From a template"})
+			mz.SplitButton(c.Key("save"), "Save", mz.SplitButtonOptions{MenuLabel: "Save as"})
+		})
+	})
+
 	query, email, pass := "", "ada@", "secret"
 	demo("input", func(c *ui.Context, t *mz.Tokens) {
 		ui.Column(c).Gap(12).Width(320).Children(func() {
