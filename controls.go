@@ -11,9 +11,9 @@ import (
 // accent gradient when selected; knobs (Switch, Slider) are white discs
 // sitting on the well.
 
-// accentFill is the fill of a selection mark (CSS --accent-fill).
+// accentFill is the fill of a selection mark (CSS --accent-fill), blended in OKLCH.
 func (t *Tokens) accentFill() ui.LinearGradient {
-	return ui.LinearGradient{Angle: 180, Oklab: true, From: t.Colors.ColorAccent500, To: t.Colors.ColorAccent600}
+	return InOklch(ui.LinearGradient{Angle: 180, From: t.Colors.ColorAccent500, To: t.Colors.ColorAccent600})
 }
 
 // mark paints the box of Checkbox and Radio: a well when empty; when

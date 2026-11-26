@@ -152,9 +152,9 @@ func listFade(c *ui.Context, t *Tokens, bottom bool, past float32) {
 	}
 	tint := t.Colors.Pop
 	e.Draw(func(p *ui.Painter, r ui.Rect) {
-		p.FillGradient(r, ui.LinearGradient{Angle: angle, Oklab: true, Stops: []ui.GradientStop{
+		p.FillGradient(r, InOklch(ui.LinearGradient{Angle: angle, Stops: []ui.GradientStop{
 			{Color: tint.Alpha(0.95 * shown), At: 0}, {Color: tint.Alpha(0), At: 1},
-		}}, 0)
+		}}), 0)
 	})
 }
 

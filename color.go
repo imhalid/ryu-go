@@ -38,19 +38,22 @@ func Brightness(c ui.Color, f float32) ui.Color {
 
 // capLightness is CSS's oklch(from c min(l, maxL) c h): hue and chroma stay,
 // and the color darkens only if it is lighter than maxL. It is the lightness
-// limit at which white text stays readable on a solid button.
+// limit at which white text stays readable on a solid button. A chroma the
+// darker color cannot have in sRGB is lowered until it can, the hue kept, as
+// CSS maps a color into the gamut; clipped, the hue turned.
 func capLightness(c ui.Color, maxL float64) ui.Color {
-	l, a, b := toOklab(c)
+	l, ch, h := toOklch(c)
 	if l <= maxL {
 		return c
 	}
-	return fromOklab(maxL, a, b, float64(c.A)/255)
+	return fromOklch(maxL, ch, h, float64(c.A)/255)
 }
 
-// lighten adds d to the oklab lightness (oklch(from c calc(l + d) c h)).
+// lighten adds d to the OKLCH lightness (oklch(from c calc(l + d) c h)),
+// mapped into the gamut as capLightness is.
 func lighten(c ui.Color, d float64) ui.Color {
-	l, a, b := toOklab(c)
-	return fromOklab(max(0, min(l+d, 1)), a, b, float64(c.A)/255)
+	l, ch, h := toOklch(c)
+	return fromOklch(max(0, min(l+d, 1)), ch, h, float64(c.A)/255)
 }
 
 func toOklab(c ui.Color) (l, a, b float64) {

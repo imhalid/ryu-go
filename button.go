@@ -120,7 +120,7 @@ func (t *Tokens) buttonFace(e ui.Element, tint ui.Color, variant Variant, danger
 		// and chroma stay, and white text reads at ≥ 4.5:1
 		top := capLightness(tint, 0.52)
 		bottom := capLightness(lighten(tint, -0.06), 0.46)
-		g := ui.LinearGradient{Angle: 180, Oklab: true, From: top, To: bottom}
+		g := InOklch(ui.LinearGradient{Angle: 180, From: top, To: bottom})
 		sh := t.Shadows.Sheen.With(ShadowLayer{Y: 1, Blur: 2, Color: Mix(tint, ui.Color{}, 0.55)})
 		t.raised(e, g, Mix(bottom, oklch(0, 0, 0, 1), 0.2), sh, s)
 		text = cl.OnAccent
