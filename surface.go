@@ -20,11 +20,11 @@ type raisedState struct {
 // the darkest band is at 72% and the bottom edge lightens a little again
 // (reflected light).
 func (t *Tokens) controlGradient(top, bottom ui.Color) ui.LinearGradient {
-	return ui.LinearGradient{Angle: 180, Oklab: true, Stops: []ui.GradientStop{
+	return InOklch(ui.LinearGradient{Angle: 180, Stops: []ui.GradientStop{
 		{Color: top, At: 0},
 		{Color: bottom, At: 0.72},
 		{Color: Mix(bottom, top, 0.45), At: 1},
-	}}
+	}})
 }
 
 // over puts a translucent a over an opaque b.

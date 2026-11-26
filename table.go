@@ -966,10 +966,10 @@ func (f *tableFrame[R]) sortLight(head ui.Element) {
 		core = Mix(tone, ui.RGB(255, 255, 255), 0.45)
 	}
 	band := func(c ui.Color, alpha float32) ui.LinearGradient {
-		return ui.LinearGradient{Angle: 90, Oklab: true, Stops: []ui.GradientStop{
+		return InOklch(ui.LinearGradient{Angle: 90, Stops: []ui.GradientStop{
 			{Color: c.Alpha(0), At: 0}, {Color: c.Alpha(alpha * 0.6), At: 0.25}, {Color: c.Alpha(alpha), At: 0.5},
 			{Color: c.Alpha(alpha * 0.6), At: 0.75}, {Color: c.Alpha(0), At: 1},
-		}}
+		}})
 	}
 	glow := float32(0.09)
 	if f.t.Dark {
@@ -2008,11 +2008,11 @@ func (f *tableFrame[R]) paintEdgeFade(p *ui.Painter, r ui.Rect, left, right floa
 		if f.pinned > 0 && len(f.order) > 0 {
 			x += f.lead + f.widths[f.order[0]]
 		}
-		p.FillGradient(ui.Rect{X: x, Y: r.Y, W: tableFadeW, H: r.H}, ui.LinearGradient{Angle: 90, Oklab: true,
-			Stops: []ui.GradientStop{{Color: bg.Alpha(left), At: 0}, {Color: bg.Alpha(0), At: 1}}}, 0)
+		p.FillGradient(ui.Rect{X: x, Y: r.Y, W: tableFadeW, H: r.H}, InOklch(ui.LinearGradient{Angle: 90,
+			Stops: []ui.GradientStop{{Color: bg.Alpha(left), At: 0}, {Color: bg.Alpha(0), At: 1}}}), 0)
 	}
 	if right > 0.01 {
-		p.FillGradient(ui.Rect{X: r.X + r.W - tableFadeW, Y: r.Y, W: tableFadeW, H: r.H}, ui.LinearGradient{Angle: 90, Oklab: true,
-			Stops: []ui.GradientStop{{Color: bg.Alpha(0), At: 0}, {Color: bg.Alpha(right), At: 1}}}, 0)
+		p.FillGradient(ui.Rect{X: r.X + r.W - tableFadeW, Y: r.Y, W: tableFadeW, H: r.H}, InOklch(ui.LinearGradient{Angle: 90,
+			Stops: []ui.GradientStop{{Color: bg.Alpha(0), At: 0}, {Color: bg.Alpha(right), At: 1}}}), 0)
 	}
 }

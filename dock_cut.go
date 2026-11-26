@@ -288,7 +288,7 @@ func sparks(p *ui.Painter, vertical bool, pos, perp, from, to, f, shown float32,
 			angle += 180
 		}
 		grad := func(a float32) ui.LinearGradient {
-			return ui.LinearGradient{From: light.Alpha(0), To: light.Alpha(a * fade), Angle: angle, Oklab: true}
+			return InOklch(ui.LinearGradient{From: light.Alpha(0), To: light.Alpha(a * fade), Angle: angle})
 		}
 		p.FillGradient(bar(lo, hi, 8), grad(0.2), 4)
 		p.FillGradient(bar(lo, hi, 2), grad(1), 1)

@@ -107,7 +107,7 @@ func Kbd(c *ui.Context, keys ...string) ui.Element {
 	return ui.Row(c).AlignItems(ui.Center).Gap(0.3 * fs).Children(func() {
 		for _, k := range keys {
 			e := ui.Box(c).Center().MinWidth(1.8*fs).Height(1.8*fs).Padding(0, 0.45*fs).Radius(0.4*fs).
-				LinearGradient(ui.LinearGradient{Angle: 180, Oklab: true, From: cl.ControlTop, To: cl.ControlBottom}).
+				LinearGradient(InOklch(ui.LinearGradient{Angle: 180, From: cl.ControlTop, To: cl.ControlBottom})).
 				Border(0.5, cl.ControlBorder)
 			t.Shadows.ControlShadow.Apply(e)
 			e.Children(func() {

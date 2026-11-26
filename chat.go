@@ -151,7 +151,7 @@ func bubble(c *ui.Context, t *Tokens, mine, tail bool) ui.Element {
 		// same as the solid button: lightness capped at 0.52/0.46, so white text stays legible
 		top := capLightness(cl.Accent, 0.52)
 		bottom := capLightness(lighten(cl.Accent, -0.06), 0.46)
-		b.LinearGradient(ui.LinearGradient{Angle: 180, Oklab: true, From: top, To: bottom}).TextColor(cl.OnAccent)
+		b.LinearGradient(InOklch(ui.LinearGradient{Angle: 180, From: top, To: bottom})).TextColor(cl.OnAccent)
 		t.Shadows.Sheen.With(ShadowLayer{Y: 1, Blur: 2, Color: Mix(cl.Accent, ui.Color{}, 0.55)}).Apply(b)
 	} else {
 		b.Background(cl.Surface2).Border(1, cl.Hairline).TextColor(cl.Text)
@@ -287,7 +287,7 @@ func Composer(c *ui.Context, value *string, o ComposerOptions) bool {
 		off := empty || o.Disabled
 		top := capLightness(cl.Accent, 0.52)
 		bottom := capLightness(lighten(cl.Accent, -0.06), 0.46)
-		g := ui.LinearGradient{Angle: 180, Oklab: true, From: top, To: bottom}
+		g := InOklch(ui.LinearGradient{Angle: 180, From: top, To: bottom})
 		sh := t.Shadows.Sheen.With(ShadowLayer{Y: 1, Blur: 2, Color: Mix(cl.Accent, ui.Color{}, 0.55)})
 		t.raised(send, g, Mix(bottom, oklch(0, 0, 0, 1), 0.2), sh,
 			raisedState{hovered: send.Hovered() && !off, pressed: send.Pressed() && !off, focus: send.FocusVisible(), disabled: off})

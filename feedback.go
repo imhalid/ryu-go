@@ -41,7 +41,7 @@ func Progress(c *ui.Context, value float64, o ProgressOptions) ui.Element {
 	t := sizedFrom(c, o.Size)
 	fill := t.accentFill()
 	if o.Color != (ui.Color{}) {
-		fill = ui.LinearGradient{Angle: 180, Oklab: true, From: o.Color, To: lighten(o.Color, -0.06)}
+		fill = InOklch(ui.LinearGradient{Angle: 180, From: o.Color, To: lighten(o.Color, -0.06)})
 	}
 	value = min(value, 1)
 	text := ""
@@ -93,7 +93,7 @@ func Meter(c *ui.Context, value, lo, hi float64, o MeterOptions) ui.Element {
 	if o.Format != nil {
 		text = o.Format(value)
 	}
-	fill := ui.LinearGradient{Angle: 180, Oklab: true, From: tone, To: lighten(tone, -0.06)}
+	fill := InOklch(ui.LinearGradient{Angle: 180, From: tone, To: lighten(tone, -0.06)})
 	return t.bar(c, o.Label, text, frac, fill, false, func(e ui.Element) {
 		e.Role(ui.RoleMeter).Range(lo, hi, value)
 	})
@@ -164,9 +164,9 @@ func (t *Tokens) finish(c *ui.Context, well ui.Element, full bool) {
 	}
 	light := t.Colors.OnAccent.Alpha(0.55)
 	ui.Box(c).Absolute().Top(0).Bottom(0).WidthPercent(30).LeftPercent(-30 + 130*p).PassThrough().
-		LinearGradient(ui.LinearGradient{Angle: 90, Oklab: true, Stops: []ui.GradientStop{
+		LinearGradient(InOklch(ui.LinearGradient{Angle: 90, Stops: []ui.GradientStop{
 			{Color: light.Alpha(0), At: 0}, {Color: light, At: 0.5}, {Color: light.Alpha(0), At: 1},
-		}})
+		}}))
 }
 
 // SpinnerOptions are the options of Spinner.
@@ -220,10 +220,10 @@ func Skeleton(c *ui.Context, w, h float32) ui.Element {
 	}
 	sheen := cl.Surface.Alpha(0.5)
 	return e.Children(func() {
-		s := ui.Box(c).Absolute().Top(0).Bottom(0).WidthPercent(60).LinearGradient(ui.LinearGradient{
-			Angle: 90, Oklab: true, Stops: []ui.GradientStop{
+		s := ui.Box(c).Absolute().Top(0).Bottom(0).WidthPercent(60).LinearGradient(InOklch(ui.LinearGradient{
+			Angle: 90, Stops: []ui.GradientStop{
 				{Color: sheen.Alpha(0), At: 0}, {Color: sheen, At: 0.5}, {Color: sheen.Alpha(0), At: 1},
-			}})
+			}}))
 		p := s.Keyframes("sheen", []ui.Keyframe{{At: 0, Value: 0}, {At: 1600 * time.Millisecond, Value: 1, Ease: ui.EaseInOut}},
 			ui.KeyframeOptions{Repeat: ui.RepeatForever, RepeatDelay: 200 * time.Millisecond})
 		s.LeftPercent(-60 + 160*p)

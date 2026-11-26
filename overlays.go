@@ -355,9 +355,9 @@ func (t *Tokens) scrollEdge(c *ui.Context, bottom bool, past float32) {
 	e.Opacity(e.AnimateTo("show", clamp01(past/24), ui.Animation{Duration: 120 * time.Millisecond}))
 	card := t.Colors.Card
 	e.Draw(func(p *ui.Painter, r ui.Rect) {
-		p.FillGradient(r, ui.LinearGradient{Angle: angle, Oklab: true, Stops: []ui.GradientStop{
+		p.FillGradient(r, InOklch(ui.LinearGradient{Angle: angle, Stops: []ui.GradientStop{
 			{Color: card.Alpha(0.97), At: 0}, {Color: card.Alpha(0.7), At: 0.35}, {Color: card.Alpha(0), At: 1},
-		}}, 0)
+		}}), 0)
 	})
 }
 
@@ -793,8 +793,8 @@ func (t *Tokens) toast(c *ui.Context, p ui.ToastParts, tt ui.Toast, shown bool) 
 			}
 		}
 		pt.Fill(b, cl.Surface.Alpha(0.86), t.R(RadiusPop))
-		pt.FillRadialGradient(b, ui.RadialGradient{Center: ui.Point{X: 0.001, Y: 0.001}, Radius: b.W * 0.7, Oklab: true,
-			Stops: []ui.GradientStop{{Color: tint, At: 0}, {Color: tint.Alpha(0), At: 1}}}, t.R(RadiusPop))
+		pt.FillRadialGradient(b, RadialInOklch(ui.RadialGradient{Center: ui.Point{X: 0.001, Y: 0.001}, Radius: b.W * 0.7,
+			Stops: []ui.GradientStop{{Color: tint, At: 0}, {Color: tint.Alpha(0), At: 1}}}), t.R(RadiusPop))
 	})
 	vis := r.AnimateTo("shown", b2f(shown), stackSpring)
 	if beaming {
@@ -928,10 +928,10 @@ func (t *Tokens) beam(f float32, tone ui.Color) (ring, glow ui.ConicGradient, ok
 		}
 	}
 	gap := func(a, b float32) []ui.GradientStop { return []ui.GradientStop{at(tone, 0, a), at(tone, 0, b)} }
-	ring = ui.ConicGradient{Angle: from, Oklab: true, Stops: slices.Concat(
-		gap(0, 0.02), ringBand(0.16), gap(0.3, 0.52), ringBand(0.66), gap(0.8, 1))}
-	glow = ui.ConicGradient{Angle: from, Oklab: true, Stops: slices.Concat(
-		glowBand(0.16), gap(0.34, 0.48), glowBand(0.66), gap(0.84, 1))}
+	ring = ConicInOklch(ui.ConicGradient{Angle: from, Stops: slices.Concat(
+		gap(0, 0.02), ringBand(0.16), gap(0.3, 0.52), ringBand(0.66), gap(0.8, 1))})
+	glow = ConicInOklch(ui.ConicGradient{Angle: from, Stops: slices.Concat(
+		glowBand(0.16), gap(0.34, 0.48), glowBand(0.66), gap(0.84, 1))})
 	return ring, glow, true
 }
 
